@@ -43,6 +43,8 @@ INSTALLED_APPS = [
     'shifts.apps.ShiftsConfig',
     'incidents.apps.IncidentsConfig',
     'users.apps.UsersConfig',
+    'rest_framework',
+    'drf_yasg',
 ]
 
 MIDDLEWARE = [
@@ -60,11 +62,12 @@ ROOT_URLCONF = 'hotelbackend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
+        'DIRS': [],  
+        'APP_DIRS': True,  
         'OPTIONS': {
             'context_processors': [
-                'django.template.context_processors.request',
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',  
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
@@ -129,3 +132,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 AUTH_USER_MODEL = 'users.User'
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',  
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ],
+}

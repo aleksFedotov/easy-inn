@@ -1,5 +1,51 @@
-venv/
-*.pyc
+# Python
 __pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual env
+venv/
+env/
+.venv/
+.env/
+
+# Django
+*.log
+*.pot
+*.pyc
 db.sqlite3
-.envs
+media/
+staticfiles/
+local_settings.py
+
+# Django migrations
+*/migrations/__pycache__/
+*/migrations/*.py[cod]
+*/migrations/*.py
+!*/migrations/__init__.py 
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# dotenv
+.env
+.env.*
+
+# pytest
+.cache/
+.coverage
+htmlcov/
+
+# MyPy / Pylint
+.mypy_cache/
+.pytest_cache/
+pylint-report.txt

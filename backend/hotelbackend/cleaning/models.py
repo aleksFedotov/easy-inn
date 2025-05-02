@@ -2,7 +2,7 @@ from django.db import models
 from hotel.models import Room
 from users.models import User
 from booking.models import Booking
-from hotel.models import CleaningChecklistTemplate, ChecklistItemTemplate
+from hotel.models import CleaningChecklistTemplate
 from django.core.exceptions import ValidationError
 
 # Create your models here.
@@ -40,7 +40,7 @@ class CleaningTask(models.Model):
 
 class CleaningCheck(models.Model):
     STATUS_CHOICES = (
-        ('approved', 'Готов в заселению'),
+        ('approved', 'Готов к заселению'),
         ('needs_rework', 'Нужно доработать'),
     )
     cleaning_task = models.ForeignKey(CleaningTask, on_delete=models.CASCADE)
@@ -65,6 +65,8 @@ class CleaningCheck(models.Model):
                 )
                 
 class ChecklistItemTemplate(models.Model):
+    class Meta:
+        ordering = ['order']
     template = models.ForeignKey(CleaningChecklistTemplate, on_delete=models.CASCADE, related_name='items')
     text = models.CharField(max_length=255)
     order = models.PositiveIntegerField(default=0)
@@ -74,7 +76,7 @@ class ChecklistItemTemplate(models.Model):
 
 
 class CleaningCheckItem(models.Model):
-    check = models.ForeignKey(CleaningCheck, on_delete=models.CASCADE, related_name='items')
+    cleaning_check  = models.ForeignKey(CleaningCheck, on_delete=models.CASCADE, related_name='items')
     template_item = models.ForeignKey(ChecklistItemTemplate, on_delete=models.SET_NULL, null=True)
     is_passed = models.BooleanField(default=False)
     comment = models.TextField(blank=True, null=True)
@@ -82,4 +84,6 @@ class CleaningCheckItem(models.Model):
     def __str__(self):
         status = "✓" if self.is_passed else "✗"
         return f'{status} {self.template_item.text if self.template_item else "Пункт удалён"}'
+
+
 

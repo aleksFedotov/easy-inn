@@ -49,12 +49,3 @@ class CleaningChecklistTemplate(models.Model):
         return self.name
     
 
-class ChecklistItemTemplate(models.Model):
-    class Meta:
-        ordering = ['order']
-    template = models.ForeignKey(CleaningChecklistTemplate, on_delete=models.CASCADE, related_name='items')
-    text = models.CharField(max_length=255)
-    order = models.PositiveIntegerField(default=0)
-
-    def __str__(self):
-        return self.text
