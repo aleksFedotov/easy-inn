@@ -24,3 +24,14 @@ class BookingSerializer(serializers.ModelSerializer):
 
     def get_duration(self, obj):
         return obj.duration()
+    
+    def validate(self, attrs):
+       
+        if self.instance:
+            # Partial update — создаём копию с обновлёнными полями
+            for field in ['room', 'check_in', 'check_out', 'guest_count']:
+                if field not in attrs and hasattr(self.instance, field):
+                    attrs[field] = getattr(self.instance, field)
+        instance = Booking(**attrs)
+        instance.full_clean()
+        return attrs

@@ -48,7 +48,7 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
 
-        read_only_fields = ['created_at','updated_at','assigned_to']
+        read_only_fields = ['created_at','updated_at']
 
 
 class CleaningCheckSerializer(serializers.ModelSerializer):

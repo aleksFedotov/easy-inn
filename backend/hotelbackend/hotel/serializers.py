@@ -38,5 +38,4 @@ class CleaningChecklistTemplateSerializer(serializers.ModelSerializer):
             'created_by', 
             'is_active',
         ]
-        read_only_fields = ['created_by']
-
+       

@@ -23,6 +23,7 @@ class CleaningCheckItemInline(admin.TabularInline):
     extra = 0
     fields = ('template_item', 'is_passed', 'comment')
     readonly_fields = ('template_item',)  
+    
 @admin.register(CleaningCheck)
 class CleaningCheckAdmin(admin.ModelAdmin):
     list_display = (

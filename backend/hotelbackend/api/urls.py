@@ -27,7 +27,7 @@ router.register(r'check-items', CleaningCheckItemViewSet)
 # Hotel 
 router.register('room', RoomViewSet)
 router.register('room-type', RoomTypeViewSet)
-router.register(r'cleaning-templates', CleaningChecklistTemplateViewSet)
+router.register(r'cleaning-templates', CleaningChecklistTemplateViewSet,basename='cleaningtemplates')
 
 # Incidents
 router.register('incidents', IncidentReportViewSet)

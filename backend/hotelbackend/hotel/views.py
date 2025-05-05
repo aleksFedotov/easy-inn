@@ -20,4 +20,3 @@ class CleaningChecklistTemplateViewSet(viewsets.ModelViewSet):
     queryset = CleaningChecklistTemplate.objects.all()
     serializer_class = CleaningChecklistTemplateSerializer
     permission_classes = [IsAuthenticated, IsManager]
-

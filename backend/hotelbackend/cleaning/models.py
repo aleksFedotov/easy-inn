@@ -63,7 +63,24 @@ class CleaningCheck(models.Model):
                     template_item=template_item,
                     is_passed=False
                 )
+
+    def save(self, *args, **kwargs):
+        creating = self._state.adding
+        previous_status = None
+        if not creating:
+            previous_status = CleaningTask.objects.get(pk=self.pk).status
+
+        super().save(*args, **kwargs)
+
+        if previous_status != 'done' and self.status == 'done':
+            if not CleaningCheck.objects.filter(cleaning_task=self).exists():
+                check = CleaningCheck.objects.create(
+                    cleaning_task=self,
+                    checklist=self.checklist_template
+                )
+                check.create_check_items_from_template()  
                 
+                              
 class ChecklistItemTemplate(models.Model):
     class Meta:
         ordering = ['order']

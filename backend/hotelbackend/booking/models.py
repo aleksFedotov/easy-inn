@@ -3,6 +3,9 @@ from hotel.models import Room
 from users.models import User
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+import logging
+logger = logging.getLogger(__name__)
+
 
 # Create your models here.
 class Booking(models.Model):
@@ -11,6 +14,9 @@ class Booking(models.Model):
             models.Index(fields=['check_in']),
             models.Index(fields=['check_out']),
         ]
+        verbose_name = "Бронирование"
+        verbose_name_plural = "Бронирования"
+        
     room = models.ForeignKey(Room, on_delete=models.CASCADE)
     check_in = models.DateTimeField(default=timezone.now)
     check_out = models.DateTimeField(null=True, blank=True)
@@ -33,4 +39,39 @@ class Booking(models.Model):
         if self.check_in and self.check_out:
             return (self.check_out - self.check_in).days
         return None
+    def checkout(self):
+        from cleaning.models import CleaningTask, CleaningChecklistTemplate
+        self.check_out = timezone.now()
+        self.save()
+
+        self.room.status = "needs_cleaning"
+        self.room.save()
+
+        next_booking = Booking.objects.filter(
+            room=self.room,
+            check_in__gt=self.check_out
+        ).order_by('check_in').first()
+
+        if next_booking:
+            due_time = next_booking.check_in
+        else:
+            due_time = timezone.now().replace(hour=14, minute=0, second=0, microsecond=0)
+
+       
+        if CleaningChecklistTemplate.objects.exists():
+            checklist_template = CleaningChecklistTemplate.objects.first()
+        else:
+            checklist_template = None
+
+        CleaningTask.objects.create(
+            room=self.room,
+            due_time=due_time,
+            status="pending",
+            checklist_template=checklist_template,
+            assigned_to=None, 
+            booking=self,  
+        )
+
+        logger.info(f"Создана задача на уборку комнаты {self.room.number} для бронирования {self.id}")
+
 
