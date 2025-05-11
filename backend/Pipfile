@@ -6,9 +6,14 @@ name = "pypi"
 [packages]
 django = "*"
 djangorestframework = "*"
+pytest = "*"
+pytest-django = "*"
+djangorestframework-simplejwt = "*"
 drf-yasg = "*"
 
 [dev-packages]
+pytest = "*"
+pytest-django = "*"
 
 [requires]
 python_version = "3.13"

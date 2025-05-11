@@ -1,25 +1,24 @@
 from django.contrib import admin
-from hotel.models import Room, RoomType,CleaningChecklistTemplate
-from cleaning.models import ChecklistItemTemplate
 
-@admin.register(Room)
-class RoomAdmin(admin.ModelAdmin):
-    list_display = ('number', 'floor', 'room_type', 'status', 'is_active', 'cleaning_required')
-    list_filter = ('floor', 'room_type', 'status', 'is_active')
-    search_fields = ('number',)
+from .models import RoomType, Room, Zone
 
-@admin.register(RoomType)
 class RoomTypeAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description', 'capacity')
+    list_display = ('name', 'capacity')
     search_fields = ('name',)
 
-class ChecklistItemTemplateInline(admin.TabularInline):
-    model = ChecklistItemTemplate
-    extra = 1
+admin.site.register(RoomType, RoomTypeAdmin)
 
+class RoomAdmin(admin.ModelAdmin):
+    list_display = ('number', 'floor', 'room_type', 'status', 'is_active')
+    search_fields = ('number', 'notes')
+    list_filter = ('floor', 'room_type', 'status', 'is_active')
+    readonly_fields = ('status',)
 
-@admin.register(CleaningChecklistTemplate)
-class CleaningChecklistTemplateAdmin(admin.ModelAdmin):
-    list_display = ('name', 'created_by', 'is_active')
-    search_fields = ('name',)
-    inlines = [ChecklistItemTemplateInline]
+admin.site.register(Room, RoomAdmin)
+
+class ZoneAdmin(admin.ModelAdmin):
+    list_display = ('name', 'floor', 'description')
+    search_fields = ('name', 'description')
+    list_filter = ('floor',)
+
+admin.site.register(Zone, ZoneAdmin)

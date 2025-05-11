@@ -46,16 +46,20 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_yasg',
     'rest_framework_simplejwt',
+     'corsheaders',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware', 
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    
+
 ]
 
 ROOT_URLCONF = 'hotelbackend.urls'
@@ -136,13 +140,13 @@ AUTH_USER_MODEL = 'users.User'
 
 
 REST_FRAMEWORK = {
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',  
-    ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.BasicAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',  
     ],
     
 }
@@ -160,3 +164,84 @@ SWAGGER_SETTINGS = {
 }
 
 SWAGGER_USE_COMPAT_RENDERERS = False
+
+CORS_ALLOW_ALL_ORIGINS = True
+
+
+LOGGING = {
+    'version': 1, 
+    'disable_existing_loggers': False, 
+    'formatters': {
+        'verbose': { 
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': { 
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': { 
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple' if DEBUG else 'verbose', 
+        },
+        'file': { 
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'django_debug.log', 
+            'formatter': 'verbose',
+        },
+        'mail_admins': { 
+            'class': 'django.utils.log.AdminEmailHandler',
+            'level': 'ERROR', 
+            'formatter': 'verbose',
+             
+        },
+    },
+    'loggers': {
+        'django': { 
+            'handlers': ['console', 'file'], 
+            'level': 'INFO', 
+            'propagate': True, 
+        },
+        'django.request': { 
+            'handlers': ['console',], 
+            'level': 'ERROR',
+            'propagate': False, 
+        },
+        'your_project_name': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG', 
+            'propagate': False,
+        },
+       
+        'booking': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'cleaning': {
+            'handlers': ['console',],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'hotel': {
+            'handlers': ['console',],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'user': {
+            'handlers': ['console',],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+       
+    },
+
+}
+
+# ADMINS = [
+#     ('Your Name', 'your_email@example.com'),
+   
+# ]
+

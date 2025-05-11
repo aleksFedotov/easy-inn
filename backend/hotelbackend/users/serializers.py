@@ -1,27 +1,84 @@
 from rest_framework import serializers
-from users.models import User 
+from users.models import User
 
+# --- User Serializer ---
 
 class UserSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the User model.
+    Handles serialization and deserialization of user data.
+    Includes custom create and update methods for password handling.
+
+    Сериализатор для модели User.
+    Обрабатывает сериализацию и десериализацию данных пользователя.
+    Включает кастомные методы create и update для обработки пароля.
+    """
+    # Define the password field as write-only.
+    # This means it will be accepted as input but not included in the output data.
+    # required=False allows updating a user without providing a new password.
+    # Определяем поле password как write_only (только для записи).
+    # Это означает, что оно будет приниматься как входные данные, но не включаться в выходные данные.
+    # required=False позволяет обновлять пользователя без предоставления нового пароля.
+    password = serializers.CharField(write_only=True, required=False)
 
     class Meta:
+        # Specify the model the serializer is based on
+        # Указываем модель, на которой основан сериализатор
         model = User
-        fields = [
-            'id',
-            'username',
-            'email',
-            'role',
-        ]
-        read_only_fields = ['id']
-
-
-class UserCreateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'password', 'role']
-        extra_kwargs = {
-            'password': {'write_only': True},
-        }
+        # Define the fields to be included in the serialization/deserialization
+        # Определяем поля, которые будут включены в сериализацию/десериализацию
+        fields = ['id', 'username', 'role', 'first_name', 'last_name', 'password']
+        # Define fields that are included in 'fields' but should only be read from, not written to.
+        # 'id' is typically read-only. 'role' is read-only to prevent users from changing their own role
+        # via standard user update (role changes should be handled by managers/admins, possibly via a separate endpoint or admin panel).
+        # Определяем поля, которые включены в 'fields', но должны быть доступны только для чтения, а не для записи.
+        # 'id' обычно только для чтения. 'role' только для чтения, чтобы предотвратить изменение пользователями своей роли
+        # через стандартное обновление пользователя (изменения роли должны обрабатываться менеджерами/администраторами, возможно, через отдельный эндпоинт или админ-панель).
+        read_only_fields = ['id', 'role']
 
     def create(self, validated_data):
-        return User.objects.create_user(**validated_data)
+        """
+        Custom create method to handle password hashing before saving the user.
+
+        Кастомный метод create для обработки хеширования пароля перед сохранением пользователя.
+        """
+        # Pop the password from validated_data as it needs special handling (hashing)
+        # Извлекаем пароль из validated_data, так как он требует специальной обработки (хеширования).
+        password = validated_data.pop('password', None)
+        # Create the user instance using the remaining validated data
+        # Создаем экземпляр пользователя, используя оставшиеся валидированные данные.
+        user = User.objects.create(**validated_data)
+        # If a password was provided, set it using set_password (which handles hashing)
+        # Если пароль был предоставлен, устанавливаем его с помощью set_password (который обрабатывает хеширование).
+        if password is not None:
+            user.set_password(password)
+        # Save the user instance (this is necessary if set_password was called)
+        # Сохраняем экземпляр пользователя (это необходимо, если был вызван set_password).
+        user.save()
+        # Return the created user instance
+        # Возвращаем созданный экземпляр пользователя.
+        return user
+
+    def update(self, instance, validated_data):
+        """
+        Custom update method to handle password hashing when updating a user.
+
+        Кастомный метод update для обработки хеширования пароля при обновлении пользователя.
+        """
+        # Pop the password from validated_data if it was provided
+        # Извлекаем пароль из validated_data, если он был предоставлен.
+        password = validated_data.pop('password', None)
+        # Call the parent class's update method to handle updating other fields
+        # Вызываем метод update родительского класса для обработки обновления других полей.
+        user = super().update(instance, validated_data)
+        # If a new password was provided, set it using set_password and save the user
+        # Если был предоставлен новый пароль, устанавливаем его с помощью set_password и сохраняем пользователя.
+        if password is not None:
+            user.set_password(password)
+            # Save only the password field for efficiency
+            # Сохраняем только поле password для эффективности.
+            user.save(update_fields=['password'])
+
+        # Return the updated user instance
+        # Возвращаем обновленный экземпляр пользователя.
+        return user

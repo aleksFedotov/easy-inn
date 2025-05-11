@@ -1,37 +1,33 @@
 from django.contrib import admin
-from cleaning.models import CleaningTask, CleaningCheck,CleaningCheckItem
-from users.models import User
 
+from .models import CleaningType, ChecklistTemplate, ChecklistItemTemplate, CleaningTask
 
-@admin.register(CleaningTask)
+class CleaningTypeAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)
+
+admin.site.register(CleaningType, CleaningTypeAdmin)
+
+class ChecklistTemplateAdmin(admin.ModelAdmin):
+    list_display = ('name', 'cleaning_type')
+    search_fields = ('name', 'description')
+    list_filter = ('cleaning_type',)
+
+admin.site.register(ChecklistTemplate, ChecklistTemplateAdmin)
+
+class ChecklistItemTemplateAdmin(admin.ModelAdmin):
+    list_display = ('text', 'checklist_template', 'order')
+    search_fields = ('text',)
+    list_filter = ('checklist_template',)
+    list_editable = ('order',)
+
+admin.site.register(ChecklistItemTemplate, ChecklistItemTemplateAdmin)
+
 class CleaningTaskAdmin(admin.ModelAdmin):
-    list_display = (
-        'room',
-        'booking',
-        'assigned_to',
-        'due_time',
-        'status',
-        'checklist_template',
-        'created_at',
-    )
-    list_filter = ('status', 'due_time', 'assigned_to')
-    search_fields = ('room__number', 'assigned_to__username')
-    autocomplete_fields = ['room', 'booking', 'assigned_to', 'checklist_template']
+    list_display = ('room', 'zone', 'cleaning_type', 'status', 'assigned_to', 'scheduled_date', 'due_time')
+    search_fields = ('room__number', 'zone__name', 'notes', 'assigned_to__username')
+    list_filter = ('status', 'cleaning_type', 'assigned_to', 'scheduled_date')
+    raw_id_fields = ('room', 'zone', 'assigned_to', 'assigned_by', 'checked_by', 'booking') 
+    readonly_fields = ('assigned_at', 'started_at', 'completed_at', 'checked_at') 
 
-class CleaningCheckItemInline(admin.TabularInline):
-    model = CleaningCheckItem
-    extra = 0
-    fields = ('template_item', 'is_passed', 'comment')
-    readonly_fields = ('template_item',)  
-    
-@admin.register(CleaningCheck)
-class CleaningCheckAdmin(admin.ModelAdmin):
-    list_display = (
-        'cleaning_task',
-        'checked_by',
-        'status',
-        'created_at',
-    )
-    list_filter = ('status', 'created_at')
-    search_fields = ('cleaning_task__room__number', 'checked_by__username')
-    autocomplete_fields = ['cleaning_task', 'checked_by', 'checklist']
+admin.site.register(CleaningTask, CleaningTaskAdmin)

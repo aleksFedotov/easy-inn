@@ -1,27 +1,48 @@
 from django.contrib import admin
-from booking.models import Booking
 
+from .models import Booking
 
-@admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
-    list_display = [
+    list_display = (
         'room',
         'check_in',
         'check_out',
         'guest_count',
-        'short_notes',
+        'created_by',
+        'created_at',
+    )
+
+    search_fields = (
+        'room__number',
+        'notes',
+        'created_by__username',
+    )
+
+    list_filter = (
+        'check_in',
+        'check_out',
         'created_at',
         'created_by',
-        
-    ]
-    list_filter = (
-    ('check_in', admin.DateFieldListFilter),
-    ('check_out', admin.DateFieldListFilter),
+        'room__room_type',
     )
-    search_fields = ('room__number',)
-    def short_notes(self, obj):
-        return obj.notes[:30] + '...' if obj.notes else '-'
-    short_notes.short_description = 'Заметки'
 
+    readonly_fields = (
+        'created_at',
+        'updated_at',
+    )
 
+    raw_id_fields = (
+        'room',
+        'created_by',
+    )
 
+    fieldsets = (
+        (None, {
+            'fields': ('room', 'check_in', 'check_out', 'guest_count', 'notes')
+        }),
+        ('Metadata', {
+            'fields': ('created_by', 'created_at', 'updated_at')
+        }),
+    )
+
+admin.site.register(Booking, BookingAdmin)
