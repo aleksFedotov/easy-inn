@@ -1,51 +1,39 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-*.so
-
-# Virtual env
+# Backend (Django)
 venv/
-env/
 .venv/
-.env/
-
-# Django
-*.log
-*.pot
-*.pyc
+env/
 db.sqlite3
-media/
+*.sqlite3
 staticfiles/
+media/
+__pycache__/
+*.pyc
+*.pyd
+*.egg
+*.egg-info/
 local_settings.py
+.env
+.env.*
+*.log
+htmlcov/
+.coverage
 
-# Django migrations
-*/migrations/__pycache__/
-*/migrations/*.py[cod]
-*/migrations/*.py
-!*/migrations/__init__.py 
+# Frontend (Next.js)
+node_modules/
+.next/
+.env.local
+.env.*.local
+.swc/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# IDEs
-.vscode/
+# IDE and Editor files (can be common)
 .idea/
+.vscode/
 *.sublime-project
 *.sublime-workspace
 
-# OS files
+# Operating System files
 .DS_Store
 Thumbs.db
-
-# dotenv
-.env
-.env.*
-
-# pytest
-.cache/
-.coverage
-htmlcov/
-
-# MyPy / Pylint
-.mypy_cache/
-.pytest_cache/
-pylint-report.txt

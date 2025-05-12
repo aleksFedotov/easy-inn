@@ -25,7 +25,9 @@ class User(AbstractUser):
     role = models.CharField(
         max_length=20,
         choices=Role.choices, # Use choices defined in Role class
-        verbose_name="Роль" # Human-readable name for the field
+        verbose_name="Роль", # Human-readable name for the field
+        blank=False,
+        null=False
     )
     
 

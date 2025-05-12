@@ -245,3 +245,9 @@ LOGGING = {
    
 # ]
 
+SIMPLE_JWT = {
+    
+    'TOKEN_OBTAIN_SERIALIZER': 'users.serializers.CustomTokenObtainPairSerializer',
+
+   
+}

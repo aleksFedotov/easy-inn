@@ -285,7 +285,7 @@ def test_room_create_permissions(api_client, request, user_fixture, expected_sta
   create_data = {
     'number': 999, 
     'floor': 9, 
-    'room_type': room_type_standard.id, # Provide the ID of the related RoomType / Предоставляем ID связанного RoomType
+    'room_type_id': room_type_standard.id, # Provide the ID of the related RoomType / Предоставляем ID связанного RoomType
     'status': Room.Status.FREE, # Using TextChoices value / Использование значения из TextChoices
     'is_active': True
   }

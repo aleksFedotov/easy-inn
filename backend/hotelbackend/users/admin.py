@@ -1,9 +1,12 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from .forms import CustomUserCreationForm, CustomUserChangeForm
 
 from .models import User
 
 class UserAdmin(BaseUserAdmin):
+    add_form = CustomUserCreationForm 
+    form = CustomUserChangeForm 
     list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'is_staff')
 
     list_filter = ('role', 'is_staff', 'is_superuser', 'is_active')
@@ -21,16 +24,15 @@ class UserAdmin(BaseUserAdmin):
 
    
     add_fieldsets = (
-        (None, {
-            'classes': ('wide',),
-            'fields': ('username', 'password', 'password2', 'role'), 
-        }),
-        ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
-       
-    )
+    (None, {
+        'classes': ('wide',),
+        'fields': ('username', 'password1', 'password2', 'role'), 
+    }),
+    ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
+)
+    
 
-    # Указываем поля для ввода пароля при добавлении пользователя
-    add_form_template = 'admin/auth/user/add_form.html' 
+
 
 
 admin.site.register(User, UserAdmin)

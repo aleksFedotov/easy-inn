@@ -31,13 +31,15 @@ class RoomTypeSerializer(serializers.ModelSerializer):
 # Serializer for the Room model.
 # Handles conversion of Room objects to JSON and back.
 class RoomSerializer(serializers.ModelSerializer):
-    # Вложенный сериализатор для отображения полной информации о RoomType (только для чтения).
-    # Nested serializer to display full RoomType information (read-only).
-    room_type = RoomTypeSerializer(read_only=True)
-
+    
     # Поле для записи внешнего ключа room_type по его ID.
     # Field for writing the room_type foreign key by its ID.
-    room_type_id = serializers.PrimaryKeyRelatedField(queryset=RoomType.objects.all(), source='room_type', write_only=True)
+    room_type = serializers.PrimaryKeyRelatedField(
+        queryset=RoomType.objects.all(),
+        write_only=True,   
+        allow_null=True,   
+        required=False     
+    )
     
     # Поле для отображения только названия типа номера (только для чтения).
     # Использует SerializerMethodField для кастомной логики получения значения.
@@ -78,8 +80,8 @@ class RoomSerializer(serializers.ModelSerializer):
             'number', # Номер комнаты / Room number
             'floor', # Этаж / Floor
             'room_type', # Вложенный сериализатор RoomType (только чтение) / Nested RoomTypeSerializer (read-only)
-            'room_type_name', # Название типа номера (только чтение) / Room type name (read-only)
-            'room_type_id', # Поле для записи ID типа номера (только запись) / Field for writing RoomType ID (write-only)
+             # Для чтения (вложенный объект)
+            'room_type_name',# Название типа номера (только чтение) / Room type name (read-only)
             'status', # Текущий статус номера (чтение/запись) / Current room status (read/write)
             'status_display', # Человекочитаемый статус (только чтение) / Human-readable status (read-only)
             'notes', # Заметки (чтение/запись) / Notes (read/write)
@@ -91,9 +93,19 @@ class RoomSerializer(serializers.ModelSerializer):
             'id', # ID обычно всегда только для чтения / ID is usually always read-only
             'status_display', # Вычисляемое поле / Calculated field
             'room_type_name', # Вычисляемое поле / Calculated field
+            'room_type_details',
             # 'room_type' is also read-only because it's a nested serializer
             # 'room_type' также только для чтения, потому что это вложенный сериализатор
         ]
+
+        def to_representation(self, instance):
+            """ Отображение: показать полный объект RoomType """
+            representation = super().to_representation(instance)
+            if instance.room_type:
+                representation['room_type'] = RoomTypeSerializer(instance.room_type).data
+            else:
+                representation['room_type'] = None
+            return representation
 
 
 # --- Zone Serializer ---

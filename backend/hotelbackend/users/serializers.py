@@ -1,5 +1,11 @@
 from rest_framework import serializers
 from users.models import User
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.contrib.auth import get_user_model
+
+# Получаем кастомную модель пользователя
+UserModel = get_user_model()
+
 
 # --- User Serializer ---
 
@@ -82,3 +88,30 @@ class UserSerializer(serializers.ModelSerializer):
         # Return the updated user instance
         # Возвращаем обновленный экземпляр пользователя.
         return user
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    Кастомизированный сериализатор для получения пары токенов (access и refresh).
+    Добавляет роль пользователя в payload access токена.
+    """
+    @classmethod
+    def get_token(cls, user):
+        """
+        Переопределяем метод get_token для добавления кастомных полей в payload.
+        """
+        # Получаем стандартный токен, используя метод родительского класса.
+        # simplejwt автоматически включает 'user_id' (pk пользователя) в payload.
+        token = super().get_token(user)
+
+        # Добавляем кастомное поле 'role' в payload access токена.
+        # Поле 'role' берется из модели User.
+        token['role'] = user.role
+
+        # Вы можете добавить любые другие поля из модели User, если они нужны
+        # на фронтенде для определения прав или отображения информации.
+        # token['username'] = user.username
+        # token['first_name'] = user.first_name
+        # token['last_name'] = user.last_name
+
+        return token
