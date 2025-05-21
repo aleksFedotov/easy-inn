@@ -59,7 +59,6 @@ class Room(models.Model):
     class Status(models.TextChoices):
         FREE = "free", "Свободен" # Free and available / Свободен и доступен
         OCCUPIED = "occupied", "Занят" # Currently occupied by a guest / В настоящее время занят гостем
-        WAITING_CHECKOUT = "waiting_checkout", "Ожидается выезд" # Guest has checked out, but room not yet cleaned / Гость выехал, но номер еще не убран
         DIRTY = "dirty", "Грязный" # Needs cleaning / Требуется уборка
         ASSIGNED = "assigned", "Назначен" # Task assigned to a cleaner / Задача назначена горничной
         IN_PROGRESS = "in_progress", "В процессе уборки" # Cleaning is currently in progress / Уборка в процессе

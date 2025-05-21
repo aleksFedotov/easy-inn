@@ -17,7 +17,7 @@ from .serializers import (
 )
 
 
-from utills.permissions import IsManagerOrAdmin, IsHouseKeeper, IsAssignedHousekeeperOrManagerOrAdmin
+from utills.permissions import IsManagerOrFrontDesk, IsHouseKeeper, IsAssignedHousekeeperOrManagerOrFrontDesk
 
 # Configure basic logging / Настраиваем базовое логирование
 logger = logging.getLogger(__name__)
@@ -29,19 +29,19 @@ logger = logging.getLogger(__name__)
 class CleaningTypeViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing Cleaning Types (CleaningType).
-    Accessible only to authenticated users with the 'manager' or 'admin' role.
+    Accessible only to authenticated users with the 'manager' or 'front desk' role.
     Provides operations: list, create, retrieve, update, partial_update, destroy.
     Authentication is handled by DEFAULT_PERMISSION_CLASSES.
 
     ViewSet для управления типами уборок (CleaningType).
-    Доступно только аутентифицированным пользователям с ролью 'manager' или 'admin'.
+    Доступно только аутентифицированным пользователям с ролью 'manager' или 'front desk'.
     Предоставляет операции: list, create, retrieve, update, partial_update, destroy.
     Аутентификация обрабатывается через DEFAULT_PERMISSION_CLASSES.
     """
     queryset = CleaningType.objects.all() # Base queryset / Базовый набор данных
     serializer_class = CleaningTypeSerializer # Serializer class / Класс сериализатора
-    # Permissions: Requires manager or admin role / Разрешения: Требуется роль менеджера или администратора
-    permission_classes = [IsAuthenticated, IsManagerOrAdmin]
+    # Permissions: Requires manager or front desk role / Разрешения: Требуется роль менеджера или службы приема
+    permission_classes = [IsAuthenticated, IsManagerOrFrontDesk]
 
     def list(self, request, *args, **kwargs):
         """Handle listing CleaningTypes."""
@@ -72,6 +72,12 @@ class CleaningTypeViewSet(viewsets.ModelViewSet):
         """Handle deleting a CleaningType."""
         logger.info(f"User {request.user} is attempting to delete CleaningType with pk={kwargs.get('pk')}.")
         return super().destroy(request, *args, **kwargs)
+    
+    
+    def paginate_queryset(self, queryset):
+        if self.request.query_params.get('all') == 'true':
+            return None 
+        return super().paginate_queryset(queryset)
 
 
 # --- ChecklistTemplate ViewSet ---
@@ -79,19 +85,19 @@ class CleaningTypeViewSet(viewsets.ModelViewSet):
 class ChecklistTemplateViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing Checklist Templates (ChecklistTemplate).
-    Accessible only to authenticated users with the 'manager' or 'admin' role.
+    Accessible only to authenticated users with the 'manager' or 'front desk' role.
     Provides operations: list, create, retrieve, update, partial_update, destroy.
     Authentication is handled by DEFAULT_PERMISSION_CLASSES.
 
     ViewSet для управления шаблонами чек-листов (ChecklistTemplate).
-    Доступно только аутентифицированным пользователям с ролью 'manager' или 'admin'.
+    Доступно только аутентифицированным пользователям с ролью 'manager' или 'front desk'.
     Предоставляет операции: list, create, retrieve, update, partial_update, destroy.
     Аутентификация обрабатывается через DEFAULT_PERMISSION_CLASSES.
     """
     queryset = ChecklistTemplate.objects.all() # Base queryset / Базовый набор данных
     serializer_class = ChecklistTemplateSerializer # Serializer class / Класс сериализатора
-    # Permissions: Requires manager or admin role / Разрешения: Требуется роль менеджера или администратора
-    permission_classes = [IsAuthenticated, IsManagerOrAdmin]
+    # Permissions: Requires manager or front desk role / Разрешения: Требуется роль менеджера или службы приема
+    permission_classes = [IsAuthenticated, IsManagerOrFrontDesk]
 
     def list(self, request, *args, **kwargs):
         """Handle listing ChecklistTemplates."""
@@ -122,6 +128,11 @@ class ChecklistTemplateViewSet(viewsets.ModelViewSet):
         """Handle deleting a ChecklistTemplate."""
         logger.info(f"User {request.user} is attempting to delete ChecklistTemplate with pk={kwargs.get('pk')}.")
         return super().destroy(request, *args, **kwargs)
+    
+    def paginate_queryset(self, queryset):
+        if self.request.query_params.get('all') == 'true':
+            return None 
+        return super().paginate_queryset(queryset)
 
 
 # --- ChecklistItemTemplate ViewSet ---
@@ -129,20 +140,20 @@ class ChecklistTemplateViewSet(viewsets.ModelViewSet):
 class ChecklistItemTemplateViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing Checklist Item Templates (ChecklistItemTemplate).
-    Accessible only to authenticated users with the 'manager' or 'admin' role.
+    Accessible only to authenticated users with the 'manager' or 'fron desk' role.
     Provides operations: list, create, retrieve, update, partial_update, destroy.
     Authentication is handled by DEFAULT_PERMISSION_CLASSES.
 
     ViewSet для управления пунктами шаблонов чек-листов (ChecklistItemTemplate).
-    Доступно только аутентифицированным пользователям с ролью 'manager' или 'admin'.
+    Доступно только аутентифицированным пользователям с ролью 'manager' или 'fron desk'.
     Предоставляет операции: list, create, retrieve, update, partial_update, destroy.
     Аутентификация обрабатывается через DEFAULT_PERMISSION_CLASSES.
     """
     queryset = ChecklistItemTemplate.objects.all() # Base queryset / Базовый набор данных
     serializer_class = ChecklistItemTemplateSerializer # Serializer class / Класс сериализатора
-    # Permissions: Requires manager or admin role / Разрешения: Требуется роль менеджера или администратора
-    permission_classes = [IsAuthenticated, IsManagerOrAdmin]
-
+    # Permissions: Requires manager or fron desk role / Разрешения: Требуется роль менеджера или службы приема
+    permission_classes = [IsAuthenticated, IsManagerOrFrontDesk]
+    
     def list(self, request, *args, **kwargs):
         """Handle listing ChecklistItemTemplates."""
         logger.info(f"User {request.user} is listing ChecklistItemTemplates.")
@@ -172,6 +183,12 @@ class ChecklistItemTemplateViewSet(viewsets.ModelViewSet):
         """Handle deleting a ChecklistItemTemplate."""
         logger.info(f"User {request.user} is attempting to delete ChecklistItemTemplate with pk={kwargs.get('pk')}.")
         return super().destroy(request, *args, **kwargs)
+    
+    
+    def paginate_queryset(self, queryset):
+        if self.request.query_params.get('all') == 'true':
+            return None 
+        return super().paginate_queryset(queryset)
 
 
 # --- CleaningTask ViewSet ---
@@ -192,6 +209,11 @@ class CleaningTaskViewSet(viewsets.ModelViewSet):
     """
     queryset = CleaningTask.objects.all() # Base queryset / Базовый набор данных
     serializer_class = CleaningTaskSerializer # Serializer class / Класс сериализатора
+
+    
+    def create(self, request, *args, **kwargs):
+
+        return super().create(request, *args, **kwargs)
 
     def get_object(self):
         """
@@ -217,10 +239,10 @@ class CleaningTaskViewSet(viewsets.ModelViewSet):
         """
         user = self.request.user
         logger.info(f"Filtering CleaningTask queryset for user {user} with role {user.role}.")
-
-        # If the user is authenticated and is a manager or admin, return all tasks
+        
+        # If the user is authenticated and is a manager or front desk, return all tasks
         # Если пользователь аутентифицирован и является управляющим или администратором, вернуть все задачи
-        if user.is_authenticated and user.role in [User.Role.ADMIN, User.Role.MANAGER]:
+        if user.is_authenticated and user.role in [User.Role.FRONT_DESK, User.Role.MANAGER]:
             logger.debug("User is Manager or Admin, returning all tasks.")
             return CleaningTask.objects.all()
 
@@ -236,7 +258,11 @@ class CleaningTaskViewSet(viewsets.ModelViewSet):
         # вернуть пустой набор данных. Классы разрешений дополнительно ограничат доступ.
         logger.debug("User is neither Manager/Admin nor Housekeeper, returning empty queryset.")
         return CleaningTask.objects.none()
-
+    
+    def paginate_queryset(self, queryset):
+        if self.request.query_params.get('all') == 'true':
+            return None 
+        return super().paginate_queryset(queryset)
 
     def get_permissions(self):
         """
@@ -260,8 +286,8 @@ class CleaningTaskViewSet(viewsets.ModelViewSet):
             # - Требуется аутентификация.
             # - Разрешено для управляющих/администраторов ИЛИ для горничных.
             #   get_queryset() уже фильтрует список/детали для горничных.
-            self.permission_classes = [IsAuthenticated, IsManagerOrAdmin | IsHouseKeeper]
-            logger.debug("Applying permissions: IsAuthenticated, IsManagerOrAdmin | IsHouseKeeper")
+            self.permission_classes = [IsAuthenticated, IsManagerOrFrontDesk | IsHouseKeeper]
+            logger.debug("Applying permissions: IsAuthenticated, IsManagerOrFrontDesk | IsHouseKeeper")
 
         elif self.action in ['update', 'partial_update']:
             # For updating a specific task (e.g., manager changes assignee):
@@ -272,8 +298,8 @@ class CleaningTaskViewSet(viewsets.ModelViewSet):
             # - Требуется аутентификация.
             # - Разрешено только для управляющих/администраторов.
             #   Горничные будут использовать кастомные действия 'start'/'complete' для смены статуса.
-            self.permission_classes = [IsAuthenticated, IsManagerOrAdmin]
-            logger.debug("Applying permissions: IsAuthenticated, IsManagerOrAdmin")
+            self.permission_classes = [IsAuthenticated, IsManagerOrFrontDesk]
+            logger.debug("Applying permissions: IsAuthenticated, IsManagerOrFrontDesk")
 
         elif self.action == 'create' or self.action == 'destroy':
             # For creating or deleting tasks:
@@ -282,44 +308,44 @@ class CleaningTaskViewSet(viewsets.ModelViewSet):
             # Для создания или удаления задач:
             # - Требуется аутентификация.
             # - Разрешено только для управляющих или администраторов.
-            self.permission_classes = [IsAuthenticated, IsManagerOrAdmin]
-            logger.debug("Applying permissions: IsAuthenticated, IsManagerOrAdmin")
+            self.permission_classes = [IsAuthenticated, IsManagerOrFrontDesk]
+            logger.debug("Applying permissions: IsAuthenticated, IsManagerOrFrontDesk")
 
         # Permissions for custom actions / Разрешения для кастомных действий
         elif self.action in ['start', 'complete']:
              # For start and complete actions:
              # - Authentication is required.
-             # - Allowed for the assigned housekeeper, manager, or admin.
+             # - Allowed for the assigned housekeeper, manager, or front desk.
              # Для действий start и complete:
              # - Требуется аутентификация.
-             # - Разрешено для назначенного горничной, менеджера или администратора.
-             self.permission_classes = [IsAuthenticated, IsAssignedHousekeeperOrManagerOrAdmin]
-             logger.debug("Applying permissions: IsAuthenticated, IsAssignedHousekeeperOrManagerOrAdmin")
+             # - Разрешено для назначенного горничной, менеджера или службы приема.
+             self.permission_classes = [IsAuthenticated, IsAssignedHousekeeperOrManagerOrFrontDesk]
+             logger.debug("Applying permissions: IsAuthenticated, IsAssignedHousekeeperOrManagerOrFrontDesk")
 
         elif self.action in ['check', 'cancel']:
              # For check and cancel actions:
              # - Authentication is required.
-             # - Allowed only for the manager or admin.
+             # - Allowed only for the manager or front desk.
              # Для действий check и cancel:
              # - Требуется аутентификация.
-             # - Разрешено только для менеджера или администратора.
-             self.permission_classes = [IsAuthenticated, IsManagerOrAdmin]
-             logger.debug("Applying permissions: IsAuthenticated, IsManagerOrAdmin")
+             # - Разрешено только для менеджера или службы приема.
+             self.permission_classes = [IsAuthenticated, IsManagerOrFrontDesk]
+             logger.debug("Applying permissions: IsAuthenticated, IsManagerOrFrontDesk")
 
         else:
             # Default permissions for any other actions not explicitly defined
             # Разрешения по умолчанию для любых других действий, не определенных явно
-            self.permission_classes = [IsAuthenticated, IsManagerOrAdmin] # Restrict by default / Ограничиваем по умолчанию
-            logger.debug("Applying default permissions: IsAuthenticated, IsManagerOrAdmin")
+            self.permission_classes = [IsAuthenticated, IsManagerOrFrontDesk] # Restrict by default / Ограничиваем по умолчанию
+            logger.debug("Applying default permissions: IsAuthenticated, IsManagerOrFrontDesk")
 
 
         return [permission() for permission in self.permission_classes]
 
-    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated, IsAssignedHousekeeperOrManagerOrAdmin])
+    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated, IsAssignedHousekeeperOrManagerOrFrontDesk])
     def start(self, request, pk=None):
         """
         Custom action to start a cleaning task.
-        Can be called by the assigned housekeeper, a manager, or an admin.
+        Can be called by the assigned housekeeper, a manager, or an front desk.
         The task must be in UNASSIGNED or ASSIGNED status.
 
         Кастомное действие для начала выполнения задачи по уборке.
@@ -348,11 +374,11 @@ class CleaningTaskViewSet(viewsets.ModelViewSet):
             status=status.HTTP_400_BAD_REQUEST # Bad Request, because the action is not possible / Bad Request, потому что действие невозможно
         )
 
-    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated, IsAssignedHousekeeperOrManagerOrAdmin])
+    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated, IsAssignedHousekeeperOrManagerOrFrontDesk])
     def complete(self, request, pk=None):
         """
         Custom action to complete a cleaning task.
-        Can be called by the assigned housekeeper, a manager, or an admin.
+        Can be called by the assigned housekeeper, a manager, or an front desk.
         The task must be in IN_PROGRESS status.
 
         Кастомное действие для завершения выполнения задачи по уборке.
@@ -381,11 +407,11 @@ class CleaningTaskViewSet(viewsets.ModelViewSet):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated, IsManagerOrAdmin])
+    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated, IsManagerOrFrontDesk])
     def check(self, request, pk=None):
         """
         Custom action to check and confirm a cleaning task.
-        Can be called only by a manager or an admin.
+        Can be called only by a manager or an front desk.
         The task must be in WAITING_CHECK status.
 
         Кастомное действие для проверки и подтверждения задачи по уборке.
@@ -415,11 +441,11 @@ class CleaningTaskViewSet(viewsets.ModelViewSet):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated, IsManagerOrAdmin])
+    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated, IsManagerOrFrontDesk])
     def cancel(self, request, pk=None):
         """
         Custom action to cancel a cleaning task.
-        Can be called only by a manager or an admin.
+        Can be called only by a manager or an front desk.
         The task must not be in CANCELED or CHECKED status.
 
         Кастомное действие для отмены задачи по уборке.
@@ -449,3 +475,5 @@ class CleaningTaskViewSet(viewsets.ModelViewSet):
             {"detail": f"Задача не может быть отменена из статуса '{task.get_status_display()}'."},
             status=status.HTTP_400_BAD_REQUEST
         )
+    
+

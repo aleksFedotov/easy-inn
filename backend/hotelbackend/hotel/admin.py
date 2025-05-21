@@ -12,7 +12,7 @@ class RoomAdmin(admin.ModelAdmin):
     list_display = ('number', 'floor', 'room_type', 'status', 'is_active')
     search_fields = ('number', 'notes')
     list_filter = ('floor', 'room_type', 'status', 'is_active')
-    readonly_fields = ('status',)
+    readonly_fields = ()
 
 admin.site.register(Room, RoomAdmin)
 

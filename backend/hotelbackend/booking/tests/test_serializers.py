@@ -57,10 +57,10 @@ def room_mini_104(room_mini):
 
 
 @pytest.fixture
-def user_admin():
-    """Фикстура для пользователя с ролью администратора."""
-    # Fixture for an admin user.
-    return UserModel.objects.create_user(username="admin", password="testpass123", role="admin")
+def user_front_desk():
+    """Фикстура для пользователя с ролью служба приема."""
+    # Fixture for an front_desk user.
+    return UserModel.objects.create_user(username="front_desk", password="testpass123", role="front_desk")
 
 @pytest.fixture
 def user_guest():
@@ -74,7 +74,7 @@ def user_guest():
 # Tests for the BookingSerializer
 
 @pytest.mark.django_db # Отмечаем тест для работы с базой данных Django / Mark test to work with Django database
-def test_booking_serializer_output(room_suite_203, user_admin):
+def test_booking_serializer_output(room_suite_203, user_front_desk):
     """
     Тест, что BookingSerializer корректно сериализует объект Booking,
     включая связанные поля и вычисленную продолжительность.
@@ -92,7 +92,7 @@ def test_booking_serializer_output(room_suite_203, user_admin):
         check_out=check_out,
         guest_count=2,
         notes="Некоторые заметки", # Some notes
-        created_by=user_admin
+        created_by=user_front_desk
     )
 
     # Инициализируем сериализатор с экземпляром объекта
@@ -111,17 +111,17 @@ def test_booking_serializer_output(room_suite_203, user_admin):
     assert data['check_out'] is not None # Проверяем, что check_out сериализовано / Check check_out is serialized
     assert data['guest_count'] == 2
     assert data['notes'] == "Некоторые заметки" # Check notes
-    assert data['created_by'] == user_admin.id # Проверяем ID создателя / Check created_by ID
+    assert data['created_by'] == user_front_desk.id # Проверяем ID создателя / Check created_by ID
     # Предполагаем, что поле created_by_name присутствует и корректно в вашем сериализаторе
     # Assuming created_by_name field is present and correct in your serializer
-    assert data['created_by_name'] == user_admin.get_full_name() or user_admin.username # Проверяем имя создателя / Check created_by_name
+    assert data['created_by_name'] == user_front_desk.get_full_name() or user_front_desk.username # Проверяем имя создателя / Check created_by_name
     # Предполагаем, что поле duration_days присутствует и корректно в вашем сериализаторе
     # Assuming duration_days field is present and correct in your serializer
     assert data['duration_days'] == 2 # Проверяем вычисленную продолжительность / Check calculated duration
 
 
 @pytest.mark.django_db
-def test_booking_serializer_duration_none(room_standard_101, user_admin):
+def test_booking_serializer_duration_none(room_standard_101, user_front_desk):
     """
     Тест, что продолжительность равна None, когда check_out не установлен.
     Test that the duration is None when check_out is not set.
@@ -133,7 +133,7 @@ def test_booking_serializer_duration_none(room_standard_101, user_admin):
         check_in=timezone.now(),
         check_out=None, # check_out is None
         guest_count=1,
-        created_by=user_admin
+        created_by=user_front_desk
     )
 
     # Инициализируем сериализатор и получаем данные
@@ -147,7 +147,7 @@ def test_booking_serializer_duration_none(room_standard_101, user_admin):
 
 
 @pytest.mark.django_db
-def test_booking_serializer_valid_input_create(room_suite_203, user_admin):
+def test_booking_serializer_valid_input_create(room_suite_203, user_front_desk):
     """
     Тест, что BookingSerializer валидирует и создает объект Booking
     с корректными входными данными.
@@ -165,7 +165,7 @@ def test_booking_serializer_valid_input_create(room_suite_203, user_admin):
         'check_out': check_out,
         'guest_count': 3,
         'notes': 'Корректные данные бронирования', # Valid booking data
-        'created_by': user_admin.id, # Передаем ID пользователя / Pass User ID
+        'created_by': user_front_desk.id, # Передаем ID пользователя / Pass User ID
     }
 
     # Инициализируем сериализатор с входными данными
@@ -188,7 +188,7 @@ def test_booking_serializer_valid_input_create(room_suite_203, user_admin):
     assert booking_instance.room == room_suite_203
     assert booking_instance.guest_count == 3
     assert booking_instance.notes == 'Корректные данные бронирования' # Check notes
-    assert booking_instance.created_by == user_admin # Check created_by
+    assert booking_instance.created_by == user_front_desk # Check created_by
 
 
 @pytest.mark.django_db

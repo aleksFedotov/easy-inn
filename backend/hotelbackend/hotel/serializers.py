@@ -46,6 +46,8 @@ class RoomSerializer(serializers.ModelSerializer):
     # Field to display only the room type name (read-only).
     # Uses SerializerMethodField for custom logic to get the value.
     room_type_name = serializers.SerializerMethodField()
+
+    room_capacity = serializers.IntegerField(source='room_type.capacity', read_only=True)
     
     # Поле для отображения человекочитаемого статуса номера (только для чтения).
     # Использует SerializerMethodField для вызова метода модели get_status_display().
@@ -68,7 +70,7 @@ class RoomSerializer(serializers.ModelSerializer):
         if obj.room_type:
             return obj.room_type.name # Возвращаем название типа номера / Return the room type name
         return None # Возвращаем None, если тип номера не установлен / Return None if room type is not set
-
+   
     # Мета-класс для определения опций сериализатора.
     # Meta class for defining serializer options.
     class Meta:
@@ -80,7 +82,7 @@ class RoomSerializer(serializers.ModelSerializer):
             'number', # Номер комнаты / Room number
             'floor', # Этаж / Floor
             'room_type', # Вложенный сериализатор RoomType (только чтение) / Nested RoomTypeSerializer (read-only)
-             # Для чтения (вложенный объект)
+            'room_capacity',
             'room_type_name',# Название типа номера (только чтение) / Room type name (read-only)
             'status', # Текущий статус номера (чтение/запись) / Current room status (read/write)
             'status_display', # Человекочитаемый статус (только чтение) / Human-readable status (read-only)
@@ -94,8 +96,6 @@ class RoomSerializer(serializers.ModelSerializer):
             'status_display', # Вычисляемое поле / Calculated field
             'room_type_name', # Вычисляемое поле / Calculated field
             'room_type_details',
-            # 'room_type' is also read-only because it's a nested serializer
-            # 'room_type' также только для чтения, потому что это вложенный сериализатор
         ]
 
         def to_representation(self, instance):
@@ -129,3 +129,12 @@ class ZoneSerializer(serializers.ModelSerializer):
         # Поля, доступные только для чтения.
         # Fields that are read-only.
         read_only_fields = ['id'] # ID обычно всегда только для чтения / ID is usually always read-only
+
+
+class RoomShortSerializer(serializers.ModelSerializer):
+    room_type = serializers.CharField(source ='room_type.name')
+
+
+    class Meta:
+        model = Room
+        fields = ['id', 'number', 'floor', 'room_type', 'status']

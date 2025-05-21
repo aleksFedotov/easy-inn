@@ -8,6 +8,7 @@ class BookingAdmin(admin.ModelAdmin):
         'check_in',
         'check_out',
         'guest_count',
+        'status',
         'created_by',
         'created_at',
     )
@@ -38,7 +39,7 @@ class BookingAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (None, {
-            'fields': ('room', 'check_in', 'check_out', 'guest_count', 'notes')
+            'fields': ('room', 'check_in', 'check_out', 'guest_count','status', 'notes')
         }),
         ('Metadata', {
             'fields': ('created_by', 'created_at', 'updated_at')

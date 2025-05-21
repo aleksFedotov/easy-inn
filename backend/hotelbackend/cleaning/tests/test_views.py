@@ -52,12 +52,12 @@ def manager_user(create_user):
     return create_user("manager_user", "managerpass", User.Role.MANAGER)
 
 @pytest.fixture
-def admin_user(create_user):
+def front_desk_user(create_user):
     """
-    Fixture to create and return an admin user.
-    Фикстура для создания и возврата пользователя с ролью администратора.
+    Fixture to create and return an front desk user.
+    Фикстура для создания и возврата пользователя с ролью службы приема.
     """
-    return create_user("admin_user", "adminpass", User.Role.ADMIN)
+    return create_user("front_desk_user", "adminpass", User.Role.FRONT_DESK)
 
 @pytest.fixture
 def housekeeper_user(create_user):
@@ -74,9 +74,6 @@ def another_housekeeper_user(create_user):
     Фикстура для создания еще одного пользователя с ролью горничной.
     """
     return create_user("another_housekeeper", "anotherpass", User.Role.HOUSEKEEPER)
-
-# Removed guest_user fixture
-# Фикстура guest_user удалена
 
 
 @pytest.fixture

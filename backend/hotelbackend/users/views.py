@@ -2,9 +2,13 @@ import logging
 from rest_framework.permissions import IsAuthenticated
 from utills.permissions import IsManager
 from rest_framework import viewsets
+from rest_framework.response import Response
+from rest_framework.filters import OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
 
 from users.models import User
 from users.serializers import UserSerializer
+from rest_framework.decorators import action
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +42,32 @@ class UserViewSet(viewsets.ModelViewSet):
     # - Пользователь должен быть аутентифицирован (войти в систему).
     # - И пользователь должен пройти проверку разрешения IsManager (иметь роль 'manager').
     # Только аутентифицированные управляющие могут получить доступ к этому ViewSet.
-    permission_classes = [IsAuthenticated, IsManager]
+    
+    # --- Добавление сортировки ---
+    filter_backends = [OrderingFilter,DjangoFilterBackend] # Включаем фильтр сортировки
+    filterset_fields = ['role']  
+    ordering_fields = [
+        'username',
+        'email',
+        'first_name',
+        'last_name',
+        'role',
+        'date_joined',
+        'last_login'
+    ]
 
+    @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated], url_path="me")
+    def me(self, request):
+        """
+        Get data for the current authenticated user.
+        Получить данные текущего аутентифицированного пользователя.
+        """
+        # request.user содержит объект текущего аутентифицированного пользователя
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
+    
+    def paginate_queryset(self, queryset):
+        if self.request.query_params.get('all') == 'true':
+            return None 
+        return super().paginate_queryset(queryset)
     

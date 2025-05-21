@@ -8,10 +8,11 @@ from unittest.mock import MagicMock # To create mock objects
 # Import your permission classes
 from utills.permissions import (
     IsManager,
-    IsAdmin,
     IsHouseKeeper,
-    IsManagerOrAdmin,
-    IsAssignedHousekeeperOrManagerOrAdmin
+    IsManagerOrFrontDesk,
+    IsFrontDesk,
+    IsAssignedHousekeeperOrManagerOrFrontDesk
+ 
 )
 # Import your User model and CleaningTask model (needed for object permission test)
 from users.models import User
@@ -40,9 +41,9 @@ def manager_user(create_user):
     return create_user("manager_user", "managerpass", User.Role.MANAGER)
 
 @pytest.fixture
-def admin_user(create_user):
-    """Fixture to create and return an admin user."""
-    return create_user("admin_user", "adminpass", User.Role.ADMIN)
+def front_desk_user(create_user):
+    """Fixture to create and return an front desk user."""
+    return create_user("front_desk_user", "adminpass", User.Role.FRONT_DESK)
 
 @pytest.fixture
 def housekeeper_user(create_user):
@@ -110,7 +111,7 @@ def mock_other_object():
 # --- Tests for IsManager ---
 
 @pytest.mark.django_db # Use django_db as we create real users
-def test_is_manager_permission(mock_request, manager_user, admin_user, housekeeper_user, unauthenticated_user):
+def test_is_manager_permission(mock_request, manager_user, front_desk_user, housekeeper_user, unauthenticated_user):
     """Test IsManager permission."""
     permission = IsManager()
     view = mock_view # Use mock view
@@ -120,7 +121,7 @@ def test_is_manager_permission(mock_request, manager_user, admin_user, housekeep
     assert permission.has_permission(mock_request, view) is True
 
     # Admin should not have permission
-    mock_request.user = admin_user
+    mock_request.user = front_desk_user
     assert permission.has_permission(mock_request, view) is False
 
     # Housekeeper should not have permission
@@ -132,16 +133,16 @@ def test_is_manager_permission(mock_request, manager_user, admin_user, housekeep
     assert permission.has_permission(mock_request, view) is False
 
 
-# --- Tests for IsAdmin ---
+# --- Tests for IsFrontDesk ---
 
 @pytest.mark.django_db
-def test_is_admin_permission(mock_request, manager_user, admin_user, housekeeper_user, unauthenticated_user):
-    """Test IsAdmin permission."""
-    permission = IsAdmin()
+def test_is_admin_permission(mock_request, manager_user, front_desk_user, housekeeper_user, unauthenticated_user):
+    """Test IsFrontDesk permission."""
+    permission = IsFrontDesk()
     view = mock_view
 
     # Admin should have permission
-    mock_request.user = admin_user
+    mock_request.user = front_desk_user
     assert permission.has_permission(mock_request, view) is True
 
     # Manager should not have permission
@@ -160,7 +161,7 @@ def test_is_admin_permission(mock_request, manager_user, admin_user, housekeeper
 # --- Tests for IsHouseKeeper ---
 
 @pytest.mark.django_db
-def test_is_housekeeper_permission(mock_request, manager_user, admin_user, housekeeper_user, unauthenticated_user):
+def test_is_housekeeper_permission(mock_request, manager_user, front_desk_user, housekeeper_user, unauthenticated_user):
     """Test IsHouseKeeper permission."""
     permission = IsHouseKeeper()
     view = mock_view
@@ -174,7 +175,7 @@ def test_is_housekeeper_permission(mock_request, manager_user, admin_user, house
     assert permission.has_permission(mock_request, view) is False
 
     # Admin should not have permission
-    mock_request.user = admin_user
+    mock_request.user = front_desk_user
     assert permission.has_permission(mock_request, view) is False
 
     # Unauthenticated user should not have permission
@@ -182,12 +183,12 @@ def test_is_housekeeper_permission(mock_request, manager_user, admin_user, house
     assert permission.has_permission(mock_request, view) is False
 
 
-# --- Tests for IsManagerOrAdmin ---
+# --- Tests for IsManagerOrFrontDesk ---
 
 @pytest.mark.django_db
-def test_is_manager_or_admin_permission(mock_request, manager_user, admin_user, housekeeper_user, unauthenticated_user):
-    """Test IsManagerOrAdmin permission."""
-    permission = IsManagerOrAdmin()
+def test_is_manager_or_admin_permission(mock_request, manager_user, front_desk_user, housekeeper_user, unauthenticated_user):
+    """Test IsManagerOrFrontDesk permission."""
+    permission = IsManagerOrFrontDesk()
     view = mock_view
 
     # Manager should have permission
@@ -195,7 +196,7 @@ def test_is_manager_or_admin_permission(mock_request, manager_user, admin_user, 
     assert permission.has_permission(mock_request, view) is True
 
     # Admin should have permission
-    mock_request.user = admin_user
+    mock_request.user = front_desk_user
     assert permission.has_permission(mock_request, view) is True
 
     # Housekeeper should not have permission
@@ -207,22 +208,22 @@ def test_is_manager_or_admin_permission(mock_request, manager_user, admin_user, 
     assert permission.has_permission(mock_request, view) is False
 
 
-# --- Tests for IsAssignedHousekeeperOrManagerOrAdmin (Object Level) ---
+# --- Tests for IsAssignedHousekeeperOrManagerOrFrontDesk (Object Level) ---
 
 @pytest.mark.django_db
 def test_is_assigned_housekeeper_or_manager_or_admin_permission(
     mock_request,
     mock_view,
     manager_user,
-    admin_user,
+    front_desk_user,
     housekeeper_user,
     unauthenticated_user, # Removed other_user
     mock_cleaning_task_assigned,
     mock_cleaning_task_unassigned,
     mock_other_object
 ):
-    """Test IsAssignedHousekeeperOrManagerOrAdmin object-level permission."""
-    permission = IsAssignedHousekeeperOrManagerOrAdmin()
+    """Test IsAssignedHousekeeperOrManagerOrFrontDesk object-level permission."""
+    permission = IsAssignedHousekeeperOrManagerOrFrontDesk()
     view = mock_view # Use mock view
 
     # Set view action to a detail action to ensure has_object_permission is relevant
@@ -240,7 +241,7 @@ def test_is_assigned_housekeeper_or_manager_or_admin_permission(
     assert permission.has_object_permission(mock_request, view, mock_cleaning_task_assigned) is True
 
     # Admin should have permission
-    mock_request.user = admin_user
+    mock_request.user = front_desk_user
     assert permission.has_object_permission(mock_request, view, mock_cleaning_task_assigned) is True
 
     # Unauthenticated user should NOT have permission
@@ -258,7 +259,7 @@ def test_is_assigned_housekeeper_or_manager_or_admin_permission(
     assert permission.has_object_permission(mock_request, view, mock_cleaning_task_unassigned) is True
 
     # Admin should have permission
-    mock_request.user = admin_user
+    mock_request.user = front_desk_user
     assert permission.has_object_permission(mock_request, view, mock_cleaning_task_unassigned) is True
 
     # Unauthenticated user should NOT have permission
@@ -273,7 +274,7 @@ def test_is_assigned_housekeeper_or_manager_or_admin_permission(
     assert permission.has_object_permission(mock_request, view, mock_other_object) is True
 
     # Admin should have permission (as they have general object access)
-    mock_request.user = admin_user
+    mock_request.user = front_desk_user
     assert permission.has_object_permission(mock_request, view, mock_other_object) is True
 
     # Housekeeper should NOT have permission (logic only applies to CleaningTask)

@@ -50,10 +50,10 @@ def manager_user(create_user):
   return create_user("manager_user", "managerpass", User.Role.MANAGER) # Assuming User.Role.MANAGER exists / Предполагается, что User.Role.MANAGER существует
 
 @pytest.fixture
-def admin_user(create_user):
+def front_desk_user(create_user):
   """Fixture to create and return an admin user."""
-    # Calls the create_user factory with the ADMIN role / Вызывает фабрику create_user с ролью ADMIN
-  return create_user("admin_user", "adminpass", User.Role.ADMIN) # Assuming User.Role.ADMIN exists / Предполагается, что User.Role.ADMIN существует
+    # Calls the create_user factory with the FRONT_DESK role / Вызывает фабрику create_user с ролью FRONT_DESK
+  return create_user("front_desk_user", "adminpass", User.Role.FRONT_DESK) # Assuming User.Role.FRONT_DESK exists / Предполагается, что User.Role.FRONT_DESK существует
 
 @pytest.fixture
 def cleaner_user(create_user):
@@ -149,7 +149,7 @@ def check_permission(api_client, user, url, method, data=None):
 # Параметризуем тест для запуска с различными фикстурами пользователей и ожидаемыми статусами
 @pytest.mark.parametrize("user_fixture, expected_status", [
   (None, 403), # Unauthenticated user should get Forbidden / Неаутентифицированный пользователь должен получить Forbidden
-  ("admin_user", 403), # Admin user should get Forbidden (based on IsManager permission) / Пользователь Admin должен получить Forbidden (на основе разрешения IsManager)
+  ("front_desk_user", 403), # Admin user should get Forbidden (based on IsManager permission) / Пользователь Admin должен получить Forbidden (на основе разрешения IsManager)
   ("cleaner_user", 403), # Cleaner user should get Forbidden (based on IsManager permission) / Пользователь Cleaner должен получить Forbidden (на основе разрешения IsManager)
   ("manager_user", 200), # Manager user should get OK / Пользователь Manager должен получить OK
 ])
@@ -170,7 +170,7 @@ def test_roomtype_list_permissions(api_client, request, user_fixture, expected_s
 @pytest.mark.django_db
 @pytest.mark.parametrize("user_fixture, expected_status", [
   (None, 403), # Unauthenticated / Неаутентифицированный
-  ("admin_user", 403), # Admin / Admin
+  ("front_desk_user", 403), # Admin / Admin
   ("cleaner_user", 403), # Cleaner / Cleaner
   ("manager_user", 201), # Manager should be able to create / Manager должен иметь возможность создавать
 ])
@@ -189,7 +189,7 @@ def test_roomtype_create_permissions(api_client, request, user_fixture, expected
 @pytest.mark.django_db
 @pytest.mark.parametrize("user_fixture, expected_status", [
   (None, 403), # Unauthenticated / Неаутентифицированный
-  ("admin_user", 403), # Admin / Admin
+  ("front_desk_user", 403), # Admin / Admin
   ("cleaner_user", 403), # Cleaner / Cleaner
   ("manager_user", 200), # Manager should be able to retrieve / Manager должен иметь возможность получать
 ])
@@ -209,7 +209,7 @@ def test_roomtype_retrieve_permissions(api_client, request, user_fixture, expect
 @pytest.mark.django_db
 @pytest.mark.parametrize("user_fixture, expected_status", [
   (None, 403), # Unauthenticated / Неаутентифицированный
-  ("admin_user", 403), # Admin / Admin
+  ("front_desk_user", 403), # Admin / Admin
   ("cleaner_user", 403), # Cleaner / Cleaner
   ("manager_user", 200), # Manager should be able to update / Manager должен иметь возможность обновлять
 ])
@@ -228,7 +228,7 @@ def test_roomtype_update_permissions(api_client, request, user_fixture, expected
 @pytest.mark.django_db
 @pytest.mark.parametrize("user_fixture, expected_status", [
   (None, 403), # Unauthenticated / Неаутентифицированный
-  ("admin_user", 403), # Admin / Admin
+  ("front_desk_user", 403), # Admin / Admin
   ("cleaner_user", 403), # Cleaner / Cleaner
   ("manager_user", 204), # Manager should be able to delete (204 No Content is typical for successful deletion)
     # Manager должен иметь возможность удалять (204 No Content - типичный статус для успешного удаления)
@@ -251,7 +251,7 @@ def test_roomtype_destroy_permissions(api_client, request, user_fixture, expecte
 @pytest.mark.django_db
 @pytest.mark.parametrize("user_fixture, expected_status", [
   (None, 403), # Unauthenticated / Неаутентифицированный
-  ("admin_user", 403), # Admin / Admin
+  ("front_desk_user", 403), # Admin / Admin
   ("cleaner_user", 403), # Cleaner / Cleaner
   ("manager_user", 200), # Manager should have access / Manager должен иметь доступ
 ])
@@ -268,7 +268,7 @@ def test_room_list_permissions(api_client, request, user_fixture, expected_statu
 @pytest.mark.django_db
 @pytest.mark.parametrize("user_fixture, expected_status", [
   (None, 403), # Unauthenticated / Неаутентифицированный
-  ("admin_user", 403), # Admin / Admin
+  ("front_desk_user", 403), # Admin / Admin
   ("cleaner_user", 403), # Cleaner / Cleaner
   ("manager_user", 201), # Manager should be able to create / Manager должен иметь возможность создавать
 ])
@@ -296,7 +296,7 @@ def test_room_create_permissions(api_client, request, user_fixture, expected_sta
 @pytest.mark.django_db
 @pytest.mark.parametrize("user_fixture, expected_status", [
   (None, 403), # Unauthenticated / Неаутентифицированный
-  ("admin_user", 403), # Admin / Admin
+  ("front_desk_user", 403), # Admin / Admin
   ("cleaner_user", 403), # Cleaner / Cleaner
   ("manager_user", 200), # Manager should be able to retrieve / Manager должен иметь возможность получать
 ])
@@ -315,7 +315,7 @@ def test_room_retrieve_permissions(api_client, request, user_fixture, expected_s
 @pytest.mark.django_db
 @pytest.mark.parametrize("user_fixture, expected_status", [
   (None, 403), # Unauthenticated / Неаутентифицированный
-  ("admin_user", 403), # Admin / Admin
+  ("front_desk_user", 403), # Admin / Admin
   ("cleaner_user", 403), # Cleaner / Cleaner
   ("manager_user", 200), # Manager should be able to update / Manager должен иметь возможность обновлять
 ])
@@ -334,7 +334,7 @@ def test_room_update_permissions(api_client, request, user_fixture, expected_sta
 @pytest.mark.django_db
 @pytest.mark.parametrize("user_fixture, expected_status", [
   (None, 403), # Unauthenticated / Неаутентифицированный
-  ("admin_user", 403), # Admin / Admin
+  ("front_desk_user", 403), # Admin / Admin
   ("cleaner_user", 403), # Cleaner / Cleaner
   ("manager_user", 204), # Manager should be able to delete / Manager должен иметь возможность удалять
 ])
@@ -356,7 +356,7 @@ def test_room_destroy_permissions(api_client, request, user_fixture, expected_st
 @pytest.mark.django_db
 @pytest.mark.parametrize("user_fixture, expected_status", [
   (None, 403), # Unauthenticated / Неаутентифицированный
-  ("admin_user", 403), # Admin / Admin
+  ("front_desk_user", 403), # Admin / Admin
   ("cleaner_user", 403), # Cleaner / Cleaner
   ("manager_user", 200), # Manager should have access / Manager должен иметь доступ
 ])
@@ -373,7 +373,7 @@ def test_zone_list_permissions(api_client, request, user_fixture, expected_statu
 @pytest.mark.django_db
 @pytest.mark.parametrize("user_fixture, expected_status", [
   (None, 403), # Unauthenticated / Неаутентифицированный
-  ("admin_user", 403), # Admin / Admin
+  ("front_desk_user", 403), # Admin / Admin
   ("cleaner_user", 403), # Cleaner / Cleaner
   ("manager_user", 201), # Manager should be able to create / Manager должен иметь возможность создавать
 ])
@@ -392,7 +392,7 @@ def test_zone_create_permissions(api_client, request, user_fixture, expected_sta
 @pytest.mark.django_db
 @pytest.mark.parametrize("user_fixture, expected_status", [
   (None, 403), # Unauthenticated / Неаутентифицированный
-  ("admin_user", 403), # Admin / Admin
+  ("front_desk_user", 403), # Admin / Admin
   ("cleaner_user", 403), # Cleaner / Cleaner
   ("manager_user", 200), # Manager should be able to retrieve / Manager должен иметь возможность получать
 ])
@@ -410,7 +410,7 @@ def test_zone_retrieve_permissions(api_client, request, user_fixture, expected_s
 @pytest.mark.django_db
 @pytest.mark.parametrize("user_fixture, expected_status", [
   (None, 403), # Unauthenticated / Неаутентифицированный
-  ("admin_user", 403), # Admin / Admin
+  ("front_desk_user", 403), # Admin / Admin
   ("cleaner_user", 403), # Cleaner / Cleaner
   ("manager_user", 200), # Manager should be able to update / Manager должен иметь возможность обновлять
 ])
@@ -429,7 +429,7 @@ def test_zone_update_permissions(api_client, request, user_fixture, expected_sta
 @pytest.mark.django_db
 @pytest.mark.parametrize("user_fixture, expected_status", [
   (None, 403), # Unauthenticated / Неаутентифицированный
-  ("admin_user", 403), # Admin / Admin
+  ("front_desk_user", 403), # Admin / Admin
   ("cleaner_user", 403), # Cleaner / Cleaner
   ("manager_user", 204), # Manager should be able to delete / Manager должен иметь возможность удалять
 ])

@@ -4,23 +4,20 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { jwtDecode } from 'jwt-decode';
 import { ACCESS_TOKEN, REFRESH_TOKEN } from './constants'; 
 import api from './api';
+import { useRouter } from 'next/navigation';
+import axios from 'axios'
+import { User, JwtPayload } from './types';
 
 
-interface User {
-  user_id: number;
-  role: 'housekeeper' | 'admin' | 'manager';
-  exp: number;
-  iat: number;
-}
 
 // Тип для состояния контекста аутентификации
 interface AuthContextType {
-  isAuthenticated: boolean; // Флаг, аутентифицирован ли пользователь
+  isAuthenticated: boolean; 
   user: User | null; // Данные текущего пользователя, или null если не аутентифицирован
   isLoading: boolean; // Флаг, идет ли проверка аутентификации/загрузка данных
-  login: (accessToken: string, refreshToken: string) => void; // Функция для установки токенов и пользователя после входа
+  login: (accessToken: string, refreshToken: string) =>  Promise<void> //Функция для установки токенов и пользователя после входа
   logout: () => void; // Функция для выхода из системы
-  // Возможно, добавить функцию для получения актуальных данных пользователя: fetchUser: () => Promise<void>;
+  
 }
 
 // Создаем контекст с значениями по умолчанию
@@ -31,6 +28,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true); // Изначально true, пока идет проверка
+  const router = useRouter()
 
   // Функция для выхода из системы
   const logout =useCallback(() => {
@@ -40,28 +38,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     // TODO: Возможно, отправить запрос на бэкенд для аннулирования токенов
     console.log("User logged out.");
-  },[setIsAuthenticated, setUser]);
+    router.push("/login")
+  },[setIsAuthenticated, setUser, router]);
+
+
+  // Функция для получения данных пользователя с бэкенда
+  const fetchUser = useCallback(async () => {
+      try {
+          const response = await api.get<User>('/api/users/me/'); 
+
+          if (response.status === 200) {
+              setUser(response.data); // Устанавливаем данные пользователя
+              setIsAuthenticated(true); // Устанавливаем флаг аутентификации
+              console.log("User data fetched successfully.");
+          } else {
+              // Если запрос на данные пользователя не удался, считаем пользователя неаутентифицированным
+              console.log("Failed to fetch user data. Redirecting to login.");
+              logout(); // Выполняем выход
+          }
+      } catch (error) {
+          console.error("Error fetching user data:", error);
+           if (axios.isAxiosError(error) && error.response && error.response.status === 401) {
+               // Если получили 401 при запросе данных пользователя, значит токен невалиден
+               console.log("Unauthorized when fetching user data. Token might be invalid.");
+           }
+          logout(); // При любой ошибке запроса данных пользователя - выходим
+      }
+  }, [logout, setIsAuthenticated, setUser]);
+
   // Функция для установки состояния после успешного входа или обновления токена
-  const login =useCallback((accessToken: string, refreshToken: string) => {
+  const login =useCallback(async (accessToken: string, refreshToken: string) => {
     localStorage.setItem(ACCESS_TOKEN, accessToken);
     localStorage.setItem(REFRESH_TOKEN, refreshToken);
     // Декодируем access токен, чтобы получить данные пользователя (например, роль)
-    try {
-      const decodedToken = jwtDecode<User>(accessToken);
-      // Убедитесь, что поля user_id и role существуют в payload вашего JWT!
-      setUser({
-          user_id: decodedToken.user_id,
-          role: decodedToken.role, 
-          exp: decodedToken.exp,
-          iat: decodedToken.iat,
-      });
-      setIsAuthenticated(true);
-    } catch (error) {
-      console.error("Failed to decode access token:", error);
-      // Если токен не декодируется, считаем его невалидным
-      logout(); // Выполняем выход
-    }
-  }, [logout, setIsAuthenticated, setUser]);
+    await fetchUser();
+  }, [fetchUser]);
 
 
   // Эффект для проверки аутентификации при загрузке приложения
@@ -79,7 +90,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       try {
-        const decodedToken = jwtDecode<User>(accessToken);
+        const decodedToken = jwtDecode<JwtPayload>(accessToken);
         const tokenExpiration = decodedToken.exp;
         const now = Date.now() / 1000;
 
@@ -88,10 +99,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (refreshToken) {
             // Попытка обновить токен
             try {
-              const response = await api.post('/api/token/refresh/', { refresh: refreshToken }); // <--- ПРОВЕРЬТЕ ЭТОТ URL
+              const response = await api.post('/api/token/refresh/', { refresh: refreshToken });
               if (response.status === 200) {
-                login(response.data.access, refreshToken); // Используем функцию login для установки нового токена и пользователя
-                console.log("Token refreshed successfully during initial check.");
+                const newAccessToken = response.data.access;
+                localStorage.setItem(ACCESS_TOKEN, newAccessToken); // Сохраняем новый access токен
+                // После успешного обновления, получаем данные пользователя
+                await fetchUser(); // <--- Вызываем fetchUser после обновления
+                console.log("Token refreshed successfully during initial check. Fetching user data.")
               } else {
                 console.log("Failed to refresh token during initial check. Redirecting to login.");
                 logout(); // Не удалось обновить, выходим
@@ -105,22 +119,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             logout(); // Нет refresh токена, выходим
           }
         } else {
-          // Access токен действителен, устанавливаем пользователя из токена
-          console.log("Initial access token is valid.");
-           try {
-              const decodedToken = jwtDecode<User>(accessToken);
-               // Убедитесь, что поля user_id и role существуют в payload вашего JWT!
-               setUser({
-                    user_id: decodedToken.user_id,
-                    role: decodedToken.role, 
-                    exp: decodedToken.exp,
-                    iat: decodedToken.iat,
-               });
-               setIsAuthenticated(true);
-           } catch (error) {
-               console.error("Failed to decode valid access token:", error);
-               logout(); // Если токен не декодируется, выходим
-           }
+            // Access токен действителен, получаем данные пользователя
+            console.log("Initial access token is valid. Fetching user data.");
+            await fetchUser();
         }
       } catch (error) {
         console.error("Error decoding initial access token:", error);
@@ -131,7 +132,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     checkAuth(); // Запускаем проверку при монтировании провайдера
-  }, [login, logout]); // Пустой массив зависимостей, чтобы эффект выполнился только один раз при монтировании
+  }, [logout,fetchUser]); 
 
   // Значение контекста, которое будет доступно дочерним компонентам
   const contextValue: AuthContextType = {

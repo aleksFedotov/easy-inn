@@ -116,9 +116,11 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ru-ru'
+TIME_ZONE = 'Europe/Moscow'
 
-TIME_ZONE = 'UTC'
+DATETIME_FORMAT = '%d/%m/%Y %H:%M'
+DATETIME_INPUT_FORMATS = ['%d/%m/%Y %H:%M']
 
 USE_I18N = True
 
@@ -145,9 +147,15 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.BasicAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.OrderingFilter',
+    ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',  
     ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination', 
+    'PAGE_SIZE': 10,
     
 }
 
@@ -209,7 +217,7 @@ LOGGING = {
             'level': 'ERROR',
             'propagate': False, 
         },
-        'your_project_name': {
+        'hotelbackend': {
             'handlers': ['console', 'file'],
             'level': 'DEBUG', 
             'propagate': False,
@@ -245,9 +253,9 @@ LOGGING = {
    
 # ]
 
-SIMPLE_JWT = {
+# SIMPLE_JWT = {
     
-    'TOKEN_OBTAIN_SERIALIZER': 'users.serializers.CustomTokenObtainPairSerializer',
+#     'TOKEN_OBTAIN_SERIALIZER': 'users.serializers.CustomTokenObtainPairSerializer',
 
    
-}
+# }

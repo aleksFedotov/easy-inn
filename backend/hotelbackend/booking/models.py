@@ -14,6 +14,15 @@ class Booking(models.Model):
     Represents a booking for a room in the hotel.
     Представляет бронирование номера в отеле.
     """
+
+    class BookingStatus(models.TextChoices):
+        UPCOMING = "upcoming", "Ожидается"
+        IN_PROGRESS = "in_progress", "В процессе проживания"
+        CHECKED_OUT = "checked_out", "Выезд выполнен"
+        CANCELLED = "cancelled", "Отменено"
+        NO_SHOW = "no_show", "Не заехал"
+
+    
     class Meta:
         """
         Meta options for the Booking model.
@@ -44,6 +53,14 @@ class Booking(models.Model):
         blank=True, # Allow the field to be blank in forms / Разрешить полю быть пустым в формах
         verbose_name="Дата и время выезда" # Human-readable name for the field / Человекочитаемое имя для поля
     )
+
+
+    status = models.CharField(
+        max_length=20,
+        choices=BookingStatus.choices,
+        default=BookingStatus.UPCOMING,
+    )
+
     guest_count = models.PositiveIntegerField(
         default=2, # Default number of guests / Количество гостей по умолчанию
         verbose_name="Количество гостей" # Human-readable name for the field / Человекочитаемое имя для поля
@@ -93,6 +110,17 @@ class Booking(models.Model):
             raise ValidationError({
                 'check_out': 'Дата выезда должна быть позже даты заезда.' # Error message / Сообщение об ошибке
             })
+        
+        if self.check_in and self.check_out and self.room:
+            overlapping_bookings = Booking.objects.filter(
+                room=self.room,
+                check_out__gt=self.check_in,
+                check_in__lt=self.check_out,
+            )
+            if self.pk:
+                overlapping_bookings = overlapping_bookings.exclude(pk=self.pk)
+            if overlapping_bookings.exists():
+                raise ValidationError("Выбранный номер уже забронирован на эти даты.")
 
         # Validate that guest_count does not exceed room capacity if room and room_type are available
         # Проверяем, что количество гостей не превышает вместимость номера, если номер и его тип доступны
@@ -111,3 +139,5 @@ class Booking(models.Model):
         if self.check_in and self.check_out:
             return (self.check_out.date() - self.check_in.date()).days
         return None
+    
+    

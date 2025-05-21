@@ -1,10 +1,17 @@
 from rest_framework import viewsets
-
-from rest_framework.permissions import IsAuthenticated 
+import logging 
+from rest_framework.permissions import IsAuthenticated
 from .models import RoomType, Room, Zone
 from .serializers import RoomTypeSerializer, RoomSerializer, ZoneSerializer
-from utills.permissions import IsManager 
+from utills.permissions import IsManager, IsManagerOrFrontDesk
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework import status
+from django.db import models
 
+
+
+logger = logging.getLogger(__name__)
 # --- RoomType ViewSet ---
 
 class RoomTypeViewSet(viewsets.ModelViewSet):
@@ -30,6 +37,12 @@ class RoomTypeViewSet(viewsets.ModelViewSet):
     # Define the access permissions for this ViewSet.
     # Requires authentication (globally or explicitly) AND the 'manager' role.
     permission_classes = [IsAuthenticated, IsManager] 
+
+    
+    def paginate_queryset(self, queryset):
+        if self.request.query_params.get('all') == 'true':
+            return None 
+        return super().paginate_queryset(queryset)
 
 # --- Room ViewSet ---
 
@@ -57,6 +70,40 @@ class RoomViewSet(viewsets.ModelViewSet):
     # Requires authentication (globally or explicitly) AND the 'manager' role.
     permission_classes = [IsAuthenticated, IsManager] 
 
+    @action(detail=False, methods=['get'],url_path='status-summary')
+    def status_summary(self, request):
+        """
+        Возвращает количество номеров по определенным статусам (dirty, in_progress, waiting_inspection).
+        Доступно аутентифицированным пользователям с ролью 'manager' или 'front desk'.
+        """
+        self.permission_classes = [IsAuthenticated, IsManagerOrFrontDesk] 
+        self.check_permissions(request) 
+        summary = Room.objects.filter(is_active=True).aggregate( # Учитываем только активные номера
+            awaiting_cleaning=models.Count('pk', filter=models.Q(status='dirty')), 
+            in_progress=models.Count('pk', filter=models.Q(status='in_progress')), 
+            ready_for_inspection=models.Count('pk', filter=models.Q(status='waiting_inspection')), 
+           
+        )
+
+        
+        return Response(summary, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['post'])
+    def change_status(self,request, pk=None):
+        room = self.get_object()
+        logger.info(room)
+        new_status = request.data.get('new_status')
+        if new_status not in Room.Status.values:
+            Response({'error': "Недопустимый статус"},status=status.HTTP_400_BAD_REQUEST)
+        room.status = new_status
+        room.save()
+        return Response()
+    
+    
+    def paginate_queryset(self, queryset):
+        if self.request.query_params.get('all') == 'true':
+            return None 
+        return super().paginate_queryset(queryset)
 
 
 # --- Zone ViewSet ---
@@ -84,5 +131,10 @@ class ZoneViewSet(viewsets.ModelViewSet):
     # Define the access permissions for this ViewSet.
     # Requires authentication (globally or explicitly) AND the 'manager' role.
     permission_classes = [IsAuthenticated, IsManager] 
+    
+    def paginate_queryset(self, queryset):
+        if self.request.query_params.get('all') == 'true':
+            return None 
+        return super().paginate_queryset(queryset)
 
 

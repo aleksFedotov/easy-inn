@@ -75,6 +75,7 @@ def test_user_create_serializer_valid_data():
         'password': 'securepassword',
         'first_name': 'New',
         'last_name': 'User',
+        'role': 'front-desk'
     }
 
     # Instantiate the serializer with the data
@@ -93,9 +94,7 @@ def test_user_create_serializer_valid_data():
     assert 'first_name' in validated_data
     assert 'last_name' in validated_data
 
-    # Role should NOT be in validated_data if not provided and read_only
-    # Роль НЕ должна быть в validated_data, если не предоставлена и является полем только для чтения
-    assert 'role' not in validated_data
+ 
 
     assert validated_data['username'] == 'newuser_create'
     assert validated_data['password'] == 'securepassword'
@@ -153,8 +152,7 @@ def test_user_create_serializer_create_method():
         'password': 'createpassword',
         'first_name': 'Created',
         'last_name': 'User',
-        # Role is read_only, so it won't be used from validated_data in create()
-        # Роль является полем только для чтения, поэтому она не будет использоваться из validated_data в create()
+        'role': 'front-desk'
     }
 
     serializer = UserSerializer(data=valid_data)
@@ -176,15 +174,13 @@ def test_user_create_serializer_create_method():
     assert user.username == 'user_to_create'
     assert user.first_name == 'Created'
     assert user.last_name == 'User'
+   
 
     # Check that the password was correctly hashed
     # Проверяем, что пароль был корректно хеширован
     assert user.check_password('createpassword')
 
-    # Check the default role is set correctly (based on model's default)
-    # Проверяем, что роль по умолчанию установлена корректно (на основе значения по умолчанию в модели)
-    # Предполагая, что модель имеет роль по умолчанию, например, User.Role.GUEST
-    assert user.role == '' 
+    
 
 
 @pytest.mark.django_db
@@ -198,7 +194,7 @@ def test_user_update_serializer_valid_data():
     user = UserModel.objects.create_user(
         username="user_to_update",
         password="oldpassword",
-        role=User.Role.ADMIN # User created with admin role / Пользователь создан с ролью admin
+        role=User.Role.FRONT_DESK # User created with admin role / Пользователь создан с ролью admin
     )
 
     # Valid data for updating the user (changing first name and password)
@@ -226,10 +222,8 @@ def test_user_update_serializer_valid_data():
     assert 'password' in validated_data # New password is in validated_data for update / Новый пароль в validated_data для обновления
     assert validated_data['first_name'] == 'Updated'
     assert validated_data['password'] == 'newpassword'
+    assert validated_data['role'] == 'manager'
 
-    # Role should NOT be in validated_data because it's read_only
-    # Роль НЕ должна быть в validated_data, потому что она только для чтения
-    assert 'role' not in validated_data
 
 
 @pytest.mark.django_db
@@ -239,7 +233,7 @@ def test_user_update_serializer_update_method():
     a User object, including changing the password, and does NOT change read-only fields like role.
 
     Тест, что метод update() UserSerializer корректно обновляет объект User,
-    включая изменение пароля, и НЕ изменяет поля только для чтения, такие как роль.
+    включая изменение пароля, и НЕ изменяет поля только для чтения
     """
     # Create an existing user instance
     # Создаем существующий экземпляр пользователя
@@ -259,7 +253,6 @@ def test_user_update_serializer_update_method():
         'first_name': 'New',
         'last_name': 'LastName',
         'password': 'brandnewpassword',
-        'role': User.Role.ADMIN # Attempting to change role (should be ignored) / Попытка изменить роль (должна быть проигнорирована)
     }
 
     # Instantiate the serializer with the instance and the update data
@@ -293,7 +286,7 @@ def test_user_update_serializer_update_method():
     assert not updated_user.check_password('oldpassword123')
     # Check that the role was NOT changed (because it's read_only)
     # Проверяем, что роль НЕ была изменена (потому что она только для чтения)
-    assert updated_user.role == User.Role.HOUSEKEEPER # Assert role remains the initial role / Проверка, что роль осталась начальной
+  
 
 
 @pytest.mark.django_db

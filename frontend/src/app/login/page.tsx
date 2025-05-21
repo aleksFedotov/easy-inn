@@ -2,11 +2,11 @@
 
 import React, { useState, FormEvent, useEffect } from 'react'; // Добавлен useEffect
 import { useRouter } from 'next/navigation';
-// Удалены импорты ACCESS_TOKEN, REFRESH_TOKEN, так как управление токенами теперь в AuthContext
-// import { ACCESS_TOKEN,REFRESH_TOKEN } from '@/lib/constants';
 import api from '@/lib/api'
 import { useAuth } from '@/lib/AuthContext'; // Импортируем useAuth
 import { Spinner } from '@/components/spinner';
+import axios from 'axios';
+
 
 
 export default function LoginPage() {
@@ -48,28 +48,30 @@ export default function LoginPage() {
 
       if (accessToken && refreshToken) { // Убедимся, что оба токена получены
         login(accessToken, refreshToken); // Используем функцию login из контекста
-        // Перенаправление теперь происходит автоматически в useEffect выше
-        // router.push('/dashboard'); // <-- Эту строку можно удалить
       } else {
         setError('Токены не получены.'); // Более точное сообщение
       }
-    } catch (err: any) {
-      if (err.response) {
-        setError(err.response.data.detail || 'Ошибка входа. Проверьте логин и пароль.');
-      } else if (err.request) {
-         setError('Нет ответа от сервера. Проверьте подключение или URL API.');
+    } catch (err) {
+      if(axios.isAxiosError(err)){
+        if (err.response) {
+          setError(err.response.data.detail || 'Ошибка входа. Проверьте логин и пароль.');
+        } else if (err.request) {
+           setError('Нет ответа от сервера. Проверьте подключение или URL API.');
+        } else {
+          setError('Ошибка сети или сервера. Пожалуйста, попробуйте позже.');
+        }
       } else {
-        setError('Ошибка сети или сервера. Пожалуйста, попробуйте позже.');
+        setError('Произошла непредвиденная ошибка. Пожалуйста, попробуйте позже.');
       }
       console.error('Ошибка при входе:', err);
     }
   };
 
-   // Пока AuthProvider загружается, можно показать пустую страницу или спиннер
+   // Пока AuthProvider загружается показываем спиннер
    if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gray-100">
-                 <Spinner/> {/* Используем компонент Spinner */}
+                 <Spinner/> 
             </div>
         );
     }

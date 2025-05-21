@@ -33,9 +33,9 @@ def manager_user(create_user):
     return create_user("manager_user", "managerpass", User.Role.MANAGER)
 
 @pytest.fixture
-def admin_user(create_user):
+def front_desk_user(create_user):
     """Администратор (не имеет прав доступа к UserViewSet согласно permission_classes) / Admin user (does not have access to UserViewSet based on permission_classes)."""
-    return create_user("admin_user", "adminpass", User.Role.ADMIN)
+    return create_user("front_desk_user", "adminpass", User.Role.FRONT_DESK)
 
 @pytest.fixture
 def cleaner_user(create_user):
@@ -55,12 +55,12 @@ def test_user_list_permission_unauthenticated(api_client):
     assert response.status_code == 403
 
 @pytest.mark.django_db
-def test_user_list_permission_non_manager(api_client, admin_user, cleaner_user):
+def test_user_list_permission_non_manager(api_client, front_desk_user, cleaner_user):
     """Пользователи без роли менеджера не могут получать список пользователей (ожидается 403 Forbidden) / Non-manager users cannot list users (expected 403 Forbidden)."""
     url = reverse('user-list')
 
     # Test with Admin user / Тест с пользователем Администратор
-    api_client.force_authenticate(user=admin_user)
+    api_client.force_authenticate(user=front_desk_user)
     response = api_client.get(url)
     assert response.status_code == 403 # Forbidden
     api_client.logout() # Logout after test / Выход после теста
@@ -94,13 +94,13 @@ def test_user_create_permission_unauthenticated(api_client):
     assert response.status_code == 403
 
 @pytest.mark.django_db
-def test_user_create_permission_non_manager(api_client, admin_user, cleaner_user):
+def test_user_create_permission_non_manager(api_client, front_desk_user, cleaner_user):
     """Пользователи без роли менеджера не могут создавать пользователей (ожидается 403 Forbidden) / Non-manager users cannot create users (expected 403 Forbidden)."""
     url = reverse('user-list')
     user_data = {'username': 'non_manager_create', 'password': 'password123'}
 
     # Test with Admin user / Тест с пользователем Администратор
-    api_client.force_authenticate(user=admin_user)
+    api_client.force_authenticate(user=front_desk_user)
     response = api_client.post(url, user_data)
     assert response.status_code == 403 # Forbidden
     api_client.logout()
@@ -121,9 +121,8 @@ def test_user_create_permission_manager(api_client, manager_user):
         'password': 'password123',
         'email': 'manager@example.com',
         'first_name': 'Manager',
-        'last_name': 'Created'
-        # Role is read-only in serializer, should not be sent in create data
-        # Роль только для чтения в сериализаторе, не должна отправляться при создании
+        'last_name': 'Created',
+        'role' : 'front-desk'
     }
     api_client.force_authenticate(user=manager_user)
     response = api_client.post(url, user_data)
@@ -147,12 +146,12 @@ def test_user_retrieve_permission_unauthenticated(api_client, manager_user):
 
 
 @pytest.mark.django_db
-def test_user_retrieve_permission_non_manager(api_client, manager_user, admin_user, cleaner_user):
+def test_user_retrieve_permission_non_manager(api_client, manager_user, front_desk_user, cleaner_user):
     """Пользователи без роли менеджера не могут просматривать пользователей (ожидается 403 Forbidden) / Non-manager users cannot retrieve users (expected 403 Forbidden)."""
     url = reverse('user-detail', args=[manager_user.pk]) # Use manager_user as a target / Используем manager_user как целевой объект
 
     # Test with Admin user / Тест с пользователем Администратор
-    api_client.force_authenticate(user=admin_user)
+    api_client.force_authenticate(user=front_desk_user)
     response = api_client.get(url)
     assert response.status_code == 403 # Forbidden
     api_client.logout()
@@ -191,13 +190,13 @@ def test_user_update_permission_unauthenticated(api_client, cleaner_user):
 
 
 @pytest.mark.django_db
-def test_user_update_permission_non_manager(api_client, cleaner_user, admin_user):
+def test_user_update_permission_non_manager(api_client, cleaner_user, front_desk_user):
     """Пользователи без роли менеджера не могут обновлять пользователей (ожидается 403 Forbidden) / Non-manager users cannot update users (expected 403 Forbidden)."""
     url = reverse('user-detail', args=[cleaner_user.pk])
     update_data = {'first_name': 'Forbidden Update'}
 
     # Test with Admin user / Тест с пользователем Администратор
-    api_client.force_authenticate(user=admin_user)
+    api_client.force_authenticate(user=front_desk_user)
     response = api_client.patch(url, update_data)
     assert response.status_code == 403 # Forbidden
     api_client.logout()
@@ -230,12 +229,12 @@ def test_user_destroy_permission_unauthenticated(api_client, cleaner_user):
     assert response.status_code == 403
 
 @pytest.mark.django_db
-def test_user_destroy_permission_non_manager(api_client, cleaner_user, admin_user):
+def test_user_destroy_permission_non_manager(api_client, cleaner_user, front_desk_user):
     """Пользователи без роли менеджера не могут удалять пользователей (ожидается 403 Forbidden) / Non-manager users cannot delete users (expected 403 Forbidden)."""
     url = reverse('user-detail', args=[cleaner_user.pk])
 
     # Test with Admin user / Тест с пользователем Администратор
-    api_client.force_authenticate(user=admin_user)
+    api_client.force_authenticate(user=front_desk_user)
     response = api_client.delete(url)
     assert response.status_code == 403 # Forbidden
     api_client.logout()

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from users.models import User
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+# from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 
 # Получаем кастомную модель пользователя
@@ -35,12 +35,10 @@ class UserSerializer(serializers.ModelSerializer):
         # Определяем поля, которые будут включены в сериализацию/десериализацию
         fields = ['id', 'username', 'role', 'first_name', 'last_name', 'password']
         # Define fields that are included in 'fields' but should only be read from, not written to.
-        # 'id' is typically read-only. 'role' is read-only to prevent users from changing their own role
-        # via standard user update (role changes should be handled by managers/admins, possibly via a separate endpoint or admin panel).
+        # 'id' is typically read-only. 
         # Определяем поля, которые включены в 'fields', но должны быть доступны только для чтения, а не для записи.
-        # 'id' обычно только для чтения. 'role' только для чтения, чтобы предотвратить изменение пользователями своей роли
-        # через стандартное обновление пользователя (изменения роли должны обрабатываться менеджерами/администраторами, возможно, через отдельный эндпоинт или админ-панель).
-        read_only_fields = ['id', 'role']
+        # 'id' обычно только для чтения. 
+        read_only_fields = ['id']
 
     def create(self, validated_data):
         """
@@ -51,6 +49,8 @@ class UserSerializer(serializers.ModelSerializer):
         # Pop the password from validated_data as it needs special handling (hashing)
         # Извлекаем пароль из validated_data, так как он требует специальной обработки (хеширования).
         password = validated_data.pop('password', None)
+        if password is None:
+            raise serializers.ValidationError({"password": "Password is required for new users."})
         # Create the user instance using the remaining validated data
         # Создаем экземпляр пользователя, используя оставшиеся валидированные данные.
         user = User.objects.create(**validated_data)
@@ -88,30 +88,32 @@ class UserSerializer(serializers.ModelSerializer):
         # Return the updated user instance
         # Возвращаем обновленный экземпляр пользователя.
         return user
+    
+    
 
 
-class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    """
-    Кастомизированный сериализатор для получения пары токенов (access и refresh).
-    Добавляет роль пользователя в payload access токена.
-    """
-    @classmethod
-    def get_token(cls, user):
-        """
-        Переопределяем метод get_token для добавления кастомных полей в payload.
-        """
-        # Получаем стандартный токен, используя метод родительского класса.
-        # simplejwt автоматически включает 'user_id' (pk пользователя) в payload.
-        token = super().get_token(user)
+# class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+#     """
+#     Кастомизированный сериализатор для получения пары токенов (access и refresh).
+#     Добавляет роль пользователя в payload access токена.
+#     """
+#     @classmethod
+#     def get_token(cls, user):
+#         """
+#         Переопределяем метод get_token для добавления кастомных полей в payload.
+#         """
+#         # Получаем стандартный токен, используя метод родительского класса.
+#         # simplejwt автоматически включает 'user_id' (pk пользователя) в payload.
+#         token = super().get_token(user)
 
-        # Добавляем кастомное поле 'role' в payload access токена.
-        # Поле 'role' берется из модели User.
-        token['role'] = user.role
+#         # Добавляем кастомное поле 'role' в payload access токена.
+#         # Поле 'role' берется из модели User.
+#         token['role'] = user.role
 
-        # Вы можете добавить любые другие поля из модели User, если они нужны
-        # на фронтенде для определения прав или отображения информации.
-        # token['username'] = user.username
-        # token['first_name'] = user.first_name
-        # token['last_name'] = user.last_name
+#         # Вы можете добавить любые другие поля из модели User, если они нужны
+#         # на фронтенде для определения прав или отображения информации.
+#         # token['username'] = user.username
+#         # token['first_name'] = user.first_name
+#         # token['last_name'] = user.last_name
 
-        return token
+#         return token

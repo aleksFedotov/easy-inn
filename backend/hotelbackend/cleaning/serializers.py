@@ -4,10 +4,10 @@ from .models import CleaningType, ChecklistTemplate, ChecklistItemTemplate, Clea
 from django.core.exceptions import ValidationError as DjangoValidationError 
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from hotel.models import Room, Zone 
-
+import logging 
 
 UserModel = get_user_model() # Get the custom User model / Получаем пользовательскую модель User
-
+logger = logging.getLogger(__name__)
 # --- CleaningType Serializer ---
 
 class CleaningTypeSerializer(serializers.ModelSerializer):
@@ -25,30 +25,6 @@ class CleaningTypeSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id'] # Fields that should be included in the output but not accepted for input / Поля, которые должны быть включены в вывод, но не приниматься для ввода
 
-# --- ChecklistTemplate Serializer ---
-
-class ChecklistTemplateSerializer(serializers.ModelSerializer):
-    """
-    Serializer for the ChecklistTemplate model.
-    Handles serialization and deserialization of checklist template data.
-    Сериализатор для модели ChecklistTemplate.
-    Обрабатывает сериализацию и десериализацию данных о шаблонах чек-листов.
-    """
-    # To display the name of the related CleaningType instead of just its ID
-    # Используется для отображения имени связанного CleaningType вместо его ID
-    cleaning_type_name = serializers.CharField(source='cleaning_type.name', read_only=True)
-
-    class Meta:
-        model = ChecklistTemplate # Specify the model / Указываем модель
-        fields = [ # List of fields / Список полей
-            'id',
-            'name',
-            'cleaning_type', # Allows setting the CleaningType via its ID / Позволяет устанавливать CleaningType по его ID
-            'cleaning_type_name', # Read-only field displaying the name / Поле только для чтения, отображающее имя
-            'description',
-        ]
-        read_only_fields = ['id', 'cleaning_type_name'] # Read-only fields / Поля только для чтения
-
 # --- ChecklistItemTemplate Serializer ---
 
 class ChecklistItemTemplateSerializer(serializers.ModelSerializer):
@@ -62,11 +38,85 @@ class ChecklistItemTemplateSerializer(serializers.ModelSerializer):
         model = ChecklistItemTemplate # Specify the model / Указываем модель
         fields = [ # List of fields / Список полей
             'id',
-            'checklist_template', # Allows setting the ChecklistTemplate via its ID / Позволяет устанавливать ChecklistTemplate по его ID
             'text',
             'order',
         ]
         read_only_fields = ['id'] # Read-only fields / Поля только для чтения
+
+# --- ChecklistTemplate Serializer ---
+
+class ChecklistTemplateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the ChecklistTemplate model.
+    Handles serialization and deserialization of checklist template data.
+    Сериализатор для модели ChecklistTemplate.
+    Обрабатывает сериализацию и десериализацию данных о шаблонах чек-листов.
+    """
+    # To display the name of the related CleaningType instead of just its ID
+    # Используется для отображения имени связанного CleaningType вместо его ID
+    cleaning_type_name = serializers.CharField(source='cleaning_type.name', read_only=True)
+
+    items = ChecklistItemTemplateSerializer(many=True)
+
+    class Meta:
+        model = ChecklistTemplate # Specify the model / Указываем модель
+        fields = [ # List of fields / Список полей
+            'id',
+            'name',
+            'cleaning_type', # Allows setting the CleaningType via its ID / Позволяет устанавливать CleaningType по его ID
+            'cleaning_type_name', # Read-only field displaying the name / Поле только для чтения, отображающее имя
+            'description',
+            'items', 
+        ]
+        read_only_fields = ['id', 'cleaning_type_name'] # Read-only fields / Поля только для чтения
+
+    def create(self, validated_data):
+        
+        items_data = validated_data.pop('items', [])
+
+        
+        template = ChecklistTemplate.objects.create(**validated_data)
+
+        
+        for index, item_data in enumerate(items_data): 
+
+            item_data.pop('id', None)
+            ChecklistItemTemplate.objects.create(
+                checklist_template=template,
+                order=index, 
+                **item_data
+            )
+
+        return template
+
+    def update(self, instance, validated_data):
+        # Извлекаем данные пунктов из validated_data
+        items_data = validated_data.pop('items', None)
+
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        
+        if items_data is not None:
+            
+            instance.items.all().delete()
+
+            
+            for index, item_data in enumerate(items_data): 
+               
+                 item_data.pop('id', None)
+                 ChecklistItemTemplate.objects.create(
+                     checklist_template=instance,
+                     order=index, 
+                     **item_data 
+                 )
+
+        return instance
+
+
+
 
 # --- CleaningTask Serializer ---
 
@@ -101,6 +151,8 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
     assigned_to_name = serializers.SerializerMethodField()
     assigned_by_name = serializers.SerializerMethodField()
     checked_by_name = serializers.SerializerMethodField()
+
+    checklist_data = serializers.SerializerMethodField()
 
     def get_assigned_to_name(self, obj):
         """
@@ -221,6 +273,27 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
         # Возвращаем оригинальный словарь валидированных данных
         return attrs
 
+    def get_checklist_data(self, obj: CleaningTask):
+        """
+        Получает данные шаблона чек-листа, связанные с типом уборки данной задачи.
+        """
+        if not obj.cleaning_type:
+            return None
+
+        
+        try:
+            
+            checklist_template = ChecklistTemplate.objects.filter(
+                cleaning_type=obj.cleaning_type
+            ).prefetch_related('items').first() 
+           
+            if checklist_template:
+                return ChecklistTemplateSerializer(checklist_template, context=self.context).data
+        except AttributeError:
+            logger.error(f"Ошибка при получении checklist_template для CleaningTask ID {obj.id} и CleaningType ID {obj.cleaning_type_id}. Проверьте модель ChecklistTemplate.")
+            return None
+        return None
+    
 
     class Meta:
         model = CleaningTask # Specify the model / Указываем модель
@@ -248,6 +321,7 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
             'checked_by', # Allows setting the User via ID / Позволяет устанавливать пользователя по ID
             'checked_by_name', # Read-only, displays checking user's name / Только для чтения, отображает имя пользователя, проверившего задачу
             'notes', # Allows setting notes / Позволяет устанавливать заметки
+            'checklist_data',
         ]
         # Define all fields that should only be included in the output, not accepted as input
         # Определяем все поля, которые должны быть включены только в вывод, но не приниматься в качестве ввода

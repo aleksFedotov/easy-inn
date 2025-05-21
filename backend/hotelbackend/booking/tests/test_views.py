@@ -43,10 +43,10 @@ def manager_user(create_user):
     return create_user("manager_user", "managerpass", User.Role.MANAGER) # Используем User.Role / Use User.Role
 
 @pytest.fixture
-def admin_user(create_user):
-    """Фикстура для создания и возврата пользователя-администратора."""
-    # Fixture to create and return an admin user.
-    return create_user("admin_user", "adminpass", User.Role.ADMIN) # Используем User.Role / Use User.Role
+def front_desk_user(create_user):
+    """Фикстура для создания и возврата пользователя-службы приема."""
+    # Fixture to create and return an front_desk user.
+    return create_user("front_desk_user", "adminpass", User.Role.FRONT_DESK) # Используем User.Role / Use User.Role
 
 @pytest.fixture
 def housekeeper_user(create_user): # Используем housekeeper_user последовательно / Using housekeeper_user consistently
@@ -433,7 +433,7 @@ def test_unauthenticated_user_cannot_access_booking(api_client, room_type_standa
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("user_fixture, expected_status", [
-    ("admin_user", status.HTTP_200_OK), # Администратор должен иметь доступ (200 OK) / Admin should have access (200 OK)
+    ("front_desk_user", status.HTTP_200_OK), # Администратор должен иметь доступ (200 OK) / Admin should have access (200 OK)
     ("housekeeper_user", status.HTTP_403_FORBIDDEN), # Горничная не должна иметь доступа (403 Forbidden) / Housekeeper should not have access (403 Forbidden)
 ])
 def test_booking_permissions_non_manager_or_admin(api_client, request, user_fixture, expected_status, manager_user, room_type_standard):
@@ -462,7 +462,7 @@ def test_booking_permissions_non_manager_or_admin(api_client, request, user_fixt
     response_create = check_permission(client, user, create_url, 'POST', data=create_data)
     # Для создания, только Менеджер/Администратор должны получить 201, остальные 403
     # For create, only Manager/Admin should get 201, others 403
-    if user.role in [User.Role.MANAGER, User.Role.ADMIN]:
+    if user.role in [User.Role.MANAGER, User.Role.FRONT_DESK]:
          assert response_create.status_code == status.HTTP_201_CREATED
     else:
          assert response_create.status_code == status.HTTP_403_FORBIDDEN # Ожидаем 403 Forbidden / Expect 403 Forbidden
@@ -492,7 +492,7 @@ def test_booking_permissions_non_manager_or_admin(api_client, request, user_fixt
     # Для неавторизованных пользователей ожидаем expected_status (403)
     # Corrected assertion: Expect 204 No Content for successful deletion by authorized users
     # For unauthorized users, expect the expected_status (403)
-    if user.role in [User.Role.MANAGER, User.Role.ADMIN]:
+    if user.role in [User.Role.MANAGER, User.Role.FRONT_DESK]:
         assert response_delete.status_code == status.HTTP_204_NO_CONTENT
     else:
         assert response_delete.status_code == expected_status # Должен быть 403 для горничной / Should be 403 for housekeeper

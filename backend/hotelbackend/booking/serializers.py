@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
 
+from hotel.serializers import RoomShortSerializer
 from .models import Booking
 
 
@@ -28,7 +29,10 @@ class BookingSerializer(serializers.ModelSerializer):
 
     # Read-only field to display the room number directly
     # Поле только для чтения для прямого отображения номера комнаты
-    room_number = serializers.CharField(source='room.number', read_only=True)
+    room = RoomShortSerializer(read_only=True)  # это вложенный сериализатор
+    room_id = serializers.PrimaryKeyRelatedField(source='room', queryset=Room.objects.all(), write_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    
 
     # SerializerMethodField to get the name of the user who created the booking
     # SerializerMethodField для получения имени пользователя, создавшего бронирование
@@ -68,11 +72,13 @@ class BookingSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'room',
-            'room_number',
+            'room_id',
             'check_in',
             'check_out',
             'guest_count',
             'notes',
+            'status',
+            'status_display',
             'created_at',
             'updated_at',
             'created_by',

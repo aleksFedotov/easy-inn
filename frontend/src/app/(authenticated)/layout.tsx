@@ -1,30 +1,21 @@
 'use client';
 
-import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-// Удалены импорты jwtDecode, api, ACCESS_TOKEN, REFRESH_TOKEN, useEffect, useState
-// так как вся логика аутентификации перенесена в AuthContext.tsx
-// import { jwtDecode } from 'jwt-decode';
-// import api from '@/lib/api';
-// import { ACCESS_TOKEN, REFRESH_TOKEN } from '@/lib/constants';
-// import { useEffect, useState } from 'react';
+import React, { useEffect} from 'react';
 
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext'; // Импортируем AuthProvider и useAuth
 import { Spinner } from '@/components/spinner'; // Импортируем компонент Spinner
+import MainLayout from '@/components/laytout/MainLayout';
 
-// Тип UserData больше не нужен здесь, так как он определен в AuthContext.tsx
-// interface UserData {
-//   user_id: number;
-//   role: string;
-//   exp: number;
-// }
+import { DndProvider } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
+
 
 export default function AuthenticatedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // useAuth теперь используется для доступа к состоянию аутентификации из контекста
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
@@ -40,12 +31,17 @@ export default function AuthenticatedLayout({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <Spinner/> {/* Используем компонент Spinner */}
+        <Spinner/> 
       </div>
     );
   }
 
-  // Если пользователь аутентифицирован (isAuthenticated === true), рендерим дочерние элементы.
-  // Если не аутентифицирован, useEffect выше перенаправит его.
-  return <>{children}</>;
+ 
+  return (
+    <DndProvider backend={HTML5Backend}>
+      <MainLayout>
+          {children}
+      </MainLayout>
+    </DndProvider>
+  )
 }

@@ -24,6 +24,13 @@ class CleaningType(models.Model):
         unique=True, # Название должно быть уникальным / Name must be unique
         verbose_name="Название типа уборки" # Человекочитаемое имя поля / Human-readable field name
         )
+    
+    # Описание типа уборки (необязательное)
+    # Description of the cleaning type (optional)
+    description = models.TextField(
+        blank=True, # Поле может быть пустым / Field can be blank
+        verbose_name="Описание" # Человекочитаемое имя поля / Human-readable field name
+    )
 
     # Строковое представление объекта CleaningType
     # String representation of the CleaningType object
@@ -327,7 +334,17 @@ class CleaningTask(models.Model):
                     time(14, 0), # Время 14:00 (2 PM) / Time 2:00 PM
                     tzinfo=timezone.get_current_timezone() # Или timezone.utc / Or timezone.utc
                 )
-
+        is_new = self._state.adding
+        if self.assigned_to:
+            # Если задача новая ИЛИ была в статусе PENDING и ей назначают исполнителя
+            if is_new or self.status == self.Status.PENDING:
+                self.status = self.Status.ASSIGNED
+                if not self.assigned_at: # Устанавливаем время назначения, если оно еще не установлено
+                    self.assigned_at = timezone.now()
+        elif not self.assigned_to and not is_new: # Если исполнитель снимается с существующей задачи
+            if self.status in [self.Status.ASSIGNED, self.Status.IN_PROGRESS]:
+                self.status = self.Status.PENDING # Возвращаем в PENDING
+                self.assigned_at = None # Сбрасываем время назначения
         # Вызов метода save родительского класса для сохранения объекта
         # Call the parent class's save method to save the object
         super().save(*args, **kwargs)
