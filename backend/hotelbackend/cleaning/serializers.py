@@ -21,7 +21,8 @@ class CleaningTypeSerializer(serializers.ModelSerializer):
         model = CleaningType # Specify the model to be serialized / Указываем модель для сериализации
         fields = [ # List of fields to include in the serialization / Список полей для включения в сериализацию
             'id',
-            'name'
+            'name',
+            'description'
         ]
         read_only_fields = ['id'] # Fields that should be included in the output but not accepted for input / Поля, которые должны быть включены в вывод, но не приниматься для ввода
 
@@ -42,6 +43,11 @@ class ChecklistItemTemplateSerializer(serializers.ModelSerializer):
             'order',
         ]
         read_only_fields = ['id'] # Read-only fields / Поля только для чтения
+
+    def validate_order(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Order must be non-negative.")
+        return value
 
 # --- ChecklistTemplate Serializer ---
 
@@ -115,7 +121,27 @@ class ChecklistTemplateSerializer(serializers.ModelSerializer):
 
         return instance
 
+class MultipleTaskAssignmentSerializer(serializers.Serializer):
+    task_ids = serializers.ListField(child=serializers.IntegerField(), required=True)
+    housekeeper_id = serializers.IntegerField(required=True)
+    scheduled_date = serializers.DateField(required=True)
+    def validate_task_ids(self, value):
+        if not value:
+            raise serializers.ValidationError("Необходимо указать хотя бы одну задачу.")
+        return value
 
+    def validate_housekeeper_id(self, value):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            User.objects.get(pk=value, role='housekeeper')
+        except User.DoesNotExist:
+            raise serializers.ValidationError("Выбранная горничная не найдена.")
+        return value
+
+    def validate_scheduled_date(self, value):
+        # Дополнительная валидация даты, если необходимо
+        return value
 
 
 # --- CleaningTask Serializer ---
@@ -278,22 +304,26 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
         Получает данные шаблона чек-листа, связанные с типом уборки данной задачи.
         """
         if not obj.cleaning_type:
-            return None
+            return {
+                "name": None,
+                "description": None,
+                "items": []
+            }
 
+        checklist_template = ChecklistTemplate.objects.filter(
+            cleaning_type=obj.cleaning_type
+        ).prefetch_related('items').first()
+
+        if checklist_template:
+            return ChecklistTemplateSerializer(checklist_template, context=self.context).data
+
+        # Если шаблон не найден, возвращаем пустую структуру
+        return {
+            "name": None,
+            "description": None,
+            "items": []
+        }
         
-        try:
-            
-            checklist_template = ChecklistTemplate.objects.filter(
-                cleaning_type=obj.cleaning_type
-            ).prefetch_related('items').first() 
-           
-            if checklist_template:
-                return ChecklistTemplateSerializer(checklist_template, context=self.context).data
-        except AttributeError:
-            logger.error(f"Ошибка при получении checklist_template для CleaningTask ID {obj.id} и CleaningType ID {obj.cleaning_type_id}. Проверьте модель ChecklistTemplate.")
-            return None
-        return None
-    
 
     class Meta:
         model = CleaningTask # Specify the model / Указываем модель

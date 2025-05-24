@@ -8,13 +8,14 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
 from django.db import models
+from utills.mixins import AllowAllPaginationMixin
 
 
 
 logger = logging.getLogger(__name__)
 # --- RoomType ViewSet ---
 
-class RoomTypeViewSet(viewsets.ModelViewSet):
+class RoomTypeViewSet(AllowAllPaginationMixin,viewsets.ModelViewSet):
     """
     ViewSet для управления типами номеров (RoomType).
     Доступен только аутентифицированным пользователям с ролью 'manager'.
@@ -39,14 +40,10 @@ class RoomTypeViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsManager] 
 
     
-    def paginate_queryset(self, queryset):
-        if self.request.query_params.get('all') == 'true':
-            return None 
-        return super().paginate_queryset(queryset)
-
+    
 # --- Room ViewSet ---
 
-class RoomViewSet(viewsets.ModelViewSet):
+class RoomViewSet(AllowAllPaginationMixin,viewsets.ModelViewSet):
     """
     ViewSet для управления номерами (Room).
     Доступен только аутентифицированным пользователям с ролью 'manager'.
@@ -91,24 +88,20 @@ class RoomViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def change_status(self,request, pk=None):
         room = self.get_object()
-        logger.info(room)
         new_status = request.data.get('new_status')
         if new_status not in Room.Status.values:
-            Response({'error': "Недопустимый статус"},status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': "Недопустимый статус"},status=status.HTTP_400_BAD_REQUEST)
         room.status = new_status
         room.save()
+        logger.info(f"Room {room.pk} status changed to {new_status}")
         return Response()
     
     
-    def paginate_queryset(self, queryset):
-        if self.request.query_params.get('all') == 'true':
-            return None 
-        return super().paginate_queryset(queryset)
 
 
 # --- Zone ViewSet ---
 
-class ZoneViewSet(viewsets.ModelViewSet):
+class ZoneViewSet(AllowAllPaginationMixin,viewsets.ModelViewSet):
     """
     ViewSet для управления зонами (Zone).
     Доступен только аутентифицированным пользователям с ролью 'manager'.
@@ -132,9 +125,6 @@ class ZoneViewSet(viewsets.ModelViewSet):
     # Requires authentication (globally or explicitly) AND the 'manager' role.
     permission_classes = [IsAuthenticated, IsManager] 
     
-    def paginate_queryset(self, queryset):
-        if self.request.query_params.get('all') == 'true':
-            return None 
-        return super().paginate_queryset(queryset)
+    
 
 

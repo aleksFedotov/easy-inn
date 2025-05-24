@@ -272,7 +272,6 @@ export default function BookingForm({ bookingToEdit, onSuccess, onCancel }: Book
                                 <FormControl>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Выберите номер" />
-                                        select
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>

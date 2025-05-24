@@ -336,14 +336,14 @@ class CleaningTask(models.Model):
                 )
         is_new = self._state.adding
         if self.assigned_to:
-            # Если задача новая ИЛИ была в статусе PENDING и ей назначают исполнителя
-            if is_new or self.status == self.Status.PENDING:
+            # Если задача новая ИЛИ была в статусе UNASSIGNED и ей назначают исполнителя
+            if is_new or self.status == self.Status.UNASSIGNED:
                 self.status = self.Status.ASSIGNED
                 if not self.assigned_at: # Устанавливаем время назначения, если оно еще не установлено
                     self.assigned_at = timezone.now()
         elif not self.assigned_to and not is_new: # Если исполнитель снимается с существующей задачи
             if self.status in [self.Status.ASSIGNED, self.Status.IN_PROGRESS]:
-                self.status = self.Status.PENDING # Возвращаем в PENDING
+                self.status = self.Status.UNASSIGNED
                 self.assigned_at = None # Сбрасываем время назначения
         # Вызов метода save родительского класса для сохранения объекта
         # Call the parent class's save method to save the object

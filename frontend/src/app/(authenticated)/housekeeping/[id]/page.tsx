@@ -119,7 +119,7 @@ export default function CleaningTaskDetailsPage() {
     // Если AuthContext еще загружается или детали задачи загружаются
     if (isAuthLoading || isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+            <div className="flex items-center justify-center min-h-screen bg">
                 <Spinner/>
             </div>
         );
@@ -129,7 +129,7 @@ export default function CleaningTaskDetailsPage() {
     // TODO: Реализовать реальную проверку роли, если необходимо
     // if (!user || !['admin', 'manager', 'housekeeper'].includes(user.role)) {
     //      return (
-    //          <div className="flex items-center justify-center min-h-screen bg-gray-100">
+    //          <div className="flex items-center justify-center min-h-screen bg">
     //              <div className="p-8 rounded-lg shadow-lg bg-white max-w-md w-full text-center text-red-600 font-bold">
     //                  У вас нет прав для просмотра этой страницы.
     //              </div>
@@ -156,26 +156,26 @@ export default function CleaningTaskDetailsPage() {
 
         return (
             <div className="container mx-auto p-4">
-                <h1 className="text-2xl font-bold mb-6 text-gray-800">Детали задачи уборки #{taskDetails.id}</h1>
+                <h1 className="text-2xl font-bold mb-6 ">Детали задачи уборки #{taskDetails.id}</h1>
 
-                <div className="bg-white shadow-md rounded-lg p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
+                <div className="adow-md rounded-lg p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ">
                         {/* Информация о месте и типе уборки */}
                         <div>
                             <p className="flex items-center mb-2">
-                                <Building size={18} className="mr-2 text-gray-600"/>
+                                <Building size={18} className="mr-2 "/>
                                 <strong>Место:</strong> {taskDetails.room_number || taskDetails.zone_name || 'Неизвестно'}
                             </p>
                              <p className="flex items-center mb-2">
-                                <FileText size={18} className="mr-2 text-gray-600"/>
+                                <FileText size={18} className="mr-2 "/>
                                 <strong>Тип уборки:</strong> {taskDetails.cleaning_type_name || 'Не указан'}
                             </p>
                              <p className="flex items-center mb-2">
-                                <UserIcon size={18} className="mr-2 text-gray-600"/>
+                                <UserIcon size={18} className="mr-2 "/>
                                 <strong>Назначена:</strong> {taskDetails.assigned_to_name || 'Не назначен'}
                             </p>
                              <p className="flex items-center mb-2">
-                                <BookOpen size={18} className="mr-2 text-gray-600"/>
+                                <BookOpen size={18} className="mr-2 "/>
                                 <strong>Назначена менеджером:</strong> {taskDetails.assigned_by_name || 'Неизвестно'}
                             </p>
                         </div>
@@ -187,31 +187,31 @@ export default function CleaningTaskDetailsPage() {
                                 <strong>Статус:</strong> {statusInfo.text}
                             </p>
                              <p className="flex items-center mb-2">
-                                <Clock size={18} className="mr-2 text-gray-600"/>
+                                <Clock size={18} className="mr-2 "/>
                                 <strong>Срок выполнения:</strong> {taskDetails.due_time ? new Date(taskDetails.due_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Не указан'}
                             </p>
                              {/* TODO: Отобразить время начала, завершения, проверки, если они есть */}
                              {taskDetails.started_at && (
                                   <p className="flex items-center mb-2">
-                                     <Clock size={18} className="mr-2 text-gray-600"/>
+                                     <Clock size={18} className="mr-2 "/>
                                      <strong>Начата:</strong> {new Date(taskDetails.started_at).toLocaleString()}
                                   </p>
                              )}
                              {taskDetails.completed_at && (
                                   <p className="flex items-center mb-2">
-                                     <Clock size={18} className="mr-2 text-gray-600"/>
+                                     <Clock size={18} className="mr-2 "/>
                                      <strong>Завершена:</strong> {new Date(taskDetails.completed_at).toLocaleString()}
                                   </p>
                              )}
                              {taskDetails.checked_at && (
                                   <p className="flex items-center mb-2">
-                                     <Clock size={18} className="mr-2 text-gray-600"/>
+                                     <Clock size={18} className="mr-2 "/>
                                      <strong>Проверена:</strong> {new Date(taskDetails.checked_at).toLocaleString()}
                                   </p>
                              )}
                               {taskDetails.checked_by_name && (
                                   <p className="flex items-center mb-2">
-                                     <UserIcon size={18} className="mr-2 text-gray-600"/>
+                                     <UserIcon size={18} className="mr-2 "/>
                                      <strong>Проверена кем:</strong> {taskDetails.checked_by_name}
                                   </p>
                              )}
@@ -219,29 +219,29 @@ export default function CleaningTaskDetailsPage() {
                     </div>
 
                     {/* Секция "Заметки" */}
-                    <div className="mt-6 border-t pt-4 border-gray-200">
-                        <p className="text-lg font-semibold text-gray-700 mb-2">Заметки:</p>
-                        <p className="bg-gray-100 p-3 rounded-md whitespace-pre-wrap text-gray-800">{taskDetails.notes || 'Нет заметок'}</p>
+                    <div className="mt-6 border-t pt-4 ">
+                        <p className="text-lg font-semibold  mb-2">Заметки:</p>
+                        <p className="bg p-3 rounded-md whitespace-pre-wrap ">{taskDetails.notes || 'Нет заметок'}</p>
                     </div>
 
                     {/* Секция "Чек-лист" */}
                     {/* Проверяем наличие checklist_items и отображаем секцию только если они есть */}
                     {taskDetails.checklist_data.items && taskDetails.checklist_data.items.length > 0 && (
-                        <div className="mt-6 border-t pt-4 border-gray-200">
-                            <p className="text-lg font-semibold text-gray-700 mb-3 flex items-center">
-                                <ClipboardList size={20} className="mr-2 text-gray-600"/> Чек-лист:
+                        <div className="mt-6 border-t pt-4 ">
+                            <p className="text-lg font-semibold  mb-3 flex items-center">
+                                <ClipboardList size={20} className="mr-2 "/> Чек-лист:
                             </p>
                             <ul className="space-y-3">
                                 {taskDetails.checklist_data.items.map(item => (
-                                    <li key={item.id} className="flex items-center bg-gray-50 p-3 rounded-md shadow-sm">
+                                    <li key={item.id} className="flex items-center bgp-3 rounded-md shadow-sm">
                                         {/* Отображаем иконку статуса пункта чек-листа без интерактивности */}
                                         <span className="mr-3">
                                          
-                                                <CircleDotDashed size={20} className="text-gray-400"/>
+                                                <CircleDotDashed size={20} className=""/>
                                     
                                         </span>
                                         {/* Текст пункта чек-листа */}
-                                        <span className={`flex-1 text-gray-800`}>
+                                        <span className={`flex-1 `}>
                                             {item.text}
                                         </span>
                                         {/* TODO: Возможно, добавить иконку или текст для примечаний к пункту, если есть */}
@@ -257,13 +257,13 @@ export default function CleaningTaskDetailsPage() {
                     {/* TODO: Добавить кнопки действий для задачи (Начать, Завершить, Проверить и т.д.) */}
                     {/* Логика этих кнопок будет похожа на ту, что на странице списка */}
                     {/* <div className="mt-6 flex justify-end space-x-4">
-                        <button className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-200 ease-in-out">
+                        <button className="bg0 hover:bg0 text-white font-bold py-2 px-4 rounded transition duration-200 ease-in-out">
                             Начать
                         </button>
-                        <button className="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded transition duration-200 ease-in-out">
+                        <button className="bg00 hover:bg00 text-white font-bold py-2 px-4 rounded transition duration-200 ease-in-out">
                             Завершить
                         </button>
-                        <button className="bg-teal-500 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded transition duration-200 ease-in-out">
+                        <button className="bg hover:bg text-white font-bold py-2 px-4 rounded transition duration-200 ease-in-out">
                              Проверить
                          </button>
                     </div> */}
@@ -275,8 +275,8 @@ export default function CleaningTaskDetailsPage() {
     // Если taskId доступен, но taskDetails null после загрузки (например, задача не найдена)
     if (!isLoading && !taskDetails && taskId) {
          return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-100">
-                <div className="p-8 rounded-lg shadow-lg bg-white max-w-md w-full text-center text-gray-600 font-bold">
+            <div className="flex items-center justify-center min-h-screen bg">
+                <div className="p-8 rounded-lg shadow-lg x-w-md w-full text-center  font-bold">
                     Задача уборки с ID {taskId} не найдена.
                 </div>
             </div>
@@ -285,8 +285,8 @@ export default function CleaningTaskDetailsPage() {
 
     // Запасной вариант, если что-то пошло не так и нет ни загрузки, ни ошибки, ни данных
      return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-100">
-             <div className="p-8 rounded-lg shadow-lg bg-white max-w-md w-full text-center text-gray-600 font-bold">
+        <div className="flex items-center justify-center min-h-screen bg">
+             <div className="p-8 rounded-lg shadow-lg x-w-md w-full text-center  font-bold">
                  Неизвестная ошибка при загрузке страницы.
              </div>
          </div>

@@ -5,12 +5,13 @@ import Navbar from './Navbar';
 import AppSidebar from './Sidebar';
 import { ThemeProvider } from '../providers/ThemeProviders';
 import { SidebarProvider } from "@/components/ui/sidebar"
+import { Toaster } from "sonner"
 
 
 
 export default function MainLayout({ children }: {children:ReactNode}) {
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen">
       <ThemeProvider
         attribute="class"
         defaultTheme="light"
@@ -20,10 +21,11 @@ export default function MainLayout({ children }: {children:ReactNode}) {
 
         <SidebarProvider>
           <AppSidebar />
-            <main className="w-full bg-background">
+            <main className="w-full">
               <Navbar />
               {children} 
             </main>
+             <Toaster />
         </SidebarProvider>
       </ThemeProvider>
     </div>

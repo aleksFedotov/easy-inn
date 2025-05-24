@@ -124,7 +124,7 @@ export default function CleaningTypeForm({ cleaningTypeToEdit, onSuccess, onCanc
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="bg-white p-6 rounded-lg shadow-md">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 rounded-lg">
                 <h2 className="text-xl font-bold mb-4">{cleaningTypeToEdit ? 'Редактировать тип уборки' : 'Создать новый тип уборки'}</h2>
 
                 {/* Cleaning Type Name field */}

@@ -51,15 +51,14 @@ import ErrorDialog from '@/components/ErrorDialog';
 interface UserListParams {
     ordering?: string;
     all?: boolean;
-    search?: string; // Добавляем параметр поиска
+    search?: string; 
 }
-
 
 export default function ManageUsersPage() {
     const { user, isLoading: isAuthLoading } = useAuth();
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [isFormOpen, setIsFormOpen] = useState(false); // Состояние для Sheet
+    const [isFormOpen, setIsFormOpen] = useState(false); 
     const [userToEdit, setUserToEdit] = useState<User | undefined>(undefined);
 
     // Состояния для модального окна подтверждения удаления (теперь ConfirmationDialog)
@@ -98,22 +97,22 @@ export default function ManageUsersPage() {
             const response = await api.get<User[]>('/api/users/', { params: requestParams });
 
             if (response.status === 200) {
-            const validRoles: User['role'][] = ['housekeeper', 'front-desk', 'manager'];
-            const filteredUsers = response.data.filter(userItem =>
-                validRoles.includes(userItem.role)
+                const validRoles: User['role'][] = ['housekeeper', 'front-desk', 'manager'];
+                const filteredUsers = response.data.filter(userItem =>
+                    validRoles.includes(userItem.role)
             );
 
             setUsers(filteredUsers);
             console.log("Users list fetched successfully and filtered.");
             } else {
-            const errMessage = 'Не удалось загрузить список пользователей. Статус: ' + response.status;
-            setErrorDialogMessage(errMessage);
-            setIsErrorDialogOpen(true);
-            console.error("Failed to fetch users list. Status:", response.status);
+                const errMessage = 'Не удалось загрузить список пользователей. Статус: ' + response.status;
+                setErrorDialogMessage(errMessage);
+                setIsErrorDialogOpen(true);
+                console.error("Failed to fetch users list. Status:", response.status);
             }
         } catch (err) {
-            console.error('Error fetching users list:', err);
-            let errMessage = 'Произошла непредвиденная ошибка при загрузке списка пользователей.';
+                console.error('Error fetching users list:', err);
+                let errMessage = 'Произошла непредвиденная ошибка при загрузке списка пользователей.';
             if (axios.isAxiosError(err) && err.response) {
                 errMessage = err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при загрузке списка пользователей.';
             } else if (axios.isAxiosError(err) && err.request) {
@@ -131,13 +130,13 @@ export default function ManageUsersPage() {
     // Эффект для запуска загрузки данных при монтировании компонента или изменении сортировки
     useEffect(() => {
         if (!isAuthLoading) {
-            if (user?.role === 'manager') {
-            fetchUsers();
+                if (user?.role === 'manager') {
+                fetchUsers();
             } else {
-            setIsLoading(false);
-            const accessError = 'У вас нет прав для просмотра этой страницы. Доступно только менеджерам.';
-            setErrorDialogMessage(accessError);
-            setIsErrorDialogOpen(true);
+                setIsLoading(false);
+                const accessError = 'У вас нет прав для просмотра этой страницы. Доступно только менеджерам.';
+                setErrorDialogMessage(accessError);
+                setIsErrorDialogOpen(true);
             }
         }
     }, [user, isAuthLoading, sorting]);
@@ -183,21 +182,23 @@ export default function ManageUsersPage() {
         const response = await api.delete(`/api/users/${userToDeleteId}/`);
 
         if(response.status === 204){
-        console.log(`Пользователь с ID ${userToDeleteId} успешно удален.`);
-        fetchUsers(); // Обновляем список после удаления
+            console.log(`Пользователь с ID ${userToDeleteId} успешно удален.`);
+            fetchUsers(); // Обновляем список после удаления
         } else {
-        const errMessage = 'Не удалось удалить пользователя. Статус: ' + response.status;
-        setErrorDialogMessage(errMessage);
-        setIsErrorDialogOpen(true);
-        console.error("Failed to delete user. Status:", response.status);
+            const errMessage = 'Не удалось удалить пользователя. Статус: ' + response.status;
+            setErrorDialogMessage(errMessage);
+            setIsErrorDialogOpen(true);
+            console.error("Failed to delete user. Status:", response.status);
         }
     } catch (err) {
+        
         console.error(`Error deleting user with ID ${userToDeleteId}:`, err);
         let errMessage = 'Произошла непредвиденная ошибка при удалении пользователя.';
+
         if (axios.isAxiosError(err) && err.response) {
-                errMessage = err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при удалении пользователя.';
+            errMessage = err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при удалении пользователя.';
         } else if (axios.isAxiosError(err) && err.request) {
-                errMessage = 'Нет ответа от сервера при удалении пользователя. Проверьте подключение.';
+            errMessage = 'Нет ответа от сервера при удалении пользователя. Проверьте подключение.';
         } else {
             errMessage = 'Произошла непредвиденная ошибка при удалении пользователя.';
         }
@@ -220,7 +221,7 @@ export default function ManageUsersPage() {
     // Повторная попытка загрузки данных из ErrorDialog
     const handleErrorDialogRetry = () => {
         handleErrorDialogClose();
-        fetchUsers();
+        fetchUsers();   
     };
 
 

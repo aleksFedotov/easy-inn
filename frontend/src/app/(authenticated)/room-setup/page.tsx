@@ -1,516 +1,606 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
-import { useAuth } from '@/lib/AuthContext'; 
-import { Spinner } from '@/components/spinner'; 
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useAuth } from '@/lib/AuthContext';
+import api from '@/lib/api';
+import axios from 'axios';
+import { RoomType, Room } from '@/lib/types';
+
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  SortingState,
+  getSortedRowModel,
+} from "@tanstack/react-table";
+
+import { MoreHorizontal,  Plus, Edit, Trash2, Loader2, ArrowUpDown } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 import RoomForm from '@/components/forms/RoomForm';
 import RoomTypeForm from '@/components/forms/RoomTypeForm';
-import Modal from '@/components/Modal';
-import ConfirmationModal from '@/components/ConfirmationModal';
-import ErrorMessage from '@/components/ErrorMessage'; 
-import api from '@/lib/api'; 
-import axios from 'axios'; 
-import { RoomType, Room } from '@/lib/types'; 
-import { Plus } from 'lucide-react';
+import ConfirmationDialog from '@/components/ConfirmationDialog';
+
+// Определение колонок для RoomType с использованием ColumnDef
+export const getRoomTypeColumns = (
+  handleEdit: (roomType: RoomType) => void,
+  handleDeleteClick: (id: number, name: string) => void,
+  isActionDisabled: (id: number) => boolean,
+  sorting: SortingState,
+  setSorting: React.Dispatch<React.SetStateAction<SortingState>>
+): ColumnDef<RoomType>[] => [
+  {
+    accessorKey: 'name',
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Название
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
+    cell: ({ row }) => <div className="font-medium">{row.getValue('name')}</div>,
+  },
+  {
+    accessorKey: 'capacity',
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Вместимость
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
+  },
+  {
+    accessorKey: 'description',
+    header: 'Описание',
+    cell: ({ row }) => row.getValue('description') || <span className="text-muted-foreground">Нет описания</span>,
+  },
+  {
+    id: 'actions',
+    header: () => <div className="text-right">Действия</div>,
+    cell: ({ row }) => {
+      const roomType = row.original;
+      return (
+        <div className="text-right">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0" disabled={isActionDisabled(roomType.id)}>
+                <span className="sr-only">Открыть меню</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Действия</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => handleEdit(roomType)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Редактировать
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleDeleteClick(roomType.id, roomType.name)}
+                className="text-red-600 focus:text-red-700 focus:bg-red-50"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Удалить
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      );
+    },
+  },
+];
+
+// Определение колонок для Room с использованием ColumnDef
+export const getRoomColumns = (
+  handleEdit: (room: Room) => void,
+  handleDeleteClick: (id: number, number: string) => void,
+  isActionDisabled: (id: number) => boolean,
+  sorting: SortingState,
+  setSorting: React.Dispatch<React.SetStateAction<SortingState>>
+): ColumnDef<Room>[] => [
+  {
+    accessorKey: 'number',
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Номер
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
+    cell: ({ row }) => <div className="font-medium">{row.getValue('number')}</div>,
+  },
+  {
+    accessorKey: 'floor',
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Этаж
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
+  },
+  {
+    accessorKey: 'room_type_name',
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Тип номера
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
+    cell: ({ row }) => row.getValue('room_type_name') || <span className="text-muted-foreground">N/A</span>,
+  },
+  {
+    accessorKey: 'status_display',
+    header: 'Статус',
+  },
+  {
+    accessorKey: 'is_active',
+    header: 'Активен',
+    cell: ({ row }) => (row.getValue('is_active') ? 'Да' : 'Нет'),
+  },
+  {
+    accessorKey: 'notes',
+    header: 'Заметки',
+    cell: ({ row }) => row.getValue('notes') || <span className="text-muted-foreground">Нет заметок</span>,
+  },
+  {
+    id: 'actions',
+    header: () => <div className="text-right">Действия</div>,
+    cell: ({ row }) => {
+      const room = row.original;
+      return (
+        <div className="text-right">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0" disabled={isActionDisabled(room.id)}>
+                <span className="sr-only">Открыть меню</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Действия</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => handleEdit(room)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Редактировать
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleDeleteClick(room.id, room.number)}
+                className="text-red-600 focus:text-red-700 focus:bg-red-50"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Удалить
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      );
+    },
+  },
+];
+
+interface DataTableProps<TData, TValue> {
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
+  noResultsMessage?: string;
+}
+
+function DataTable<TData, TValue>({
+  columns,
+  data,
+  noResultsMessage = "Данные не найдены."
+}: DataTableProps<TData, TValue>) {
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const table = useReactTable({
+    data,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
+    state: {
+      sorting,
+    },
+  });
+
+  return (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => {
+                return (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </TableHead>
+                );
+              })}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows?.length ? (
+            table.getRowModel().rows.map((row) => (
+              <TableRow
+                key={row.id}
+                data-state={row.getIsSelected() && "selected"}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={columns.length} className="h-24 text-center">
+                {noResultsMessage}
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
 
 
 export default function RoomSetupPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
+
+  const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [isRoomTypeSheetOpen, setIsRoomTypeSheetOpen] = useState(false);
+  const [roomTypeToEdit, setRoomTypeToEdit] = useState<RoomType | undefined>(undefined);
+  const [isRoomSheetOpen, setIsRoomSheetOpen] = useState(false);
+  const [roomToEdit, setRoomToEdit] = useState<Room | undefined>(undefined);
+
+  const [isRoomTypeConfirmOpen, setIsRoomTypeConfirmOpen] = useState(false);
+  const [roomTypeToDeleteId, setRoomTypeToDeleteId] = useState<number | null>(null);
+  const [roomTypeToDeleteName, setRoomTypeToDeleteName] = useState<string | null>(null);
+
+  const [isRoomConfirmOpen, setIsRoomConfirmOpen] = useState(false);
+  const [roomToDeleteId, setRoomToDeleteId] = useState<number | null>(null);
+  const [roomToDeleteNumber, setRoomToDeleteNumber] = useState<string | null>(null);
+
+  const [deletingRoomTypeId, setDeletingRoomTypeId] = useState<number | null>(null);
+  const [deletingRoomId, setDeletingRoomId] = useState<number | null>(null);
   
-    const { user, isLoading: isAuthLoading } = useAuth();
-
-    
-    const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
-    const [rooms, setRooms] = useState<Room[]>([]);
-
-    
-    const [isLoadingData, setIsLoadingData] = useState(true); 
-    const [error, setError] = useState<string | null>(null); 
-
-    
-    const [isRoomTypeFormOpen, setIsRoomTypeFormOpen] = useState(false);
-    const [roomTypeToEdit, setRoomTypeToEdit] = useState<RoomType | undefined>(undefined);
-    const [isRoomFormOpen, setIsRoomFormOpen] = useState(false);
-    const [roomToEdit, setRoomToEdit] = useState<Room | undefined>(undefined);
-
-    
-    const [isRoomTypeConfirmModalOpen, setIsRoomTypeConfirmModalOpen] = useState(false);
-    const [roomTypeToDeleteId, setRoomTypeToDeleteId] = useState<number | null>(null);
-    const [roomTypeToDeleteName, setRoomTypeToDeleteName] = useState<string | null>(null);
+  const [roomTypeSorting, setRoomTypeSorting] = useState<SortingState>([]);
+  const [roomSorting, setRoomSorting] = useState<SortingState>([]);
 
 
-    const [isRoomConfirmModalOpen, setIsRoomConfirmModalOpen] = useState(false);
-    const [roomToDeleteId, setRoomToDeleteId] = useState<number | null>(null);
-    const [roomToDeleteNumber, setRoomToDeleteNumber] = useState<string | null>(null);
-
-    
-    const [deletingRoomTypeId, setDeletingRoomTypeId] = useState<number | null>(null);
-    const [deletingRoomId, setDeletingRoomId] = useState<number | null>(null);
-
-
-    // Функция для загрузки типов номеров
-    const fetchRoomTypes = useCallback(async () => {
-        setError(null); // Сбрасываем ошибки перед загрузкой
-        try {
-            
-            const response = await api.get<RoomType[]>('/api/room-types/', {
-                params: {
-                    all :true
-                }
-            }); 
-
-            if (response.status === 200) {
-                setRoomTypes(response.data);
-                console.log("Room types fetched successfully:", response.data);
-            } else {
-                setError('Не удалось загрузить типы номеров. Статус: ' + response.status);
-                console.error("Failed to fetch room types. Status:", response.status);
-            }
-        } catch (err) {
-            console.error('Error fetching room types:', err);
-            if (axios.isAxiosError(err) && err.response) {
-                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при загрузке типов номеров.');
-            } else if (axios.isAxiosError(err) && err.request) {
-                setError('Нет ответа от сервера при загрузке типов номеров.');
-            } else {
-                setError('Произошла непредвиденная ошибка при загрузке типов номеров.');
-            }
-        }
-    }, []); 
-
-    
-    const fetchRooms = useCallback(async () => {
-        setError(null); 
-        try {
-            
-            const response = await api.get<Room[]>('/api/rooms/', {
-                params: {
-                    all :true
-                }
-            }); 
-
-            if (response.status === 200) {
-                setRooms(response.data);
-                console.log("Rooms fetched successfully:", response.data);
-            } else {
-                setError('Не удалось загрузить список номеров. Статус: ' + response.status);
-                console.error("Failed to fetch rooms. Status:", response.status);
-            }
-        } catch (err) {
-            console.error('Error fetching rooms:', err);
-            if (axios.isAxiosError(err) && err.response) {
-                    setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при загрузке списка номеров.');
-            } else if (axios.isAxiosError(err) && err.request) {
-                    setError('Нет ответа от сервера при загрузке списка номеров.');
-            } else {
-                setError('Произошла непредвиденная ошибка при загрузке списка номеров.');
-            }
-        }
-    }, []); 
-
-
-    
-    useEffect(() => {
-    
-        if (!isAuthLoading) {
-        
-        if (user?.role === 'manager') {
-            setIsLoadingData(true); 
-            setError(null);
-            Promise.all([fetchRoomTypes(), fetchRooms()])
-                .catch(err => {
-                    
-                    console.error("Error during parallel data fetching:", err);
-                })
-                .finally(() => {
-                    setIsLoadingData(false);
-                });
-        } else {
-            
-            setIsLoadingData(false);
-            setError('У вас нет прав для просмотра этой страницы. Доступно только менеджерам.');
-        }
-        }
-    }, [user, isAuthLoading, fetchRoomTypes, fetchRooms]); 
-
-
-
-    const handleCreateRoomType = () => {
-        setIsRoomTypeFormOpen(true);
-        setRoomTypeToEdit(undefined);
-    };
-
-    const handleEditRoomType = (roomType: RoomType) => {
-        setIsRoomTypeFormOpen(true);
-        setRoomTypeToEdit(roomType);
-    };
-
-    const handleCreateRoomTypeSuccess = () => {
-        setIsRoomTypeFormOpen(false); 
-        fetchRoomTypes();
-        fetchRooms(); 
-        };
-
-    
-        const handleCreateRoomTypeCancel = () => {
-            setIsRoomTypeFormOpen(false); 
-        };
-
-    const handleDeleteRoomTypeClick = (roomTypeId: number, roomTypeName: string) => {
-        if (deletingRoomTypeId !== null || deletingRoomId !== null || isRoomTypeFormOpen || isRoomFormOpen) return;
-        setIsRoomTypeConfirmModalOpen(true);
-        setRoomTypeToDeleteId(roomTypeId);
-        setRoomTypeToDeleteName(roomTypeName)
-    };
-
-    const handleDeleteRoomTypeConfirm =async () => {
-        if(roomTypeToDeleteId === null) return
-
-        setDeletingRoomTypeId(roomTypeToDeleteId)
-
-        try {
-            const response = await api.delete(`api/room-types/${roomTypeToDeleteId}/`)
-            if(response.status === 204){
-        console.log(`Категория  ${roomTypeToDeleteName} успешна удалена.`);
-        fetchRoomTypes()
-        fetchRooms()
-        } else {
-            setError('Не удалось удалить категорию. Статус: ' + response.status);
-            console.error("Failed to delete room type. Status:", response.status);
-        }
-        } catch (err) {
-            console.error(`Error deleting roomtype with ID ${roomTypeToDeleteId} ${roomTypeToDeleteName}:`, err);
-            if (axios.isAxiosError(err) && err.response) {
-                
-                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при удалении пользователя.');
-            } else if (axios.isAxiosError(err) && err.request) {
-                setError('Нет ответа от сервера при удалении категории. Проверьте подключение.');
-            } else {
-                setError('Произошла непредвиденная ошибка при удалении категории.');
-            }
-        } finally {
-        setRoomTypeToDeleteId(null)
-        setRoomTypeToDeleteName(null)
-        setDeletingRoomTypeId(null)
-        setIsRoomTypeConfirmModalOpen(false)
-
-        }
-        
-    };
-
-    const handleDeletingRoomTypeCancel = () => {
-        setRoomTypeToDeleteId(null)
-        setRoomTypeToDeleteName(null)
-        setIsRoomTypeConfirmModalOpen(false)
+  const fetchRoomTypes = useCallback(async () => {
+    setError(null);
+    try {
+      const response = await api.get<{results?: RoomType[], data?: RoomType[]}>('/api/room-types/', { params: { all: true } });
+      // Handle both paginated (results) and non-paginated (direct array) responses
+      const data = response.data.results || response.data;
+      setRoomTypes(Array.isArray(data) ? data : []);
+     
+    } catch (err) {
+      console.error('Error fetching room types:', err);
+      const errorMsg = axios.isAxiosError(err) && err.response?.data?.detail
+        ? String(err.response.data.detail) // Ensure it's a string
+        : 'Ошибка при загрузке типов номеров.';
+      setError(errorMsg);
     }
+  }, []);
 
-    const handleCreateRoom = () => {
-        setIsRoomFormOpen(true);
-        setRoomToEdit(undefined);
-    };
-
-    const handleEditRoom = (room: Room) => {
-        setIsRoomFormOpen(true);
-        setRoomToEdit(room);
-    };
-
-    const handleCreateRoomSuccess = () => {
-        setIsRoomFormOpen(false); 
-        fetchRoomTypes();
-        fetchRooms(); 
-        };
-
-    
-    const handleCreateRoomCancel = () => {
-        setIsRoomFormOpen(false); 
-    };
-
-    const handleDeleteRoomClick = (roomId: number, roomNumber: string) => {
-        if (deletingRoomTypeId !== null || deletingRoomId !== null || isRoomTypeFormOpen || isRoomFormOpen) return;
-        setIsRoomConfirmModalOpen(true);
-        setRoomToDeleteId(roomId);
-        setRoomToDeleteNumber(roomNumber)
-    };
-
-    const handleDeleteRoomConfirm =async () => {
-        if(roomToDeleteId === null) return
-
-        setDeletingRoomId(roomToDeleteId)
-
-        try {
-            const response = await api.delete(`api/rooms/${roomToDeleteId}/`)
-            if(response.status === 204){
-        console.log(`Номер  ${roomToDeleteNumber} успешно удален.`);
-        fetchRoomTypes()
-        fetchRooms()
-        } else {
-            setError('Не удалось удалить номер. Статус: ' + response.status);
-            console.error("Failed to delete room. Status:", response.status);
-        }
-        } catch (err) {
-            console.error(`Error deleting room with ID ${roomToDeleteId} ${roomToDeleteNumber}:`, err);
-            if (axios.isAxiosError(err) && err.response) {
-                
-                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при удалении пользователя.');
-            } else if (axios.isAxiosError(err) && err.request) {
-                setError('Нет ответа от сервера при удалении номера. Проверьте подключение.');
-            } else {
-                setError('Произошла непредвиденная ошибка при удалении номера.');
-            }
-        } finally {
-        setRoomToDeleteId(null)
-        setRoomToDeleteNumber(null)
-        setDeletingRoomId(null)
-        setIsRoomConfirmModalOpen(false)
-
-        }
-        
-    };
-
-    const handleDeletingRoomCancel = () => {
-        setRoomToDeleteId(null)
-        setRoomToDeleteNumber(null)
-        setIsRoomConfirmModalOpen(false)
+  const fetchRooms = useCallback(async () => {
+    setError(null);
+    try {
+      const response = await api.get<{results?: Room[], data?: Room[]}>('/api/rooms/', { params: { all: true } });
+      const data = response.data.results || response.data;
+      setRooms(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Error fetching rooms:', err);
+      const errorMsg = axios.isAxiosError(err) && err.response?.data?.detail
+        ? String(err.response.data.detail)
+        : 'Ошибка при загрузке списка номеров.';
+      setError(errorMsg);
     }
+  }, []);
 
+  useEffect(() => {
+    if (!isAuthLoading) {
+      if (user?.role === 'manager') {
+        setIsLoadingData(true);
+        setError(null);
+        Promise.all([fetchRoomTypes(), fetchRooms()])
+          .catch(err => console.error("Error during parallel data fetching:", err))
+          .finally(() => setIsLoadingData(false));
+      } else {
+        setIsLoadingData(false);
+        setError('У вас нет прав для просмотра этой страницы. Доступно только менеджерам.');
+      }
 
-    // --- Условный рендеринг ---
-
-
-    if (isAuthLoading) {
-        return null;
+      
     }
+  }, [user, isAuthLoading, fetchRoomTypes, fetchRooms]);
 
-    // Если у пользователя нет нужной роли (Manager), показываем сообщение об ошибке доступа
-    if (!user || user.role !== 'manager') {
-        return (
-                <div className="flex items-center justify-center min-h-screen bg-gray-100">
-                    <div className="p-8 rounded-lg shadow-lg bg-white max-w-md w-full text-center text-red-600 font-bold">
-                        У вас нет прав для просмотра этой страницы. Доступно только менеджерам.
-                    </div>
-                </div>
-        );
+  const handleCreateRoomType = () => {
+    setRoomTypeToEdit(undefined);
+    setIsRoomTypeSheetOpen(true);
+  };
+
+  const handleEditRoomType = (roomType: RoomType) => {
+    setRoomTypeToEdit(roomType);
+    setIsRoomTypeSheetOpen(true);
+  };
+
+  const handleRoomTypeFormSuccess = () => {
+    setIsRoomTypeSheetOpen(false);
+    fetchRoomTypes();
+    fetchRooms();
+  };
+
+  const handleDeleteRoomTypeClick = (id: number, name: string) => {
+    if (deletingRoomTypeId || deletingRoomId || isRoomTypeSheetOpen || isRoomSheetOpen) return;
+    setRoomTypeToDeleteId(id);
+    setRoomTypeToDeleteName(name);
+    setIsRoomTypeConfirmOpen(true);
+  };
+
+  const handleDeleteRoomTypeConfirm = async () => {
+    if (roomTypeToDeleteId === null) return;
+    setDeletingRoomTypeId(roomTypeToDeleteId);
+    setError(null);
+    try {
+      await api.delete(`/api/room-types/${roomTypeToDeleteId}/`);
+      fetchRoomTypes();
+      fetchRooms();
+    } catch (err) {
+      console.error(`Error deleting room type with ID ${roomTypeToDeleteId}:`, err);
+      const errorMsg = axios.isAxiosError(err) && err.response?.data?.detail
+        ? String(err.response.data.detail)
+        : 'Ошибка при удалении типа номера.';
+      setError(errorMsg);
+    } finally {
+      setRoomTypeToDeleteId(null);
+      setRoomTypeToDeleteName(null);
+      setDeletingRoomTypeId(null);
+      setIsRoomTypeConfirmOpen(false);
     }
+  };
 
-        // Если данные загружаются, показываем спиннер
-        if (isLoadingData) {
-            return (
-                <div className="flex items-center justify-center min-h-screen bg-gray-100">
-                    <Spinner/>
-                </div>
-            );
-        }
+  const handleCreateRoom = () => {
+    setRoomToEdit(undefined);
+    setIsRoomSheetOpen(true);
+  };
 
-    // Если есть ошибка загрузки данных, показываем сообщение об ошибке с кнопкой "Повторить"
-    if (error && !isRoomTypeFormOpen && !isRoomFormOpen && deletingRoomTypeId === null && deletingRoomId === null) {
-        return (
-            <ErrorMessage
-                message={error}
-                // При повторной попытке загружаем оба списка
-                onRetry={() => {
-                    setIsLoadingData(true); // Снова устанавливаем общую загрузку
-                    Promise.all([fetchRoomTypes(), fetchRooms()])
-                        .catch(err => console.error("Error during retry fetch:", err)) // Логируем ошибку, если Promise.all отклонен
-                        .finally(() => setIsLoadingData(false)); // Завершаем общую загрузку
-                }}
-                isLoading={isLoadingData} // Передаем состояние общей загрузки
-            />
-        );
+  const handleEditRoom = (room: Room) => {
+    setRoomToEdit(room);
+    setIsRoomSheetOpen(true);
+  };
+
+  const handleRoomFormSuccess = () => {
+    setIsRoomSheetOpen(false);
+    fetchRooms();
+  };
+
+  const handleDeleteRoomClick = (id: number, number: string) => {
+    if (deletingRoomTypeId || deletingRoomId || isRoomTypeSheetOpen || isRoomSheetOpen) return;
+    setRoomToDeleteId(id);
+    setRoomToDeleteNumber(number);
+    setIsRoomConfirmOpen(true);
+  };
+
+  const handleDeleteRoomConfirm = async () => {
+    if (roomToDeleteId === null) return;
+    setDeletingRoomId(roomToDeleteId);
+    setError(null);
+    try {
+      await api.delete(`/api/rooms/${roomToDeleteId}/`);
+      fetchRooms();
+    } catch (err) {
+      console.error(`Error deleting room with ID ${roomToDeleteId}:`, err);
+      const errorMsg = axios.isAxiosError(err) && err.response?.data?.detail
+        ? String(err.response.data.detail)
+        : 'Ошибка при удалении номера.';
+      setError(errorMsg);
+    } finally {
+      setRoomToDeleteId(null);
+      setRoomToDeleteNumber(null);
+      setDeletingRoomId(null);
+      setIsRoomConfirmOpen(false);
     }
+  };
+
+  const isActionDisabled = (id: number | null) => !!deletingRoomTypeId || !!deletingRoomId || isRoomTypeSheetOpen || isRoomSheetOpen;
+
+  const roomTypeTableColumns = useMemo(
+    () => getRoomTypeColumns(handleEditRoomType, handleDeleteRoomTypeClick, (id) => isActionDisabled(id) || deletingRoomTypeId === id, roomTypeSorting, setRoomTypeSorting),
+    [deletingRoomTypeId, deletingRoomId, isRoomTypeSheetOpen, isRoomSheetOpen, roomTypeSorting]
+  );
+  const roomTableColumns = useMemo(
+    () => getRoomColumns(handleEditRoom, handleDeleteRoomClick, (id) => isActionDisabled(id) || deletingRoomId === id, roomSorting, setRoomSorting),
+    [deletingRoomTypeId, deletingRoomId, isRoomTypeSheetOpen, isRoomSheetOpen, roomSorting]
+  );
 
 
-    // Если все успешно загружено, отображаем списки
+  if (isAuthLoading || (user?.role === 'manager' && isLoadingData && !error)) {
     return (
-        <div className="container mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-6 text-gray-800">Настройка комнат</h1>
-
-        {/* Секция "Типы номеров" */}
-        <div className="mb-8">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold text-gray-700">Типы номеров</h2>
-                {/* Кнопка создания типа номера */}
-                <button
-                    onClick={handleCreateRoomType}
-                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 ease-in-out"
-                >
-                    <Plus size={18} className="inline mr-1"/> Создать тип номера
-                </button>
-            </div>
-
-            {/* Таблица типов номеров */}
-            <div className="bg-white shadow-md rounded-lg overflow-hidden">
-                <table className="min-w-full leading-normal">
-                    <thead>
-                        <tr>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Название
-                            </th>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Вместимость
-                            </th>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Описание
-                            </th>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Действия
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {roomTypes.map(roomType => (
-                            <tr key={roomType.id}>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-900">
-                                    {roomType.name}
-                                </td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-900">
-                                    {roomType.capacity}
-                                </td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-900">
-                                    {roomType.description || 'Нет описания'}
-                                </td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                    {/* Кнопки действий для типа номера */}
-                                    <button
-                                        onClick={() => handleEditRoomType(roomType)}
-                                        className="text-blue-600 hover:text-blue-900 mr-3"
-                                         disabled={isRoomTypeFormOpen || isRoomFormOpen || deletingRoomTypeId !== null || deletingRoomId !== null}
-                                    >
-                                        Редактировать
-                                    </button>
-                                    <button
-                                        onClick={() => handleDeleteRoomTypeClick(roomType.id, roomType.name)}
-                                        className="text-red-600 hover:text-red-900"
-                                       disabled={deletingRoomTypeId === roomType.id || isRoomTypeFormOpen || isRoomFormOpen || deletingRoomId !== null}
-                                    >
-                                       {deletingRoomTypeId === roomType.id ? 'Удаление...' : 'Удалить'}
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                        {/* Сообщение, если список типов номеров пуст */}
-                            {roomTypes.length === 0 && !isLoadingData && !error && (
-                                <tr>
-                                    <td colSpan={4} className="text-center text-gray-500 py-4">Типы номеров не найдены.</td>
-                                </tr>
-                            )}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        {/* Секция "Номера" */}
-        <div>
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold text-gray-700">Номера</h2>
-                {/* Кнопка создания номера */}
-                <button
-                    onClick={handleCreateRoom}
-                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 ease-in-out"
-                >
-                    <Plus size={18} className="inline mr-1"/> Создать номер
-                </button>
-            </div>
-
-            {/* Таблица номеров */}
-            <div className="bg-white shadow-md rounded-lg overflow-hidden">
-                <table className="min-w-full leading-normal">
-                    <thead>
-                        <tr>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Номер
-                            </th>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Этаж
-                            </th>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Тип номера
-                            </th>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Статус
-                            </th>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Активен
-                            </th>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Заметки
-                            </th>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Действия
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rooms.map(room => (
-                            <tr key={room.id}>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-900">
-                                    {room.number}
-                                </td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-900">
-                                    {room.floor}
-                                </td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-900">
-                                    {room.room_type_name || 'N/A'} 
-                                </td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-900">
-                                    {room.status_display} {/* TODO: Отображать человекочитаемый статус, если доступен */}
-                                </td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-900">
-                                    {room.is_active ? 'Да' : 'Нет'}
-                                </td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-900">
-                                    {room.notes || 'Нет заметок'}
-                                </td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                    {/* Кнопки действий для номера */}
-                                    <button
-                                        onClick={() => handleEditRoom(room)}
-                                        className="text-blue-600 hover:text-blue-900 mr-3"
-                                        // disabled={...} // TODO: Отключать кнопку во время выполнения действия
-                                    >
-                                        Редактировать
-                                    </button>
-                                    <button
-                                        onClick={() => handleDeleteRoomClick(room.id, room.number)}
-                                        className="text-red-600 hover:text-red-900"
-                                        // disabled={...} // TODO: Отключать кнопку во время выполнения действия
-                                    >
-                                        Удалить
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                        {/* Сообщение, если список номеров пуст */}
-                            {rooms.length === 0 && !isLoadingData && !error && (
-                                <tr>
-                                    <td colSpan={7} className="text-center text-gray-500 py-4">Номера не найдены.</td>
-                                </tr>
-                            )}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        
-        <Modal isOpen={isRoomTypeFormOpen} onClose={() => setIsRoomTypeFormOpen(false)} contentClasses="max-w-sm">
-            <RoomTypeForm roomTypeToEdit={roomTypeToEdit} onSuccess={handleCreateRoomTypeSuccess} onCancel={handleCreateRoomTypeCancel}/>
-        </Modal> 
-        <Modal isOpen={isRoomFormOpen} onClose={() => setIsRoomFormOpen(false)} contentClasses="max-w-md">
-            <RoomForm roomToEdit={roomToEdit} availableRoomTypes={roomTypes} onSuccess={handleCreateRoomSuccess} onCancel={handleCreateRoomCancel}/>
-        </Modal> 
-        <ConfirmationModal 
-                isOpen={isRoomTypeConfirmModalOpen} 
-                message={`Вы уверены, что хотите удалить категорию номера "${roomTypeToDeleteName}"`} 
-                onConfirm={handleDeleteRoomTypeConfirm} 
-                onCancel={handleDeletingRoomTypeCancel} 
-                isLoading={!!deletingRoomTypeId}
-        />
-        <ConfirmationModal 
-                isOpen={isRoomConfirmModalOpen} 
-                message={`Вы уверены, что хотите удалить номер "${roomToDeleteNumber}"`} 
-                onConfirm={handleDeleteRoomConfirm} 
-                onCancel={handleDeletingRoomCancel} 
-                isLoading={!!deletingRoomId}
-            />
-
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
+      </div>
     );
+  }
+
+  if (!user || user.role !== 'manager') {
+    return (
+      <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-150px)]">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertTitle>Ошибка доступа</AlertTitle>
+          <AlertDescription>
+            У вас нет прав для просмотра этой страницы. Доступно только менеджерам.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+  
+  if (error && !isRoomTypeSheetOpen && !isRoomSheetOpen && !deletingRoomTypeId && !deletingRoomId) {
+    return (
+      <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-150px)]">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertTitle>Ошибка загрузки данных</AlertTitle>
+          <AlertDescription>
+            {error}
+            <Button 
+              onClick={() => {
+                setIsLoadingData(true);
+                Promise.all([fetchRoomTypes(), fetchRooms()])
+                  .catch(err => console.error("Error during retry fetch:", err))
+                  .finally(() => setIsLoadingData(false));
+              }} 
+              variant="outline" 
+              className="mt-4"
+              disabled={isLoadingData}
+            >
+              {isLoadingData && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Повторить
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto p-4 space-y-8">
+      <h1 className="text-3xl font-bold tracking-tight">Настройка комнат и типов</h1>
+
+      <section>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-semibold">Типы номеров</h2>
+          <Button onClick={handleCreateRoomType}>
+            <Plus className="mr-2 h-4 w-4" /> Создать тип номера
+          </Button>
+        </div>
+        <DataTable columns={roomTypeTableColumns} data={roomTypes} noResultsMessage="Типы номеров не найдены."/>
+      </section>
+
+      <section>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-semibold">Номера</h2>
+           <Button onClick={handleCreateRoom}>
+            <Plus className="mr-2 h-4 w-4" /> Создать номер
+          </Button>
+        </div>
+        <DataTable columns={roomTableColumns} data={rooms} noResultsMessage="Номера не найдены."/>
+      </section>
+
+      <Sheet open={isRoomTypeSheetOpen} onOpenChange={setIsRoomTypeSheetOpen}>
+        <SheetContent className="sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>{roomTypeToEdit ? 'Редактировать тип номера' : 'Создать тип номера'}</SheetTitle>
+            <SheetDescription>
+              {roomTypeToEdit ? 'Внесите изменения в существующий тип номера.' : 'Заполните информацию для создания нового типа номера.'}
+            </SheetDescription>
+          </SheetHeader>
+          <RoomTypeForm
+            roomTypeToEdit={roomTypeToEdit}
+            onSuccess={handleRoomTypeFormSuccess}
+            onCancel={() => setIsRoomTypeSheetOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={isRoomSheetOpen} onOpenChange={setIsRoomSheetOpen}>
+        <SheetContent className="sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>{roomToEdit ? 'Редактировать номер' : 'Создать номер'}</SheetTitle>
+            <SheetDescription>
+             {roomToEdit ? 'Внесите изменения в существующий номер.' : 'Заполните информацию для создания нового номера.'}
+            </SheetDescription>
+          </SheetHeader>
+          <RoomForm
+            roomToEdit={roomToEdit}
+            availableRoomTypes={roomTypes}
+            onSuccess={handleRoomFormSuccess}
+            onCancel={() => setIsRoomSheetOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
+
+      <ConfirmationDialog
+        isOpen={isRoomTypeConfirmOpen}
+        onClose={() => setIsRoomTypeConfirmOpen(false)}
+        onConfirm={handleDeleteRoomTypeConfirm}
+        message={`Вы уверены, что хотите удалить тип номера "${roomTypeToDeleteName || ''}"? Это действие не может быть отменено.`}
+        title="Подтверждение удаления типа номера"
+        isLoading={!!deletingRoomTypeId}
+        confirmButtonVariant="destructive"
+      />
+
+      <ConfirmationDialog
+        isOpen={isRoomConfirmOpen}
+        onClose={() => setIsRoomConfirmOpen(false)}
+        onConfirm={handleDeleteRoomConfirm}
+        message={`Вы уверены, что хотите удалить номер "${roomToDeleteNumber || ''}"? Это действие не может быть отменено.`}
+        title="Подтверждение удаления номера"
+        isLoading={!!deletingRoomId}
+        confirmButtonVariant="destructive"
+      />
+    </div>
+  );
 }

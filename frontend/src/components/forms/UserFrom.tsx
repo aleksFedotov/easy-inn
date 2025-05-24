@@ -150,8 +150,8 @@ export default function UserForm({ userToEdit, onSuccess, onCancel }: UserFormPr
 
         const dataToSend: Partial<UserApiData> = { 
             username: dataForApi.username,
-            first_name: dataForApi.first_name || null, 
-            last_name: dataForApi.last_name || null,
+            first_name: dataForApi.first_name || "", 
+            last_name: dataForApi.last_name || "",
             role: dataForApi.role,
         };
 

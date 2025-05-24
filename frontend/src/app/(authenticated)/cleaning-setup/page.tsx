@@ -1,19 +1,322 @@
-// src/app/(authenticated)/cleaning-setup/page.tsx
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/lib/AuthContext';
-import { Spinner } from '@/components/spinner';
-import ErrorMessage from '@/components/ErrorMessage';
 import api from '@/lib/api';
 import axios from 'axios';
-import { Zone, CleaningType, ChecklistTemplate } from '@/lib/types';
-import { Plus } from 'lucide-react';
-import Modal from '@/components/Modal';
-import ConfirmationModal from '@/components/ConfirmationModal';
-import ZoneForm from '@/components/forms/ZoneForm';
-import CleaningTypeForm from '@/components/forms/CleaningTypeFrom';
-import ChecklistTemplateForm from '@/components/forms/ChecklistTemplateForm';
+import { Zone, CleaningType, ChecklistTemplate  } from '@/lib/types'; 
+
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  SortingState,
+  getSortedRowModel,
+} from "@tanstack/react-table";
+
+import { MoreHorizontal, Plus, Edit, Trash2, Loader2, ArrowUpDown } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+
+
+import ZoneForm from '@/components/forms/ZoneForm'; 
+import CleaningTypeForm from '@/components/forms/CleaningTypeForm'; 
+import ChecklistTemplateForm from '@/components/forms/ChecklistTemplateForm'; 
+import ConfirmationDialog from '@/components/ConfirmationDialog'; 
+
+
+interface DataTableProps<TData, TValue> {
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
+  noResultsMessage?: string;
+  // Добавляем опциональные sorting state и setter, если хотим управлять сортировкой извне
+  // или если у нас несколько таблиц на странице с независимой сортировкой
+  externalSorting?: [SortingState, React.Dispatch<React.SetStateAction<SortingState>>];
+}
+
+function DataTable<TData, TValue>({
+  columns,
+  data,
+  noResultsMessage = "Данные не найдены.",
+  externalSorting
+}: DataTableProps<TData, TValue>) {
+  // Если externalSorting не предоставлен, используем локальное состояние
+  const [internalSorting, setInternalSorting] = useState<SortingState>([]);
+  const sorting = externalSorting ? externalSorting[0] : internalSorting;
+  const setSorting = externalSorting ? externalSorting[1] : setInternalSorting;
+
+  const table = useReactTable({
+    data,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
+    state: {
+      sorting,
+    },
+  });
+
+  return (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => {
+                return (
+                  <TableHead key={header.id} style={{ width: header.getSize() !== 150 ? `${header.getSize()}px` : undefined }}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </TableHead>
+                );
+              })}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows?.length ? (
+            table.getRowModel().rows.map((row) => (
+              <TableRow
+                key={row.id}
+                data-state={row.getIsSelected() && "selected"}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id} style={{ width: cell.column.getSize() !== 150 ? `${cell.column.getSize()}px` : undefined }}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={columns.length} className="h-24 text-center">
+                {noResultsMessage}
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+
+// --- Column Definitions ---
+
+// Зоны (Zones)
+export const getZoneColumns = (
+  handleEdit: (zone: Zone) => void,
+  handleDeleteClick: (id: number, name: string) => void,
+  isActionDisabled: (id: number) => boolean
+): ColumnDef<Zone>[] => [
+  {
+    accessorKey: 'name',
+    header: ({ column }) => (
+      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+        Название <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => <div className="font-medium">{row.getValue('name')}</div>,
+    size: 200,
+  },
+  {
+    accessorKey: 'floor',
+    header: ({ column }) => (
+      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+        Этаж <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => row.getValue('floor') || <span className="text-muted-foreground">N/A</span>,
+    size: 100,
+  },
+  {
+    accessorKey: 'description',
+    header: 'Описание',
+    cell: ({ row }) => row.getValue('description') || <span className="text-muted-foreground">Нет описания</span>,
+    size: 300,
+  },
+  {
+    id: 'actions',
+    header: () => <div className="text-right">Действия</div>,
+    cell: ({ row }) => {
+      const zone = row.original;
+      return (
+        <div className="text-right">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0" disabled={isActionDisabled(zone.id)}>
+                <span className="sr-only">Открыть меню</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Действия</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => handleEdit(zone)}>
+                <Edit className="mr-2 h-4 w-4" /> Редактировать
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleDeleteClick(zone.id, zone.name)}
+                className="text-red-600 focus:text-red-700 focus:bg-red-50"
+              >
+                <Trash2 className="mr-2 h-4 w-4" /> Удалить
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      );
+    },
+    size: 80,
+  },
+];
+
+// Типы уборок (Cleaning Types)
+export const getCleaningTypeColumns = (
+  handleEdit: (cleaningType: CleaningType) => void,
+  handleDeleteClick: (id: number, name: string) => void,
+  isActionDisabled: (id: number) => boolean
+): ColumnDef<CleaningType>[] => [
+  {
+    accessorKey: 'name',
+    header: ({ column }) => (
+      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+        Название <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => <div className="font-medium">{row.getValue('name')}</div>,
+  },
+   {
+    accessorKey: 'description',
+    header: 'Описание',
+    cell: ({ row }) => row.getValue('description') || <span className="text-muted-foreground">Нет описания</span>,
+  },
+  {
+    id: 'actions',
+    header: () => <div className="text-right">Действия</div>,
+    cell: ({ row }) => {
+      const cleaningType = row.original;
+      return (
+        <div className="text-right">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0" disabled={isActionDisabled(cleaningType.id)}>
+                <span className="sr-only">Открыть меню</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Действия</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => handleEdit(cleaningType)}>
+                <Edit className="mr-2 h-4 w-4" /> Редактировать
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleDeleteClick(cleaningType.id, cleaningType.name)}
+                className="text-red-600 focus:text-red-700 focus:bg-red-50"
+              >
+                <Trash2 className="mr-2 h-4 w-4" /> Удалить
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      );
+    },
+  },
+];
+
+// Шаблоны чек-листов (Checklist Templates)
+export const getChecklistTemplateColumns = (
+  handleEdit: (template: ChecklistTemplate) => void,
+  handleDeleteClick: (id: number, name: string) => void,
+  isActionDisabled: (id: number) => boolean
+): ColumnDef<ChecklistTemplate>[] => [
+  {
+    accessorKey: 'name',
+    header: ({ column }) => (
+      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+        Название <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => <div className="font-medium">{row.getValue('name')}</div>,
+  },
+  {
+    accessorKey: 'cleaning_type_name', // Предполагаем, что это поле приходит с бэкенда
+    header: 'Тип уборки',
+    cell: ({ row }) => row.original.cleaning_type_name || <span className="text-muted-foreground">N/A</span>,
+  },
+  {
+    accessorKey: 'description',
+    header: 'Описание',
+    cell: ({ row }) => row.getValue('description') || <span className="text-muted-foreground">Нет описания</span>,
+  },
+  {
+    accessorKey: 'items',
+    header: 'Кол-во пунктов',
+    cell: ({ row }) => row.original.items?.length || 0,
+  },
+  {
+    id: 'actions',
+    header: () => <div className="text-right">Действия</div>,
+    cell: ({ row }) => {
+      const template = row.original;
+      return (
+        <div className="text-right">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0" disabled={isActionDisabled(template.id)}>
+                <span className="sr-only">Открыть меню</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Действия</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => handleEdit(template)}>
+                <Edit className="mr-2 h-4 w-4" /> Редактировать
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleDeleteClick(template.id, template.name)}
+                className="text-red-600 focus:text-red-700 focus:bg-red-50"
+              >
+                <Trash2 className="mr-2 h-4 w-4" /> Удалить
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      );
+    },
+  },
+];
 
 
 export default function CleaningSetupPage() {
@@ -26,736 +329,371 @@ export default function CleaningSetupPage() {
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Состояния для управления зонами
-  const [isZoneFormOpen, setIsZoneFormOpen] = useState(false);
+  // Состояния для Sheet (Зоны)
+  const [isZoneSheetOpen, setIsZoneSheetOpen] = useState(false);
   const [zoneToEdit, setZoneToEdit] = useState<Zone | undefined>(undefined);
-
-
-  const [isZoneConfirmModalOpen, setIsZoneConfirmModalOpen] = useState(false);
+  const [isZoneConfirmOpen, setIsZoneConfirmOpen] = useState(false);
   const [zoneToDeleteId, setZoneToDeleteId] = useState<number | null>(null);
   const [zoneToDeleteName, setZoneToDeleteName] = useState<string | null>(null);
-
-
   const [deletingZoneId, setDeletingZoneId] = useState<number | null>(null);
+  const [zoneSorting, setZoneSorting] = useState<SortingState>([]);
 
 
-  // Состояния для управления типами уборок
-  const [isCleaningTypeFormOpen, setIsCleaningTypeFormOpen] = useState(false);
+  // Состояния для Sheet (Типы уборок)
+  const [isCleaningTypeSheetOpen, setIsCleaningTypeSheetOpen] = useState(false);
   const [cleaningTypeToEdit, setCleaningTypeToEdit] = useState<CleaningType | undefined>(undefined);
-
-  const [isCleaningTypeConfirmModalOpen, setIsCleaningTypeConfirmModalOpen] = useState(false);
+  const [isCleaningTypeConfirmOpen, setIsCleaningTypeConfirmOpen] = useState(false);
   const [cleaningTypeToDeleteId, setCleaningTypeToDeleteId] = useState<number | null>(null);
   const [cleaningTypeToDeleteName, setCleaningTypeToDeleteName] = useState<string | null>(null);
-
   const [deletingCleaningTypeId, setDeletingCleaningTypeId] = useState<number | null>(null);
+  const [cleaningTypeSorting, setCleaningTypeSorting] = useState<SortingState>([]);
 
-  // --- Состояния для управления шаблонами чек-листов ---
-  const [isChecklistTemplateFormOpen, setIsChecklistTemplateFormOpen] = useState(false);
+  // Состояния для Sheet (Шаблоны чек-листов)
+  const [isChecklistTemplateSheetOpen, setIsChecklistTemplateSheetOpen] = useState(false);
   const [checklistTemplateToEdit, setChecklistTemplateToEdit] = useState<ChecklistTemplate | undefined>(undefined);
-
-  const [isChecklistTemplateConfirmModalOpen, setIsChecklistTemplateConfirmModalOpen] = useState(false);
+  const [isChecklistTemplateConfirmOpen, setIsChecklistTemplateConfirmOpen] = useState(false);
   const [checklistTemplateToDeleteId, setChecklistTemplateToDeleteId] = useState<number | null>(null);
   const [checklistTemplateToDeleteName, setChecklistTemplateToDeleteName] = useState<string | null>(null);
-
   const [deletingChecklistTemplateId, setDeletingChecklistTemplateId] = useState<number | null>(null);
+  const [checklistTemplateSorting, setChecklistTemplateSorting] = useState<SortingState>([]);
 
-  const fetchZones = useCallback(async () => {
-      setError(null); 
-      setIsLoadingData(true); 
-      try {
-          const response = await api.get<Zone[]>('/api/zones/', {
-                params: {
-                    all :true
-                }
-            });
 
-          if (response.status === 200) {
-              setZones(response.data);
-              console.log("Zones fetched successfully:", response.data);
-          } else {
-              setError('Не удалось загрузить список зон. Статус: ' + response.status);
-              console.error("Failed to fetch zones. Status:", response.status);
-          }
-      } catch (err) {
-          console.error('Error fetching zones:', err);
-          if (axios.isAxiosError(err) && err.response) {
-                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при загрузке списка зон.');
-          } else if (axios.isAxiosError(err) && err.request) {
-                setError('Нет ответа от сервера при загрузке списка зон.');
-          } else {
-                setError('Произошла непредвиденная ошибка при загрузке списка зон.');
-          }
-      } 
+  const fetchData = useCallback(async () => {
+    setIsLoadingData(true);
+    setError(null);
+    try {
+      const [zonesRes, cleaningTypesRes, checklistTemplatesRes] = await Promise.all([
+        api.get<{results?: Zone[], data?: Zone[]}>('/api/zones/', { params: { all: true } }),
+        api.get<{results?: CleaningType[], data?: CleaningType[]}>('/api/cleaningtypes/', { params: { all: true } }),
+        api.get<{results?: ChecklistTemplate[], data?: ChecklistTemplate[]}>('/api/checklisttemplates/', { params: { all: true } }),
+      ]);
+      
+      setZones(Array.isArray(zonesRes.data.results || zonesRes.data) ? (zonesRes.data.results || zonesRes.data) : []);
+      setCleaningTypes(Array.isArray(cleaningTypesRes.data.results || cleaningTypesRes.data) ? (cleaningTypesRes.data.results || cleaningTypesRes.data) : []);
+      setChecklistTemplates(Array.isArray(checklistTemplatesRes.data.results || checklistTemplatesRes.data) ? (checklistTemplatesRes.data.results || checklistTemplatesRes.data) : []);
+
+    } catch (err) {
+      console.error('Error fetching cleaning setup data:', err);
+      const errorMsg = axios.isAxiosError(err) && err.response?.data?.detail
+        ? String(err.response.data.detail)
+        : 'Ошибка при загрузке данных для настройки уборки.';
+      setError(errorMsg);
+    } finally {
+      setIsLoadingData(false);
+    }
   }, []);
 
-   const fetchCleaningTypes = useCallback(async () => {
-       
-       try {
-           const response = await api.get<CleaningType[]>('/api/cleaningtypes/', {
-                params: {
-                    all :true
-                }
-            });
-
-           if (response.status === 200) {
-               setCleaningTypes(response.data);
-               console.log("Cleaning types fetched successfully:", response.data);
-           } else {
-               setError('Не удалось загрузить типы уборок. Статус: ' + response.status);
-               console.error("Failed to fetch cleaning types. Status:", response.status);
-           }
-       } catch (err) {
-           console.error('Error fetching cleaning types:', err);
-           if (axios.isAxiosError(err) && err.response) {
-                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при загрузке типов уборок.');
-           } else if (axios.isAxiosError(err) && err.request) {
-                setError('Нет ответа от сервера при загрузке типов уборок.');
-           } else {
-               setError('Произошла непредвиденная ошибка при загрузке типов уборок.');
-           }
-       }
- 
-   }, []);
-
-
-    const fetchChecklistTemplates = useCallback(async () => {
-        try {
-           
-            const response = await api.get<ChecklistTemplate[]>('/api/checklisttemplates/', {
-                params: {
-                    all :true
-                }
-            }); 
-            if (response.status === 200) {
-                setChecklistTemplates(response.data);
-                console.log("Checklist templates fetched successfully:", response.data);
-            } else {
-                setError('Не удалось загрузить шаблоны чек-листов. Статус: ' + response.status);
-                console.error("Failed to fetch checklist templates. Status:", response.status);
-            }
-        } catch (err) {
-            console.error('Error fetching checklist templates:', err);
-            if (axios.isAxiosError(err) && err.response) {
-                 setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при загрузке шаблонов чек-листов.');
-            } else if (axios.isAxiosError(err) && err.request) {
-                 setError('Нет ответа от сервера при загрузке шаблонов чек-листов.');
-            } else {
-                setError('Произошла непредвиденная ошибка при загрузке шаблонов чек-листов.');
-            }
-        }
-    }, []);
-
-
-
   useEffect(() => {
-    
-    if (!isAuthLoading) {
-    
-      if (user?.role === 'manager') {
-        setIsLoadingData(true);
-        setError(null);
-        fetchZones(); 
-        Promise.all([fetchZones(), fetchCleaningTypes(), fetchChecklistTemplates()]) 
-            .catch(err => {
-                console.error("Error during parallel data fetching:", err);
-            })
-            .finally(() => {
-                setIsLoadingData(false); 
-            });
-      } else {
-      
-        setIsLoadingData(false);
-        setError('У вас нет прав для просмотра этой страницы. Доступно только менеджерам.');
-      }
+    if (!isAuthLoading && user?.role === 'manager') {
+      fetchData();
+    } else if (!isAuthLoading && user?.role !== 'manager') {
+      setIsLoadingData(false);
+      setError('У вас нет прав для просмотра этой страницы. Доступно только менеджерам.');
     }
-  }, [user, isAuthLoading, fetchZones,fetchCleaningTypes, fetchChecklistTemplates]);
+  }, [user, isAuthLoading, fetchData]);
 
-
-  // --- Обработчики для форм создания/редактирования зоны ---
-
+  // --- Обработчики для Зон ---
   const handleCreateZone = () => {
-      
-      if (deletingZoneId !== null || isZoneConfirmModalOpen) return;
-      setIsZoneFormOpen(true);
-      setZoneToEdit(undefined);
+    setZoneToEdit(undefined);
+    setIsZoneSheetOpen(true);
   };
-
   const handleEditZone = (zone: Zone) => {
-        
-      if (deletingZoneId !== null || isZoneConfirmModalOpen) return;
-      setIsZoneFormOpen(true);
-      setZoneToEdit(zone); 
+    setZoneToEdit(zone);
+    setIsZoneSheetOpen(true);
   };
-
-
-    const handleZoneFormSuccess = () => {
-        setIsZoneFormOpen(false); 
-        setZoneToEdit(undefined); 
-        fetchZones(); 
-    };
-
-    
-    const handleZoneFormCancel = () => {
-        setIsZoneFormOpen(false); 
-        setZoneToEdit(undefined); 
-        
-    };
-
-
-  // --- Обработчики для удаления зоны ---
-
-  const handleDeleteZoneClick = (zoneId: number, zoneName: string) => {
-      
-      if (deletingZoneId !== null || isZoneFormOpen) return;
-      setIsZoneConfirmModalOpen(true);
-      setZoneToDeleteId(zoneId);
-      setZoneToDeleteName(zoneName);
-      setError(null);
+  const handleZoneFormSuccess = () => {
+    setIsZoneSheetOpen(false);
+    fetchData(); // Перезагружаем все данные
   };
-
+  const handleDeleteZoneClick = (id: number, name: string) => {
+    if (deletingZoneId || deletingCleaningTypeId || deletingChecklistTemplateId || isZoneSheetOpen || isCleaningTypeSheetOpen || isChecklistTemplateSheetOpen) return;
+    setZoneToDeleteId(id);
+    setZoneToDeleteName(name);
+    setIsZoneConfirmOpen(true);
+  };
   const handleDeleteZoneConfirm = async () => {
-      if (zoneToDeleteId === null) return;
-
-      setDeletingZoneId(zoneToDeleteId); 
-      try {
-          
-          const response = await api.delete(`/api/zones/${zoneToDeleteId}/`); 
-
-          if (response.status === 204) { 
-              console.log(`Зона "${zoneToDeleteName}" успешно удалена.`);
-              fetchZones(); 
-          } else {
-                setError('Не удалось удалить зону. Статус: ' + response.status);
-                console.error("Failed to delete zone. Status:", response.status);
-          }
-
-      } catch (err) {
-          console.error(`Error deleting zone with ID ${zoneToDeleteId}:`, err);
-          if (axios.isAxiosError(err) && err.response) {
-                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при удалении зоны.');
-          } else if (axios.isAxiosError(err) && err.request) {
-                setError('Нет ответа от сервера при удалении зоны. Проверьте подключение.');
-          } else {
-              setError('Произошла непредвиденная ошибка при удалении зоны.');
-          }
-      } finally {
-          setDeletingZoneId(null); 
-          setZoneToDeleteId(null); 
-          setZoneToDeleteName(null); 
-          setIsZoneConfirmModalOpen(false); 
-      }
+    if (zoneToDeleteId === null) return;
+    setDeletingZoneId(zoneToDeleteId);
+    setError(null);
+    try {
+      await api.delete(`/api/zones/${zoneToDeleteId}/`);
+      fetchData();
+    } catch (err) {
+      const errorMsg = axios.isAxiosError(err) && err.response?.data?.detail ? String(err.response.data.detail) : 'Ошибка при удалении зоны.';
+      setError(errorMsg);
+    } finally {
+      setZoneToDeleteId(null);
+      setZoneToDeleteName(null);
+      setDeletingZoneId(null);
+      setIsZoneConfirmOpen(false);
+    }
   };
 
-  const handleDeletingZoneCancel = () => {
-      setIsZoneConfirmModalOpen(false); 
-      setZoneToDeleteId(null); 
-      setZoneToDeleteName(null); 
-    
-  };
-
-
-  // --- Обработчики для форм создания/редактирования типа уборки ---
-
+  // --- Обработчики для Типов Уборок ---
   const handleCreateCleaningType = () => {
-      if (deletingZoneId !== null || isZoneConfirmModalOpen || deletingCleaningTypeId !== null || isCleaningTypeConfirmModalOpen || isZoneFormOpen) return;
-      setIsCleaningTypeFormOpen(true);
-      setCleaningTypeToEdit(undefined); // undefined для режима создания
+    setCleaningTypeToEdit(undefined);
+    setIsCleaningTypeSheetOpen(true);
   };
-
   const handleEditCleaningType = (cleaningType: CleaningType) => {
-      if (deletingZoneId !== null || isZoneConfirmModalOpen || deletingCleaningTypeId !== null || isCleaningTypeConfirmModalOpen || isZoneFormOpen) return;
-      setIsCleaningTypeFormOpen(true);
-      setCleaningTypeToEdit(cleaningType); 
+    setCleaningTypeToEdit(cleaningType);
+    setIsCleaningTypeSheetOpen(true);
   };
-
-   // Функция, вызываемая при успешном создании или редактировании типа уборки
-   const handleCleaningTypeFormSuccess = () => {
-       setIsCleaningTypeFormOpen(false); 
-       setCleaningTypeToEdit(undefined); 
-       fetchCleaningTypes(); 
-       // TODO: Возможно, нужно обновить список шаблонов чек-листов, если они связаны с типами уборок
-   };
-
-   // Функция, вызываемая при отмене или закрытии формы
-   const handleCleaningTypeFormCancel = () => {
-       setIsCleaningTypeFormOpen(false); 
-       setCleaningTypeToEdit(undefined); 
-      
-   };
-
-  // --- Обработчики для удаления типа уборки ---
-
-  const handleDeleteCleaningTypeClick = (cleaningTypeId: number, cleaningTypeName: string) => {
-      
-      if (deletingZoneId !== null || isZoneConfirmModalOpen || deletingCleaningTypeId !== null || isCleaningTypeFormOpen || isZoneFormOpen) return;
-      setIsCleaningTypeConfirmModalOpen(true);
-      setCleaningTypeToDeleteId(cleaningTypeId);
-      setCleaningTypeToDeleteName(cleaningTypeName);
-      setError(null); 
+  const handleCleaningTypeFormSuccess = () => {
+    setIsCleaningTypeSheetOpen(false);
+    fetchData();
   };
-
+  const handleDeleteCleaningTypeClick = (id: number, name: string) => {
+     if (deletingZoneId || deletingCleaningTypeId || deletingChecklistTemplateId || isZoneSheetOpen || isCleaningTypeSheetOpen || isChecklistTemplateSheetOpen) return;
+    setCleaningTypeToDeleteId(id);
+    setCleaningTypeToDeleteName(name);
+    setIsCleaningTypeConfirmOpen(true);
+  };
   const handleDeleteCleaningTypeConfirm = async () => {
-      if (cleaningTypeToDeleteId === null) return;
-
-      setDeletingCleaningTypeId(cleaningTypeToDeleteId); 
-
-      try {
-          
-          const response = await api.delete(`/api/cleaningtypes/${cleaningTypeToDeleteId}/`); 
-
-          if (response.status === 204) { 
-              console.log(`Тип уборки "${cleaningTypeToDeleteName}" успешно удален.`);
-              fetchCleaningTypes(); 
-              // TODO: Возможно, нужно обновить список шаблонов чек-листов, если они связаны с типами уборок
-          } else {
-               setError('Не удалось удалить тип уборки. Статус: ' + response.status);
-               console.error("Failed to delete cleaning type. Status:", response.status);
-          }
-
-      } catch (err) {
-          console.error(`Error deleting cleaning type with ID ${cleaningTypeToDeleteId}:`, err);
-          if (axios.isAxiosError(err) && err.response) {
-               setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при удалении типа уборки.');
-          } else if (axios.isAxiosError(err) && err.request) {
-               setError('Нет ответа от сервера при удалении типа уборки. Проверьте подключение.');
-          } else {
-              setError('Произошла непредвиденная ошибка при удалении типа уборки.');
-          }
-      } finally {
-          setDeletingCleaningTypeId(null); 
-          setCleaningTypeToDeleteId(null); 
-          setCleaningTypeToDeleteName(null); 
-          setIsCleaningTypeConfirmModalOpen(false); 
-      }
+    if (cleaningTypeToDeleteId === null) return;
+    setDeletingCleaningTypeId(cleaningTypeToDeleteId);
+    setError(null);
+    try {
+      await api.delete(`/api/cleaningtypes/${cleaningTypeToDeleteId}/`);
+      fetchData();
+    } catch (err)
+ {
+      const errorMsg = axios.isAxiosError(err) && err.response?.data?.detail ? String(err.response.data.detail) : 'Ошибка при удалении типа уборки.';
+      setError(errorMsg);
+    } finally {
+      setCleaningTypeToDeleteId(null);
+      setCleaningTypeToDeleteName(null);
+      setDeletingCleaningTypeId(null);
+      setIsCleaningTypeConfirmOpen(false);
+    }
   };
 
-  const handleDeletingCleaningTypeCancel = () => {
-      setIsCleaningTypeConfirmModalOpen(false); // Закрываем модальное окно подтверждения
-      setCleaningTypeToDeleteId(null); // Сбрасываем ID типа уборки для удаления
-      setCleaningTypeToDeleteName(null); // Сбрасываем имя типа уборки для удаления
-      // Не сбрасываем deletingCleaningTypeId, если удаление уже началось
-  };
-
-  // --- Обработчики для форм создания/редактирования шаблона чек-листа ---
-
+  // --- Обработчики для Шаблонов Чек-листов ---
   const handleCreateChecklistTemplate = () => {
-      if (deletingZoneId !== null || isZoneConfirmModalOpen || deletingCleaningTypeId !== null || isCleaningTypeConfirmModalOpen || isZoneFormOpen || isCleaningTypeFormOpen || deletingChecklistTemplateId !== null || isChecklistTemplateConfirmModalOpen) return;
-      setIsChecklistTemplateFormOpen(true);
-      setChecklistTemplateToEdit(undefined); 
+    setChecklistTemplateToEdit(undefined);
+    setIsChecklistTemplateSheetOpen(true);
   };
-
-  const handleEditChecklistTemplate = (checklistTemplate: ChecklistTemplate) => {
-      if (deletingZoneId !== null || isZoneConfirmModalOpen || deletingCleaningTypeId !== null || isCleaningTypeConfirmModalOpen || isZoneFormOpen || isCleaningTypeFormOpen || deletingChecklistTemplateId !== null || isChecklistTemplateConfirmModalOpen) return;
-      setIsChecklistTemplateFormOpen(true);
-      setChecklistTemplateToEdit(checklistTemplate); 
+  const handleEditChecklistTemplate = (template: ChecklistTemplate) => {
+    setChecklistTemplateToEdit(template);
+    setIsChecklistTemplateSheetOpen(true);
   };
-
-  // Функция, вызываемая при успешном создании или редактировании шаблона чек-листа
   const handleChecklistTemplateFormSuccess = () => {
-      setIsChecklistTemplateFormOpen(false); 
-      setChecklistTemplateToEdit(undefined); 
-      fetchChecklistTemplates(); 
-    
+    setIsChecklistTemplateSheetOpen(false);
+    fetchData();
   };
-
-  // Функция, вызываемая при отмене или закрытии формы
-  const handleChecklistTemplateFormCancel = () => {
-      setIsChecklistTemplateFormOpen(false); 
-      setChecklistTemplateToEdit(undefined); 
-  
+  const handleDeleteChecklistTemplateClick = (id: number, name: string) => {
+    if (deletingZoneId || deletingCleaningTypeId || deletingChecklistTemplateId || isZoneSheetOpen || isCleaningTypeSheetOpen || isChecklistTemplateSheetOpen) return;
+    setChecklistTemplateToDeleteId(id);
+    setChecklistTemplateToDeleteName(name);
+    setIsChecklistTemplateConfirmOpen(true);
   };
-
-  // --- Обработчики для удаления шаблона чек-листа ---
-
-  const handleDeleteChecklistTemplateClick = (checklistTemplateId: number, checklistTemplateName: string) => {
-      if (deletingZoneId !== null || isZoneConfirmModalOpen || deletingCleaningTypeId !== null || isCleaningTypeConfirmModalOpen || isZoneFormOpen || isCleaningTypeFormOpen || deletingChecklistTemplateId !== null || isChecklistTemplateFormOpen) return;
-      setIsChecklistTemplateConfirmModalOpen(true);
-      setChecklistTemplateToDeleteId(checklistTemplateId);
-      setChecklistTemplateToDeleteName(checklistTemplateName);
-      setError(null); 
-  };
-
   const handleDeleteChecklistTemplateConfirm = async () => {
-      if (checklistTemplateToDeleteId === null) return;
-
-      setDeletingChecklistTemplateId(checklistTemplateToDeleteId); 
-
-      try {
-          
-          const response = await api.delete(`/api/checklisttemplates/${checklistTemplateToDeleteId}/`); 
-
-          if (response.status === 204) { 
-              console.log(`Шаблон чек-листа "${checklistTemplateToDeleteName}" успешно удален.`);
-              fetchChecklistTemplates(); 
-              // TODO: Возможно, нужно обновить список типов уборок, если они связаны с шаблонами
-          } else {
-                setError('Не удалось удалить шаблон чек-листа. Статус: ' + response.status);
-                console.error("Failed to delete checklist template. Status:", response.status);
-          }
-
-      } catch (err) {
-          console.error(`Error deleting checklist template with ID ${checklistTemplateToDeleteId}:`, err);
-          if (axios.isAxiosError(err) && err.response) {
-                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при удалении шаблона чек-листа.');
-          } else if (axios.isAxiosError(err) && err.request) {
-                setError('Нет ответа от сервера при удалении шаблона чек-листа. Проверьте подключение.');
-          } else {
-              setError('Произошла непредвиденная ошибка при удалении шаблона чек-листа.');
-          }
-      } finally {
-          setDeletingChecklistTemplateId(null);
-          setChecklistTemplateToDeleteId(null);
-          setChecklistTemplateToDeleteName(null); 
-          setIsChecklistTemplateConfirmModalOpen(false); 
-      }
+    if (checklistTemplateToDeleteId === null) return;
+    setDeletingChecklistTemplateId(checklistTemplateToDeleteId);
+    setError(null);
+    try {
+      await api.delete(`/api/checklisttemplates/${checklistTemplateToDeleteId}/`);
+      fetchData();
+    } catch (err) {
+      const errorMsg = axios.isAxiosError(err) && err.response?.data?.detail ? String(err.response.data.detail) : 'Ошибка при удалении шаблона чек-листа.';
+      setError(errorMsg);
+    } finally {
+      setChecklistTemplateToDeleteId(null);
+      setChecklistTemplateToDeleteName(null);
+      setDeletingChecklistTemplateId(null);
+      setIsChecklistTemplateConfirmOpen(false);
+    }
   };
 
-  const handleDeletingChecklistTemplateCancel = () => {
-      setIsChecklistTemplateConfirmModalOpen(false); 
-      setChecklistTemplateToDeleteId(null); 
-      setChecklistTemplateToDeleteName(null); 
-      
-  };
+  const isGlobalActionInProgress = !!deletingZoneId || !!deletingCleaningTypeId || !!deletingChecklistTemplateId || isZoneSheetOpen || isCleaningTypeSheetOpen || isChecklistTemplateSheetOpen;
 
+  const zoneTableColumns = useMemo(
+    () => getZoneColumns(handleEditZone, handleDeleteZoneClick, (id) => isGlobalActionInProgress || deletingZoneId === id),
+    [isGlobalActionInProgress, deletingZoneId] // Добавляем зависимости, влияющие на isActionDisabled
+  );
+  const cleaningTypeTableColumns = useMemo(
+    () => getCleaningTypeColumns(handleEditCleaningType, handleDeleteCleaningTypeClick, (id) => isGlobalActionInProgress || deletingCleaningTypeId === id),
+    [isGlobalActionInProgress, deletingCleaningTypeId]
+  );
+  const checklistTemplateTableColumns = useMemo(
+    () => getChecklistTemplateColumns(handleEditChecklistTemplate, handleDeleteChecklistTemplateClick, (id) => isGlobalActionInProgress || deletingChecklistTemplateId === id),
+    [isGlobalActionInProgress, deletingChecklistTemplateId]
+  );
 
-  // --- Условный рендеринг ---
-
-
-  if (isAuthLoading) {
-      return null;
+  if (isAuthLoading || (user?.role === 'manager' && isLoadingData && !error)) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
+      </div>
+    );
   }
 
-
-    if (!user || user.role !== 'manager') {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-100">
-                <div className="p-8 rounded-lg shadow-lg bg-white max-w-md w-full text-center text-red-600 font-bold">
-                    У вас нет прав для просмотра этой страницы. Доступно только менеджерам.
-                </div>
-            </div>
-        );
-    }
-
-
-    if (isLoadingData && !isZoneFormOpen && !isZoneConfirmModalOpen && deletingZoneId === null && !isCleaningTypeFormOpen && !isCleaningTypeConfirmModalOpen && deletingCleaningTypeId === null && !isChecklistTemplateFormOpen && !isChecklistTemplateConfirmModalOpen && deletingChecklistTemplateId === null) {
-        
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-100">
-                <Spinner/>
-            </div>
-        );
-    }
-
-    
-    if (error && !isZoneFormOpen && !isZoneConfirmModalOpen && deletingZoneId === null && !isCleaningTypeFormOpen && !isCleaningTypeConfirmModalOpen && deletingCleaningTypeId === null && !isChecklistTemplateFormOpen && !isChecklistTemplateConfirmModalOpen && deletingChecklistTemplateId === null) {
-        return (
-            <ErrorMessage
-               message={error}
-               
-               onRetry={() => {
-                   setIsLoadingData(true); 
-                   setError(null); 
-                   Promise.all([fetchZones(), fetchCleaningTypes()])
-                       .catch(err => console.error("Error during retry fetch:", err))
-                       .finally(() => setIsLoadingData(false));
-               }}
-               isLoading={isLoadingData} 
-           />
-        );
-    }
-
-
+  if (!user || user.role !== 'manager') {
+    return (
+      <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-150px)]">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertTitle>Ошибка доступа</AlertTitle>
+          <AlertDescription>
+            У вас нет прав для просмотра этой страницы. Доступно только менеджерам.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+  
+  if (error && !isGlobalActionInProgress) {
+    return (
+      <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-150px)]">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertTitle>Ошибка загрузки данных</AlertTitle>
+          <AlertDescription>
+            {error}
+            <Button 
+              onClick={fetchData} 
+              variant="outline" 
+              className="mt-4"
+              disabled={isLoadingData}
+            >
+              {isLoadingData && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Повторить
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6 text-gray-800">Настройка уборки</h1>
+    <div className="container mx-auto p-4 space-y-8">
+      <h1 className="text-3xl font-bold tracking-tight">Настройка уборки</h1>
 
       {/* Секция "Зоны" */}
-      <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-700">Зоны</h2>
-              {/* Кнопка создания зоны */}
-              <button
-                  onClick={handleCreateZone}
-                  // Отключаем кнопку, если открыта форма или идет удаление (любое)
-                  disabled={isZoneFormOpen || isZoneConfirmModalOpen || deletingZoneId !== null || isCleaningTypeFormOpen || isCleaningTypeConfirmModalOpen || deletingCleaningTypeId !== null || isChecklistTemplateFormOpen || isChecklistTemplateConfirmModalOpen || deletingChecklistTemplateId !== null}
-                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                  <Plus size={18} className="inline mr-1"/> Создать зону
-              </button>
-          </div>
-
-          {/* Таблица зон */}
-          <div className="bg-white shadow-md rounded-lg overflow-hidden">
-              <table className="min-w-full leading-normal">
-                  <thead>
-                      <tr>
-                          <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                              Название
-                          </th>
-                          <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                              Этаж
-                          </th>
-                           <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                              Описание
-                          </th>
-                          <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                              Действия
-                          </th>
-                      </tr>
-                  </thead>
-                  <tbody>
-                      {zones.map(zone => (
-                          <tr key={zone.id}>
-                              <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-900">
-                                  {zone.name}
-                              </td>
-                              <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-900">
-                                  {zone.floor || 'Не указан'}
-                              </td>
-                               <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-900">
-                                  {zone.description || 'Нет описания'}
-                              </td>
-                              <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                  {/* Кнопки действий для зоны */}
-                                  <button
-                                      onClick={() => handleEditZone(zone)}
-                                      className="text-blue-600 hover:text-blue-900 mr-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                                      // Отключаем кнопку, если открыта форма или идет удаление (любое)
-                                      disabled={isZoneFormOpen || isZoneConfirmModalOpen || deletingZoneId !== null || isCleaningTypeFormOpen || isCleaningTypeConfirmModalOpen || deletingCleaningTypeId !== null || isChecklistTemplateFormOpen || isChecklistTemplateConfirmModalOpen || deletingChecklistTemplateId !== null}
-                                  >
-                                      Редактировать
-                                  </button>
-                                  <button
-                                      onClick={() => handleDeleteZoneClick(zone.id, zone.name)}
-                                      className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                                      // Отключаем кнопку, если идет удаление именно этой зоны, открыта форма или открыто модальное окно подтверждения (любое)
-                                      disabled={deletingZoneId === zone.id || isZoneFormOpen || isZoneConfirmModalOpen || isCleaningTypeFormOpen || isCleaningTypeConfirmModalOpen || deletingCleaningTypeId !== null || isChecklistTemplateFormOpen || isChecklistTemplateConfirmModalOpen || deletingChecklistTemplateId !== null}
-                                  >
-                                      {deletingZoneId === zone.id ? 'Удаление...' : 'Удалить'} {/* Изменяем текст кнопки при удалении */}
-                                  </button>
-                              </td>
-                          </tr>
-                      ))}
-                       {/* Сообщение, если список зон пуст */}
-                        {zones.length === 0 && !isLoadingData && !error && !isZoneFormOpen && !isZoneConfirmModalOpen && deletingZoneId === null && !isCleaningTypeFormOpen && !isCleaningTypeConfirmModalOpen && deletingCleaningTypeId === null && !isChecklistTemplateFormOpen && !isChecklistTemplateConfirmModalOpen && deletingChecklistTemplateId === null && (
-                            <tr>
-                                <td colSpan={4} className="text-center text-gray-500 py-4">Зоны не найдены.</td>
-                            </tr>
-                        )}
-                  </tbody>
-              </table>
-          </div>
-      </div>
+      <section>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-semibold">Зоны</h2>
+          <Button onClick={handleCreateZone} disabled={isGlobalActionInProgress}>
+            <Plus className="mr-2 h-4 w-4" /> Создать зону
+          </Button>
+        </div>
+        <DataTable 
+          columns={zoneTableColumns} 
+          data={zones} 
+          noResultsMessage="Зоны не найдены."
+          externalSorting={[zoneSorting, setZoneSorting]}
+        />
+      </section>
 
       {/* Секция "Типы уборок" */}
-      <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-700">Типы уборок</h2>
-              {/* Кнопка создания типа уборки */}
-              <button
-                  onClick={handleCreateCleaningType}
-                   // Отключаем кнопку, если открыта форма или идет удаление (любое)
-                  disabled={isZoneFormOpen || isZoneConfirmModalOpen || deletingZoneId !== null || isCleaningTypeFormOpen || isCleaningTypeConfirmModalOpen || deletingCleaningTypeId !== null || isChecklistTemplateFormOpen || isChecklistTemplateConfirmModalOpen || deletingChecklistTemplateId !== null}
-                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                  <Plus size={18} className="inline mr-1"/> Создать тип уборки
-              </button>
-          </div>
+      <section>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-semibold">Типы уборок</h2>
+          <Button onClick={handleCreateCleaningType} disabled={isGlobalActionInProgress}>
+            <Plus className="mr-2 h-4 w-4" /> Создать тип уборки
+          </Button>
+        </div>
+        <DataTable 
+          columns={cleaningTypeTableColumns} 
+          data={cleaningTypes} 
+          noResultsMessage="Типы уборок не найдены."
+          externalSorting={[cleaningTypeSorting, setCleaningTypeSorting]}
+        />
+      </section>
 
-          {/* Таблица типов уборок */}
-          <div className="bg-white shadow-md rounded-lg overflow-hidden">
-              <table className="min-w-full leading-normal">
-                  <thead>
-                      <tr>
-                          <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                              Название
-                          </th>
-                          {/* TODO: Добавить колонку "Описание", если нужно отображать */}
-                          {/* <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                              Описание
-                          </th> */}
-                          <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                              Действия
-                          </th>
-                      </tr>
-                  </thead>
-                  <tbody>
-                      {cleaningTypes.map(cleaningType => (
-                          <tr key={cleaningType.id}>
-                              <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-900">
-                                  {cleaningType.name}
-                              </td>
-                              {/* TODO: Отображать описание, если колонка добавлена */}
-                              {/* <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-900">
-                                  {cleaningType.description || 'Нет описания'}
-                              </td> */}
-                              <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                  {/* Кнопки действий для типа уборки */}
-                                  <button
-                                      onClick={() => handleEditCleaningType(cleaningType)}
-                                      className="text-blue-600 hover:text-blue-900 mr-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                                       // Отключаем кнопку, если открыта форма или идет удаление (любое)
-                                      disabled={isZoneFormOpen || isZoneConfirmModalOpen || deletingZoneId !== null || isCleaningTypeFormOpen || isCleaningTypeConfirmModalOpen || deletingCleaningTypeId !== null || isChecklistTemplateFormOpen || isChecklistTemplateConfirmModalOpen || deletingChecklistTemplateId !== null}
-                                  >
-                                      Редактировать
-                                  </button>
-                                  <button
-                                      onClick={() => handleDeleteCleaningTypeClick(cleaningType.id, cleaningType.name)}
-                                      className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                                      // Отключаем кнопку, если идет удаление именно этого типа, открыта форма или открыто модальное окно подтверждения (любое)
-                                      disabled={deletingCleaningTypeId === cleaningType.id || isZoneFormOpen || isZoneConfirmModalOpen || deletingZoneId !== null || isCleaningTypeFormOpen || isCleaningTypeConfirmModalOpen || isChecklistTemplateFormOpen || isChecklistTemplateConfirmModalOpen || deletingChecklistTemplateId !== null}
-                                  >
-                                      {deletingCleaningTypeId === cleaningType.id ? 'Удаление...' : 'Удалить'} {/* Изменяем текст кнопки при удалении */}
-                                  </button>
-                              </td>
-                          </tr>
-                      ))}
-                       {/* Сообщение, если список типов уборок пуст */}
-                        {cleaningTypes.length === 0 && !isLoadingData && !error && !isZoneFormOpen && !isZoneConfirmModalOpen && deletingZoneId === null && !isCleaningTypeFormOpen && !isCleaningTypeConfirmModalOpen && deletingCleaningTypeId === null && !isChecklistTemplateFormOpen && !isChecklistTemplateConfirmModalOpen && deletingChecklistTemplateId === null && (
-                            <tr>
-                                <td colSpan={2} className="text-center text-gray-500 py-4">Типы уборок не найдены.</td> {/* colSpan={2} или 3, если добавлено описание */}
-                            </tr>
-                        )}
-                  </tbody>
-              </table>
-          </div>
-      </div>
-      {/* --- Конец секции "Типы уборок" --- */}
+      {/* Секция "Шаблоны чек-листов" */}
+      <section>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-semibold">Шаблоны чек-листов</h2>
+          <Button onClick={handleCreateChecklistTemplate} disabled={isGlobalActionInProgress}>
+            <Plus className="mr-2 h-4 w-4" /> Создать шаблон
+          </Button>
+        </div>
+        <DataTable 
+          columns={checklistTemplateTableColumns} 
+          data={checklistTemplates} 
+          noResultsMessage="Шаблоны чек-листов не найдены."
+          externalSorting={[checklistTemplateSorting, setChecklistTemplateSorting]}
+        />
+      </section>
 
+      {/* Sheet для формы Зоны */}
+      <Sheet open={isZoneSheetOpen} onOpenChange={setIsZoneSheetOpen}>
+        <SheetContent className="sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>{zoneToEdit ? 'Редактировать зону' : 'Создать зону'}</SheetTitle>
+            <SheetDescription>
+              {zoneToEdit ? 'Внесите изменения в существующую зону.' : 'Заполните информацию для создания новой зоны.'}
+            </SheetDescription>
+          </SheetHeader>
+          <ZoneForm
+            zoneToEdit={zoneToEdit}
+            onSuccess={handleZoneFormSuccess}
+            onCancel={() => setIsZoneSheetOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
 
-      {/* --- Новая секция "Шаблоны чек-листов" --- */}
-       <div className="mb-8">
-           <div className="flex justify-between items-center mb-4">
-               <h2 className="text-xl font-semibold text-gray-700">Шаблоны чек-листов</h2>
-               {/* Кнопка создания шаблона чек-листа */}
-               <button
-                   onClick={handleCreateChecklistTemplate}
-                    // Отключаем кнопку, если открыта форма или идет удаление (любое)
-                   disabled={isZoneFormOpen || isZoneConfirmModalOpen || deletingZoneId !== null || isCleaningTypeFormOpen || isCleaningTypeConfirmModalOpen || deletingCleaningTypeId !== null || isChecklistTemplateFormOpen || isChecklistTemplateConfirmModalOpen || deletingChecklistTemplateId !== null}
-                   className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
-               >
-                   <Plus size={18} className="inline mr-1"/> Создать шаблон чек-листа
-               </button>
-           </div>
+      {/* Sheet для формы Типа Уборки */}
+      <Sheet open={isCleaningTypeSheetOpen} onOpenChange={setIsCleaningTypeSheetOpen}>
+        <SheetContent className="sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>{cleaningTypeToEdit ? 'Редактировать тип уборки' : 'Создать тип уборки'}</SheetTitle>
+            <SheetDescription>
+              {cleaningTypeToEdit ? 'Внесите изменения в существующий тип уборки.' : 'Заполните информацию для создания нового типа уборки.'}
+            </SheetDescription>
+          </SheetHeader>
+          <CleaningTypeForm
+            cleaningTypeToEdit={cleaningTypeToEdit}
+            onSuccess={handleCleaningTypeFormSuccess}
+            onCancel={() => setIsCleaningTypeSheetOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
 
-           {/* Таблица шаблонов чек-листов */}
-           <div className="bg-white shadow-md rounded-lg overflow-hidden">
-               <table className="min-w-full leading-normal">
-                   <thead>
-                       <tr>
-                           <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                               Название
-                           </th>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Тип уборки
-                           </th>
-                           <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Описание
-                           </th>
-                           <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Действия
-                           </th>
-                       </tr>
-                   </thead>
-                   <tbody>
-                       {checklistTemplates.map(template => (
-                           <tr key={template.id}>
-                               <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-900">
-                                   {template.name}
-                               </td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-900">
-                                   {/* Используем cleaning_type_name из сериализатора */}
-                                   {template.cleaning_type_name || 'Не указан'}
-                               </td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-900">
-                                   {template.description || 'Нет описания'}
-                               </td>
-                               <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                   {/* Кнопки действий для шаблона */}
-                                   <button
-                                       onClick={() => handleEditChecklistTemplate(template)}
-                                       className="text-blue-600 hover:text-blue-900 mr-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        // Отключаем кнопку, если открыта форма или идет удаление (любое)
-                                       disabled={isZoneFormOpen || isZoneConfirmModalOpen || deletingZoneId !== null || isCleaningTypeFormOpen || isCleaningTypeConfirmModalOpen || deletingCleaningTypeId !== null || isChecklistTemplateFormOpen || isChecklistTemplateConfirmModalOpen || deletingChecklistTemplateId !== null}
-                                   >
-                                       Редактировать
-                                   </button>
-                                   <button
-                                       onClick={() => handleDeleteChecklistTemplateClick(template.id, template.name)}
-                                       className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                                       // Отключаем кнопку, если идет удаление именно этого шаблона, открыта форма или открыто модальное окно подтверждения (любое)
-                                       disabled={deletingChecklistTemplateId === template.id || isZoneFormOpen || isZoneConfirmModalOpen || deletingZoneId !== null || isCleaningTypeFormOpen || isCleaningTypeConfirmModalOpen || deletingCleaningTypeId !== null || isChecklistTemplateFormOpen || isChecklistTemplateConfirmModalOpen}
-                                   >
-                                       {deletingChecklistTemplateId === template.id ? 'Удаление...' : 'Удалить'} {/* Изменяем текст кнопки при удалении */}
-                                   </button>
-                               </td>
-                           </tr>
-                       ))}
-                        {/* Сообщение, если список шаблонов пуст */}
-                         {checklistTemplates.length === 0 && !isLoadingData && !error && !isZoneFormOpen && !isZoneConfirmModalOpen && deletingZoneId === null && !isCleaningTypeFormOpen && !isCleaningTypeConfirmModalOpen && deletingCleaningTypeId === null && !isChecklistTemplateFormOpen && !isChecklistTemplateConfirmModalOpen && deletingChecklistTemplateId === null && (
-                             <tr>
-                                 <td colSpan={4} className="text-center text-gray-500 py-4">Шаблоны чек-листов не найдены.</td>
-                             </tr>
-                         )}
-                   </tbody>
-               </table>
-           </div>
-       </div>
-       {/* --- Конец новой секции "Шаблоны чек-листов" --- */}
+      {/* Sheet для формы Шаблона Чек-листа */}
+      <Sheet open={isChecklistTemplateSheetOpen} onOpenChange={setIsChecklistTemplateSheetOpen}>
+        <SheetContent className="sm:max-w-lg"> {/* Можно сделать шире для списка пунктов */}
+          <SheetHeader>
+            <SheetTitle>{checklistTemplateToEdit ? 'Редактировать шаблон чек-листа' : 'Создать шаблон чек-листа'}</SheetTitle>
+            <SheetDescription>
+              {checklistTemplateToEdit ? 'Внесите изменения в существующий шаблон.' : 'Заполните информацию для создания нового шаблона.'}
+            </SheetDescription>
+          </SheetHeader>
+          <ChecklistTemplateForm
+            checklistTemplateToEdit={checklistTemplateToEdit}
+            availableCleaningTypes={cleaningTypes} // Передаем доступные типы уборок
+            onSuccess={handleChecklistTemplateFormSuccess}
+            onCancel={() => setIsChecklistTemplateSheetOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
 
-
-      {/* TODO: Секция "Назначение зон горничным" */}
-
-
-      {/* Модальное окно для формы создания/редактирования зоны */}
-      <Modal isOpen={isZoneFormOpen} onClose={handleZoneFormCancel} contentClasses="max-w-sm">
-           <ZoneForm zoneToEdit={zoneToEdit} onSuccess={handleZoneFormSuccess} onCancel={handleZoneFormCancel}/>
-      </Modal>
-
-       {/* Модальное окно подтверждения удаления зоны */}
-       <ConfirmationModal
-           isOpen={isZoneConfirmModalOpen}
-           message={`Вы уверены, что хотите удалить зону "${zoneToDeleteName}"?`}
-           onConfirm={handleDeleteZoneConfirm}
-           onCancel={handleDeletingZoneCancel}
-           isLoading={deletingZoneId !== null} // isLoading должен быть true, когда deletingZoneId НЕ равен null
-       />
-
-      {/* Модальное окно для формы создания/редактирования типа уборки */}
-       <Modal isOpen={isCleaningTypeFormOpen} onClose={handleCleaningTypeFormCancel} contentClasses="max-w-sm">
-            {/* Передаем список доступных типов уборок, если нужно для формы шаблона */}
-            {/* В данном случае, CleaningTypeForm не требует списка типов, но ChecklistTemplateForm будет */}
-            <CleaningTypeForm cleaningTypeToEdit={cleaningTypeToEdit} onSuccess={handleCleaningTypeFormSuccess} onCancel={handleCleaningTypeFormCancel}/>
-       </Modal>
-
-       {/* Модальное окно подтверждения удаления типа уборки */}
-       <ConfirmationModal
-           isOpen={isCleaningTypeConfirmModalOpen}
-           message={`Вы уверены, что хотите удалить тип уборки "${cleaningTypeToDeleteName}"?`}
-           onConfirm={handleDeleteCleaningTypeConfirm}
-           onCancel={handleDeletingCleaningTypeCancel}
-           isLoading={deletingCleaningTypeId !== null} // isLoading должен быть true, когда deletingCleaningTypeId НЕ равен null
-       />
-
-      {/* --- Новые модальные окна для шаблонов чек-листов --- */}
-      {/* TODO: Модальное окно для формы создания/редактирования шаблона чек-листа */}
-
-       <Modal isOpen={isChecklistTemplateFormOpen} onClose={handleChecklistTemplateFormCancel} contentClasses="max-w-lg">
-            <ChecklistTemplateForm checklistTemplateToEdit={checklistTemplateToEdit} availableCleaningTypes={cleaningTypes} onSuccess={handleChecklistTemplateFormSuccess} onCancel={handleChecklistTemplateFormCancel}/>
-       </Modal>
-
-       {/* Модальное окно подтверждения удаления шаблона чек-листа */}
-       <ConfirmationModal
-           isOpen={isChecklistTemplateConfirmModalOpen}
-           message={`Вы уверены, что хотите удалить шаблон чек-листа "${checklistTemplateToDeleteName}"?`}
-           onConfirm={handleDeleteChecklistTemplateConfirm}
-           onCancel={handleDeletingChecklistTemplateCancel}
-           isLoading={deletingChecklistTemplateId !== null} // isLoading должен быть true, когда deletingChecklistTemplateId НЕ равен null
-       />
-      {/* --- Конец новых модальных окон --- */}
-
-
+      {/* Диалоги подтверждения удаления */}
+      <ConfirmationDialog
+        isOpen={isZoneConfirmOpen}
+        onClose={() => setIsZoneConfirmOpen(false)}
+        onConfirm={handleDeleteZoneConfirm}
+        message={`Вы уверены, что хотите удалить зону "${zoneToDeleteName || ''}"? Это действие не может быть отменено.`}
+        title="Подтверждение удаления зоны"
+        isLoading={!!deletingZoneId}
+        confirmButtonVariant="destructive"
+      />
+      <ConfirmationDialog
+        isOpen={isCleaningTypeConfirmOpen}
+        onClose={() => setIsCleaningTypeConfirmOpen(false)}
+        onConfirm={handleDeleteCleaningTypeConfirm}
+        message={`Вы уверены, что хотите удалить тип уборки "${cleaningTypeToDeleteName || ''}"? Это действие не может быть отменено.`}
+        title="Подтверждение удаления типа уборки"
+        isLoading={!!deletingCleaningTypeId}
+        confirmButtonVariant="destructive"
+      />
+      <ConfirmationDialog
+        isOpen={isChecklistTemplateConfirmOpen}
+        onClose={() => setIsChecklistTemplateConfirmOpen(false)}
+        onConfirm={handleDeleteChecklistTemplateConfirm}
+        message={`Вы уверены, что хотите удалить шаблон чек-листа "${checklistTemplateToDeleteName || ''}"? Это действие не может быть отменено.`}
+        title="Подтверждение удаления шаблона"
+        isLoading={!!deletingChecklistTemplateId}
+        confirmButtonVariant="destructive"
+      />
     </div>
   );
 }

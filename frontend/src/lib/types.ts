@@ -58,7 +58,8 @@ export interface Room {
     id: number;
     number: string; 
     floor: number;
-    room_type: string; 
+    room_type: RoomType; 
+    room_type_id: number;
     room_type_name: string; 
     room_capacity: number;
     status: 'free' | 'occupied' | 'waiting_checkout' | 'dirty' | 'assigned' | 'in_progress' |'waiting_inspection' |'clean' |'on_maintenance'  

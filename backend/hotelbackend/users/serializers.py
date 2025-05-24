@@ -39,6 +39,10 @@ class UserSerializer(serializers.ModelSerializer):
         # Определяем поля, которые включены в 'fields', но должны быть доступны только для чтения, а не для записи.
         # 'id' обычно только для чтения. 
         read_only_fields = ['id']
+        extra_kwargs = {
+            'first_name': {'required': False, 'allow_blank': True, 'allow_null': True},
+            'last_name': {'required': False, 'allow_blank': True, 'allow_null': True},
+        }
 
     def create(self, validated_data):
         """

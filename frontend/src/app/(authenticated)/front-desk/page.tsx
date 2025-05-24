@@ -837,7 +837,6 @@ export default function FrontDeskPage() {
                     <SheetHeader>
                         <SheetTitle>{bookingToEdit ? `Редактировать бронирование>` : 'Создать новое бронирование'}</SheetTitle>
                         <SheetDescription>
-                            Заполните форму, чтобы добавить новое бронирование в систему.
                             {bookingToEdit ? "Внесите изменения в данные бронирования." : "Заполните форму, чтобы добавить новое бронирование в систему."}
                         </SheetDescription>
                     </SheetHeader>

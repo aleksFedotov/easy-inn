@@ -5,7 +5,6 @@ from booking.views import BookingViewSet
 from cleaning.views import (
     CleaningTypeViewSet,
     ChecklistTemplateViewSet,
-    ChecklistItemTemplateViewSet,
     CleaningTaskViewSet
 )
 from hotel.views import RoomViewSet, RoomTypeViewSet, ZoneViewSet
@@ -26,7 +25,6 @@ router.register(r'bookings', BookingViewSet, basename='booking')
 # Cleaning App ViewSets
 router.register(r'cleaningtypes', CleaningTypeViewSet, basename='cleaningtype')
 router.register(r'checklisttemplates', ChecklistTemplateViewSet, basename='checklisttemplate')
-router.register(r'checklistitemtemplates', ChecklistItemTemplateViewSet, basename='checklistitemtemplate')
 router.register(r'cleaningtasks', CleaningTaskViewSet, basename='cleaningtask')
 
 

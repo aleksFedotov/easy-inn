@@ -33,7 +33,7 @@ import { z } from 'zod';
 interface RoomFormData {
     number: string;
     floor: number;
-    room_type: string;
+    room_type_id: number;
     status: Room['status'];
     is_active: boolean;
     notes?: string; 
@@ -62,9 +62,7 @@ const formSchema = z.object({
     floor: z.coerce.number()
         .min(1, { message: "Этаж должен быть положительным числом." })
         .int({ message: "Этаж должен быть целым числом." }),
-    room_type: z.string()
-        .min(1, { message: "Поле 'Тип номера' обязательно для выбора." })
-        .refine(val => !isNaN(parseInt(val)), { message: "Неверный формат типа номера." }), // Ensure it's a number string
+    room_type_id: z.coerce.number().int().min(1, { message: "Выберите корректный тип номера." }),
     status: z.enum([
         'free', 'occupied', 'waiting_checkout', 'dirty',
         'assigned', 'in_progress', 'waiting_inspection', 'clean', 'on_maintenance'
@@ -84,20 +82,19 @@ export default function RoomForm({ roomToEdit, availableRoomTypes, onSuccess, on
     const [isLoading, setIsLoading] = useState(false);
     const [generalError, setGeneralError] = useState<string | null>(null);
 
-    
     const form = useForm<RoomFormData>({
         resolver: zodResolver(formSchema),
         defaultValues: roomToEdit ? {
-            number: roomToEdit.number,
+            number: String(roomToEdit.number),
             floor: roomToEdit.floor || 1, 
-            room_type: roomToEdit.room_type, 
+            room_type_id: roomToEdit.room_type.id, 
             status: roomToEdit.status,
             is_active: roomToEdit.is_active,
             notes: roomToEdit.notes || '',
         } : {
             number: '',
             floor: 1,
-            room_type: '', 
+            room_type_id: 0, 
             status: 'free', 
             is_active: true,
             notes: '',
@@ -112,9 +109,9 @@ export default function RoomForm({ roomToEdit, availableRoomTypes, onSuccess, on
         try {
             let response;
             const dataToSend = {
-                number: data.number,
+                number:data.number,
                 floor: data.floor,
-                room_type: data.room_type,
+                room_type_id:data.room_type_id,
                 status: data.status,
                 is_active: data.is_active,
                 notes: data.notes,
@@ -172,7 +169,7 @@ export default function RoomForm({ roomToEdit, availableRoomTypes, onSuccess, on
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="bg-white p-6 rounded-lg shadow-md">
+            <form onSubmit={form.handleSubmit(onSubmit)} className=" p-6 rounded-lg">
                 <h2 className="text-xl font-bold mb-4">{roomToEdit ? 'Редактировать номер' : 'Создать новый номер'}</h2>
 
                 <FormField
@@ -205,14 +202,18 @@ export default function RoomForm({ roomToEdit, availableRoomTypes, onSuccess, on
 
                 <FormField
                     control={form.control}
-                    name="room_type"
+                    name="room_type_id"
                     render={({ field }) => (
                         <FormItem className="mb-4">
                             <FormLabel>Тип номера:</FormLabel>
-                            <Select onValueChange={value => field.onChange(parseInt(value))} value={field.value.toString()}>
+                            <Select onValueChange={field.onChange} value={String(field.value)}>
                                 <FormControl>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Выберите тип номера" />
+                                        <SelectValue placeholder="Выберите тип номера">
+                                            {    
+                                             "Выберите тип номера"
+                                            }
+                                        </SelectValue>
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>

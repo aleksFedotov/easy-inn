@@ -5,15 +5,20 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import action 
 from django.utils import timezone 
-from .models import CleaningType, ChecklistTemplate, ChecklistItemTemplate, CleaningTask
+from .models import CleaningType, ChecklistTemplate, CleaningTask
 from users.models import User
+from utills.views import LoggingModelViewSet
+from utills.mixins import AllowAllPaginationMixin
+from booking.models import Booking
+from django.db import transaction 
 
+from hotel.models import Zone
 
 from .serializers import (
     CleaningTypeSerializer,
     ChecklistTemplateSerializer,
-    ChecklistItemTemplateSerializer,
-    CleaningTaskSerializer
+    CleaningTaskSerializer,
+    MultipleTaskAssignmentSerializer
 )
 
 
@@ -26,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 # --- CleaningType ViewSet ---
 
-class CleaningTypeViewSet(viewsets.ModelViewSet):
+class CleaningTypeViewSet(LoggingModelViewSet,AllowAllPaginationMixin,viewsets.ModelViewSet):
     """
     ViewSet for managing Cleaning Types (CleaningType).
     Accessible only to authenticated users with the 'manager' or 'front desk' role.
@@ -43,41 +48,6 @@ class CleaningTypeViewSet(viewsets.ModelViewSet):
     # Permissions: Requires manager or front desk role / Разрешения: Требуется роль менеджера или службы приема
     permission_classes = [IsAuthenticated, IsManagerOrFrontDesk]
 
-    def list(self, request, *args, **kwargs):
-        """Handle listing CleaningTypes."""
-        logger.info(f"User {request.user} is listing CleaningTypes.")
-        return super().list(request, *args, **kwargs)
-
-    def create(self, request, *args, **kwargs):
-        """Handle creating a CleaningType."""
-        logger.info(f"User {request.user} is attempting to create a CleaningType.")
-        return super().create(request, *args, **kwargs)
-
-    def retrieve(self, request, *args, **kwargs):
-        """Handle retrieving a single CleaningType."""
-        logger.info(f"User {request.user} is retrieving CleaningType with pk={kwargs.get('pk')}.")
-        return super().retrieve(request, *args, **kwargs)
-
-    def update(self, request, *args, **kwargs):
-        """Handle updating a CleaningType."""
-        logger.info(f"User {request.user} is attempting to update CleaningType with pk={kwargs.get('pk')}.")
-        return super().update(request, *args, **kwargs)
-
-    def partial_update(self, request, *args, **kwargs):
-        """Handle partial updating a CleaningType."""
-        logger.info(f"User {request.user} is attempting to partially update CleaningType with pk={kwargs.get('pk')}.")
-        return super().partial_update(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):
-        """Handle deleting a CleaningType."""
-        logger.info(f"User {request.user} is attempting to delete CleaningType with pk={kwargs.get('pk')}.")
-        return super().destroy(request, *args, **kwargs)
-    
-    
-    def paginate_queryset(self, queryset):
-        if self.request.query_params.get('all') == 'true':
-            return None 
-        return super().paginate_queryset(queryset)
 
 
 # --- ChecklistTemplate ViewSet ---
@@ -99,101 +69,10 @@ class ChecklistTemplateViewSet(viewsets.ModelViewSet):
     # Permissions: Requires manager or front desk role / Разрешения: Требуется роль менеджера или службы приема
     permission_classes = [IsAuthenticated, IsManagerOrFrontDesk]
 
-    def list(self, request, *args, **kwargs):
-        """Handle listing ChecklistTemplates."""
-        logger.info(f"User {request.user} is listing ChecklistTemplates.")
-        return super().list(request, *args, **kwargs)
-
-    def create(self, request, *args, **kwargs):
-        """Handle creating a ChecklistTemplate."""
-        logger.info(f"User {request.user} is attempting to create a ChecklistTemplate.")
-        return super().create(request, *args, **kwargs)
-
-    def retrieve(self, request, *args, **kwargs):
-        """Handle retrieving a single ChecklistTemplate."""
-        logger.info(f"User {request.user} is retrieving ChecklistTemplate with pk={kwargs.get('pk')}.")
-        return super().retrieve(request, *args, **kwargs)
-
-    def update(self, request, *args, **kwargs):
-        """Handle updating a ChecklistTemplate."""
-        logger.info(f"User {request.user} is attempting to update ChecklistTemplate with pk={kwargs.get('pk')}.")
-        return super().update(request, *args, **kwargs)
-
-    def partial_update(self, request, *args, **kwargs):
-        """Handle partial updating a ChecklistTemplate."""
-        logger.info(f"User {request.user} is attempting to partially update ChecklistTemplate with pk={kwargs.get('pk')}.")
-        return super().partial_update(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):
-        """Handle deleting a ChecklistTemplate."""
-        logger.info(f"User {request.user} is attempting to delete ChecklistTemplate with pk={kwargs.get('pk')}.")
-        return super().destroy(request, *args, **kwargs)
-    
-    def paginate_queryset(self, queryset):
-        if self.request.query_params.get('all') == 'true':
-            return None 
-        return super().paginate_queryset(queryset)
-
-
-# --- ChecklistItemTemplate ViewSet ---
-
-class ChecklistItemTemplateViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for managing Checklist Item Templates (ChecklistItemTemplate).
-    Accessible only to authenticated users with the 'manager' or 'fron desk' role.
-    Provides operations: list, create, retrieve, update, partial_update, destroy.
-    Authentication is handled by DEFAULT_PERMISSION_CLASSES.
-
-    ViewSet для управления пунктами шаблонов чек-листов (ChecklistItemTemplate).
-    Доступно только аутентифицированным пользователям с ролью 'manager' или 'fron desk'.
-    Предоставляет операции: list, create, retrieve, update, partial_update, destroy.
-    Аутентификация обрабатывается через DEFAULT_PERMISSION_CLASSES.
-    """
-    queryset = ChecklistItemTemplate.objects.all() # Base queryset / Базовый набор данных
-    serializer_class = ChecklistItemTemplateSerializer # Serializer class / Класс сериализатора
-    # Permissions: Requires manager or fron desk role / Разрешения: Требуется роль менеджера или службы приема
-    permission_classes = [IsAuthenticated, IsManagerOrFrontDesk]
-    
-    def list(self, request, *args, **kwargs):
-        """Handle listing ChecklistItemTemplates."""
-        logger.info(f"User {request.user} is listing ChecklistItemTemplates.")
-        return super().list(request, *args, **kwargs)
-
-    def create(self, request, *args, **kwargs):
-        """Handle creating a ChecklistItemTemplate."""
-        logger.info(f"User {request.user} is attempting to create a ChecklistItemTemplate.")
-        return super().create(request, *args, **kwargs)
-
-    def retrieve(self, request, *args, **kwargs):
-        """Handle retrieving a single ChecklistItemTemplate."""
-        logger.info(f"User {request.user} is retrieving ChecklistItemTemplate with pk={kwargs.get('pk')}.")
-        return super().retrieve(request, *args, **kwargs)
-
-    def update(self, request, *args, **kwargs):
-        """Handle updating a ChecklistItemTemplate."""
-        logger.info(f"User {request.user} is attempting to update ChecklistItemTemplate with pk={kwargs.get('pk')}.")
-        return super().update(request, *args, **kwargs)
-
-    def partial_update(self, request, *args, **kwargs):
-        """Handle partial updating a ChecklistItemTemplate."""
-        logger.info(f"User {request.user} is attempting to partially update ChecklistItemTemplate with pk={kwargs.get('pk')}.")
-        return super().partial_update(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):
-        """Handle deleting a ChecklistItemTemplate."""
-        logger.info(f"User {request.user} is attempting to delete ChecklistItemTemplate with pk={kwargs.get('pk')}.")
-        return super().destroy(request, *args, **kwargs)
-    
-    
-    def paginate_queryset(self, queryset):
-        if self.request.query_params.get('all') == 'true':
-            return None 
-        return super().paginate_queryset(queryset)
-
 
 # --- CleaningTask ViewSet ---
 
-class CleaningTaskViewSet(viewsets.ModelViewSet):
+class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.ModelViewSet):
     """
     ViewSet for managing Cleaning Tasks (CleaningTask) with detailed permissions and custom actions.
     - Managers/Admins: Full access to all tasks.
@@ -240,18 +119,32 @@ class CleaningTaskViewSet(viewsets.ModelViewSet):
         user = self.request.user
         logger.info(f"Filtering CleaningTask queryset for user {user} with role {user.role}.")
         
+        scheduled_date_str = self.request.query_params.get('scheduled_date')
+        scheduled_date = None
+        if scheduled_date_str:
+            try:
+                scheduled_date = timezone.datetime.strptime(scheduled_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                logger.warning("Invalid date format. Expected YYYY-MM-DD.")
+                # Можно не фильтровать по дате, если формат неправильный, или использовать localdate
+                scheduled_date = timezone.localdate()
+        else:
+            scheduled_date = timezone.localdate()
         # If the user is authenticated and is a manager or front desk, return all tasks
         # Если пользователь аутентифицирован и является управляющим или администратором, вернуть все задачи
-        if user.is_authenticated and user.role in [User.Role.FRONT_DESK, User.Role.MANAGER]:
+        queryset = CleaningTask.objects.all()
+        
+        if scheduled_date:
+            queryset = queryset.filter(scheduled_date=scheduled_date)
+        if user.is_authenticated and user.role in [User.Role.FRONT_DESK, User.Role.MANAGER]:       
             logger.debug("User is Manager or Admin, returning all tasks.")
-            return CleaningTask.objects.all()
-
+            return queryset
         # If the user is authenticated and is a housekeeper, return only tasks assigned to them
         # Если пользователь аутентифицирован и является горничной, вернуть только задачи, назначенные ему
         if user.is_authenticated and user.role == User.Role.HOUSEKEEPER:
             logger.debug(f"User is Housekeeper, returning tasks assigned to {user}.")
-            return CleaningTask.objects.filter(assigned_to=user)
-
+            return queryset.filter(assigned_to=user)
+        
         # For all other authenticated users or if the user is not authenticated,
         # return an empty queryset. Permission classes will further restrict access.
         # Для всех других аутентифицированных пользователей или если пользователь не аутентифицирован,
@@ -259,11 +152,6 @@ class CleaningTaskViewSet(viewsets.ModelViewSet):
         logger.debug("User is neither Manager/Admin nor Housekeeper, returning empty queryset.")
         return CleaningTask.objects.none()
     
-    def paginate_queryset(self, queryset):
-        if self.request.query_params.get('all') == 'true':
-            return None 
-        return super().paginate_queryset(queryset)
-
     def get_permissions(self):
         """
         Instantiates and returns the list of permissions that this view requires.
@@ -476,4 +364,139 @@ class CleaningTaskViewSet(viewsets.ModelViewSet):
             status=status.HTTP_400_BAD_REQUEST
         )
     
+    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated, IsManagerOrFrontDesk])
+    def auto_generate(self, request):
+        """
+        Автоматически генерирует задачи по уборке на указанную дату:
+        - Уборка после выезда: если у бронирования выезд в указанную дату
+        - Текущая уборка: если гость живёт, но не выезжает в указанную дату
+        - Задачи по зонам: для всех зон, если задача еще не существует
+        """
+        # Get date from request data, default to today if not provided
+        scheduled_date_str = request.data.get('scheduled_date')
+        if scheduled_date_str:
+            try:
+                scheduled_date = timezone.datetime.strptime(scheduled_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return Response({"detail": "Неверный формат даты. Используйте YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            scheduled_date = timezone.localdate() 
 
+        try:
+            daily_cleaning_type = CleaningType.objects.get(name__iexact="Текущая уборка")
+            checkout_cleaning_type = CleaningType.objects.get(name__iexact="Уборка после выезда")
+        except CleaningType.DoesNotExist as e:
+            return Response({
+                "detail": f"Не найден необходимый тип уборки: {e}."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        created_tasks_count = 0
+        created_tasks_details = []
+
+        with transaction.atomic(): 
+            # --- Уборка после выезда ---
+            checkout_bookings = Booking.objects.filter(check_out__date=scheduled_date).select_related("room")
+            for booking in checkout_bookings:
+                if not booking.room:
+                    continue
+
+             
+                exists = CleaningTask.objects.filter(
+                    booking=booking,
+                    room=booking.room,
+                    scheduled_date=scheduled_date,
+                    cleaning_type=checkout_cleaning_type
+                ).exists()
+
+                if not exists:
+                    task = CleaningTask.objects.create(
+                        booking=booking,
+                        room=booking.room,
+                        scheduled_date=scheduled_date,
+                        cleaning_type=checkout_cleaning_type,
+                        status='unassigned' 
+                    )
+                    created_tasks_count += 1
+                    created_tasks_details.append(f"Комната {booking.room.number} (Выезд)")
+
+            # --- Текущая уборка ---
+            staying_bookings = Booking.objects.filter(
+                check_in__date__lte=scheduled_date,
+                check_out__date__gt=scheduled_date
+            ).select_related("room")
+
+            for booking in staying_bookings:
+                if not booking.room:
+                    continue
+
+                
+                exists = CleaningTask.objects.filter(
+                    booking=booking,
+                    room=booking.room,
+                    scheduled_date=scheduled_date,
+                    cleaning_type=daily_cleaning_type
+                ).exists()
+
+                if not exists:
+                    task = CleaningTask.objects.create(
+                        booking=booking,
+                        room=booking.room,
+                        scheduled_date=scheduled_date,
+                        cleaning_type=daily_cleaning_type,
+                        status='unassigned' 
+                    )
+                    created_tasks_count += 1
+                    created_tasks_details.append(f"Комната {booking.room.number} (Текущая)")
+
+            # --- Зоны ---
+            zones = Zone.objects.all()
+            for zone in zones:
+              
+                exists = CleaningTask.objects.filter(
+                    zone=zone,
+                    scheduled_date=scheduled_date,
+                    
+                ).exists()
+
+                if not exists:
+                    task = CleaningTask.objects.create(
+                        zone=zone,
+                        scheduled_date=scheduled_date,
+                        status='unassigned'
+                    )
+                    created_tasks_count += 1
+                    created_tasks_details.append(f"Зона {zone.name}")
+
+        return Response({
+            "created_count": created_tasks_count,
+            "details": created_tasks_details,
+            "message": f"Создано {created_tasks_count} задач по уборке."
+        }, status=status.HTTP_201_CREATED)
+    
+
+    @action(detail=False, methods=['post'])
+    def assign_multiple(self, request):
+        serializer = MultipleTaskAssignmentSerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            task_ids = serializer.validated_data['task_ids']
+            housekeeper_id = serializer.validated_data['housekeeper_id']
+            scheduled_date = serializer.validated_data['scheduled_date'];
+
+            #  Получаем задачи, которые нужно назначить
+            tasks = CleaningTask.objects.filter(id__in=task_ids, scheduled_date=scheduled_date)
+            logger.info(tasks)
+
+            #  Проверяем, что все задачи существуют и соответствуют дате
+            if len(tasks) != len(task_ids):
+                return Response({"detail": "Одна или несколько задач не найдены или не соответствуют указанной дате."},
+                                status=status.HTTP_400_BAD_REQUEST)
+    
+            #  Обновляем горничную для каждой задачи
+            for task in tasks:
+                task.assigned_to_id = housekeeper_id
+                task.status = 'assigned'  #  Или другой подходящий статус
+                task.save()
+
+            return Response({"detail": "Задачи успешно назначены."}, status=status.HTTP_200_OK)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
