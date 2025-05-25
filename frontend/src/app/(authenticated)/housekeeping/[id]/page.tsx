@@ -1,32 +1,49 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'next/navigation'; 
-import { useAuth } from '@/lib/AuthContext'; 
-import { Spinner } from '@/components/spinner'; 
-import ErrorMessage from '@/components/ErrorMessage'; 
-import api from '@/lib/api'; 
+import { useParams, useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/AuthContext';
+import { Spinner } from '@/components/spinner';
+import ErrorMessage from '@/components/ErrorMessage';
+import api from '@/lib/api';
 import axios from 'axios';
-
-import { CleaningTask, ChecklistItemTemplate, ChecklistTemplate } from '@/lib/types';
-
-import { Building,FileText,UserIcon,BookOpen,Clock,Edit,ClipboardList, CircleDotDashed, Loader, CheckCircle, CircleHelp, XCircle, PauseCircle } from 'lucide-react'; // <-- Импортируем иконки редактирования и статусов
+import { ChecklistItem, CleaningTask } from '@/lib/types';
+import {
+    Building,
+    FileText,
+    User as UserIcon,
+    BookOpen,
+    Clock,
+    Edit,
+    ClipboardList,
+    CheckCircle,
+    XCircle,
+    Play,
+    CircleDotDashed,
+} from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { format } from 'date-fns'
+import { ru } from 'date-fns/locale'
+import AuthRequiredMessage from '@/components/AuthRequiredMessage';
 
 export default function CleaningTaskDetailsPage() {
     const params = useParams<{ id: string }>();
-    const taskId = params.id; 
-    
+    const router = useRouter();
+    const taskId = params.id;
+
     const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth();
 
-
     const [taskDetails, setTaskDetails] = useState<CleaningTask | null>(null);
+    const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+    const [checkedItemIds, setCheckedItemIds] = useState<number[]>([]);
+    const [isChecklistComplete, setIsChecklistComplete] = useState<boolean>(false);
 
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
 
 
-
-    
     const fetchTaskDetails = useCallback(async () => {
         if (!taskId) {
             setError('ID задачи не указан.');
@@ -34,261 +51,342 @@ export default function CleaningTaskDetailsPage() {
             return;
         }
 
-        setIsLoading(true); 
-        setError(null); 
+        setIsLoading(true);
+        setError(null);
 
         try {
-           
-            const response = await api.get<CleaningTask>(`/api/cleaningtasks/${taskId}/`); 
-
+            const response = await api.get(`/api/cleaningtasks/${taskId}/`);
             if (response.status === 200) {
-                    console.log(response.data)
-                    setTaskDetails(response.data); 
-                    console.log(`Cleaning task details fetched successfully for ID: ${taskId}`, response.data);
+                setTaskDetails(response.data);
+                // Предполагаем, что checklist_data.items возвращается из API
+                setChecklistItems(response.data.checklist_data?.items || []);
+            } else if (response.status === 404) {
+                setError(`Задача с ID ${taskId} не найдена.`);
             } else {
-                    setError('Не удалось загрузить детали задачи. Статус: ' + response.status);
-                    console.error("Failed to fetch cleaning task details. Status:", response.status);
+                setError(`Ошибка при загрузке задачи: ${response.status}`);
             }
         } catch (err) {
-            console.error('Error fetching cleaning task details:', err);
             if (axios.isAxiosError(err) && err.response) {
-                    setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при загрузке деталей задачи.');
-            } else if (axios.isAxiosError(err) && err.request) {
-                    setError('Нет ответа от сервера при загрузке деталей задачи.');
+                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data));
             } else {
-                setError('Произошла непредвиденная ошибка при загрузке деталей задачи.');
+                setError('Произошла ошибка при загрузке задачи.');
             }
         } finally {
-           setIsLoading(false); 
+            setIsLoading(false);
         }
-    }, [taskId]); 
+    }, [taskId]);
 
-
-   
     useEffect(() => {
-        
-        if (!isAuthLoading && isAuthenticated && user && taskId) {
-            console.log("useEffect triggered: fetching cleaning task details...");
-            fetchTaskDetails(); 
+        fetchTaskDetails();
+    }, [fetchTaskDetails]);
+
+    useEffect(() => {
+        // Проверяем, все ли пункты чек-листа отмечены
+        if (checklistItems.length > 0) {
+            const allChecked = checklistItems.every(item => checkedItemIds.includes(item.id));
+            setIsChecklistComplete(allChecked);
+        } else {
+            setIsChecklistComplete(false); // Если нет пунктов, считаем, что не завершен
         }
-         if (!isAuthLoading && !isAuthenticated) {
-             // TODO: Обработать случай, когда пользователь не аутентифицирован
-             // Например, перенаправить на страницу входа (хотя Layout уже должен это делать)
-             setError('Пользователь не аутентифицирован.'); 
-             setIsLoading(false);
-         }
-       
-         if (!taskId && !isAuthLoading) {
-              setError('ID задачи не указан.');
-              setIsLoading(false); 
-         }
+    }, [checklistItems, checkedItemIds]);
 
-    }, [taskId, user, isAuthLoading, isAuthenticated, fetchTaskDetails]); // Зависимости эффекта
+    const handleStartCleaning = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            await api.patch(`/api/cleaningtasks/${taskId}/`, { status: 'in_progress' });
+            fetchTaskDetails();
+        } catch (err) {
+            console.error('Error during start cleaning:', err);
+            if (axios.isAxiosError(err) && err.response) {
+                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при удалении бронирования.');
+            } else if (axios.isAxiosError(err) && err.request) {
+                setError('Нет ответа от сервера при начавле уборки.');
+            } else {
+                setError('Не удалось начать уборку.');
+            }
 
+        } finally {
+            setIsLoading(false);
+        }
 
-    
-   const getStatusDisplay = (status: CleaningTask['status'] | undefined) => {
-        switch (status) {
-             case 'unassigned': // <-- ДОБАВЛЕН НОВЫЙ СТАТУС
-                 return { icon: <CircleDotDashed size={16} className="text-gray-500 mr-1"/>, text: 'Не назначена' };
-            case 'assigned':
-                return { icon: <CircleDotDashed size={16} className="text-blue-500 mr-1"/>, text: 'Назначена' };
-            case 'in_progress':
-                return { icon: <Loader size={16} className="text-yellow-500 mr-1"/>, text: 'В процессе' };
-            case 'completed':
-                return { icon: <CheckCircle size={16} className="text-green-500 mr-1"/>, text: 'Выполнена' };
-            case 'waiting_inspection':
-                return { icon: <CircleHelp size={16} className="text-purple-500 mr-1"/>, text: 'Ожидает проверки' };
-            case 'checked':
-                return { icon: <CheckCircle size={16} className="text-teal-500 mr-1"/>, text: 'Проверена' };
-            case 'canceled':
-                return { icon: <XCircle size={16} className="text-red-500 mr-1"/>, text: 'Отменена' };
-            case 'on_hold':
-                return { icon: <PauseCircle size={16} className="text-gray-500 mr-1"/>, text: 'Приостановлена' };
-            default:
-                return { icon: null, text: 'Неизвестный статус' };
+    };
+
+    const handleFinishCleaning = async () => {
+        if (!isChecklistComplete) {
+            setError("Пожалуйста, завершите все пункты чек-листа.");
+            return;
+        }
+
+        setIsLoading(true);
+        setError(null);
+        try {
+            await api.patch(`/api/cleaningtasks/${taskId}/`, { status: 'waiting_inspection' });
+            fetchTaskDetails();
+        } catch (err) {
+            console.error('Error during start cleaning:', err);
+            if (axios.isAxiosError(err) && err.response) {
+                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при удалении бронирования.');
+            } else if (axios.isAxiosError(err) && err.request) {
+                setError('Нет ответа от сервера при завершении уборки.');
+            } else {
+                setError('Не удалось завершить уборку.');
+            }
+
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    // Функция для переключения статуса пункта чек-листа (выполнено/не выполнено)
-   
-    // TODO: Добавить обработчики для кнопок смены статуса задачи на этой странице, если нужно
+    const handleFinishInspection = async () => {
+        if (!isChecklistComplete) {
+            setError("Пожалуйста, проверьте все пункты чек-листа.");
+            return;
+        }
 
-    // --- Условный рендеринг ---
+        setIsLoading(true);
+        setError(null);
+        try {
+            await api.patch(`/api/cleaningtasks/${taskId}/`, { status: 'checked' }); // Или 'completed'
+            fetchTaskDetails(); // Обновляем данные после изменения статуса
+        } catch (err) {
+            console.error('Error during start cleaning:', err);
+            if (axios.isAxiosError(err) && err.response) {
+                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при удалении бронирования.');
+            } else if (axios.isAxiosError(err) && err.request) {
+                setError('Нет ответа от сервера при завершении уборки.');
+            } else {
+                setError('Не удалось завершить проверку.');
+            }
 
-    // Если AuthContext еще загружается или детали задачи загружаются
-    if (isAuthLoading || isLoading) {
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleCancelTask = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            await api.patch(`/api/cleaningtasks/${taskId}/`, { status: 'canceled' });
+            fetchTaskDetails(); // Обновляем данные после изменения статуса
+        } catch (err) {
+            console.error('Error during start cleaning:', err);
+            if (axios.isAxiosError(err) && err.response) {
+                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при удалении бронирования.');
+            } else if (axios.isAxiosError(err) && err.request) {
+                setError('Нет ответа от сервера при завершении уборки.');
+            } else {
+                setError('Не удалось отменить задачу.');
+            }
+
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleChecklistItemChange = (itemId: number) => {
+        setCheckedItemIds(prevIds => {
+            if (prevIds.includes(itemId)) {
+                return prevIds.filter(id => id !== itemId);
+            } else {
+                return [...prevIds, itemId];
+            }
+        });
+    };
+
+
+    const renderActions = () => {
+        if (!user || !taskDetails) return null;
+
+        if (user.role === 'housekeeper') {
+            if (taskDetails.status === 'assigned') {
+                return (
+                    <Button variant="default" onClick={handleStartCleaning}>
+                        <Play className="mr-2 h-4 w-4" />
+                        Начать уборку
+                    </Button>
+                );
+            } else if (taskDetails.status === 'in_progress') {
+                return (
+                    <Button variant="default" onClick={handleFinishCleaning} disabled={!isChecklistComplete}>
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Завершить уборку
+                    </Button>
+                );
+            }
+        } else if (['manager', 'front-desk'].includes(user.role)) {
+            if (taskDetails.status === 'assigned' || taskDetails.status === 'in_progress') {
+                return (
+                    <>
+                        <Button variant="outline" onClick={() => router.push(`/housekeeping/${taskId}/edit`)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Редактировать
+                        </Button>
+                        <Button variant="destructive" onClick={handleCancelTask}>
+                            <XCircle className="mr-2 h-4 w-4" />
+                            Отменить
+                        </Button>
+                    </>
+                );
+            } else if (taskDetails.status === 'waiting_inspection') {
+                return (
+                    <Button variant="default" onClick={handleFinishInspection} disabled={!isChecklistComplete}>
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Завершить проверку
+                    </Button>
+                );
+            }
+        }
+        return null;
+    };
+
+
+    const getStatusColor = (status: string | undefined) => {
+        switch (status) {
+            case 'unassigned': return "bg-gray-100 text-gray-700";
+            case 'assigned': return "bg-blue-100 text-blue-700";
+            case 'in_progress': return "bg-yellow-100 text-yellow-700";
+            case 'completed': return "bg-green-100 text-green-700";
+            case 'waiting_inspection': return "bg-orange-100 text-orange-700";
+            case 'checked': return "bg-emerald-100 text-emerald-700";
+            case 'canceled': return "bg-red-100 text-red-700";
+            case 'on_hold': return "bg-purple-100 text-purple-700";
+            default: return "bg-gray-200 text-gray-700";
+        }
+    };
+
+
+    if (isLoading || isAuthLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg">
-                <Spinner/>
+            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+                <Spinner />
             </div>
         );
     }
 
-    // Если у пользователя нет прав (пример проверки роли)
-    // TODO: Реализовать реальную проверку роли, если необходимо
-    // if (!user || !['admin', 'manager', 'housekeeper'].includes(user.role)) {
-    //      return (
-    //          <div className="flex items-center justify-center min-h-screen bg">
-    //              <div className="p-8 rounded-lg shadow-lg bg-white max-w-md w-full text-center text-red-600 font-bold">
-    //                  У вас нет прав для просмотра этой страницы.
-    //              </div>
-    //          </div>
-    //      );
-    // }
+    if (!isAuthenticated || !user) {
+        return <AuthRequiredMessage/>;
+    }
 
-
-    // Если есть ошибка загрузки деталей
     if (error) {
         return (
-            <ErrorMessage
-                message={error}
-                // При повторной попытке загружаем детали задачи
-                onRetry={fetchTaskDetails}
-                isLoading={isLoading} // Передаем состояние загрузки
-            />
-        );
-    }
-
-    // Если данные успешно загружены и доступны
-    if (taskDetails) {
-         const statusInfo = getStatusDisplay(taskDetails.status); // Получаем информацию о статусе
-
-        return (
-            <div className="container mx-auto p-4">
-                <h1 className="text-2xl font-bold mb-6 ">Детали задачи уборки #{taskDetails.id}</h1>
-
-                <div className="adow-md rounded-lg p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ">
-                        {/* Информация о месте и типе уборки */}
-                        <div>
-                            <p className="flex items-center mb-2">
-                                <Building size={18} className="mr-2 "/>
-                                <strong>Место:</strong> {taskDetails.room_number || taskDetails.zone_name || 'Неизвестно'}
-                            </p>
-                             <p className="flex items-center mb-2">
-                                <FileText size={18} className="mr-2 "/>
-                                <strong>Тип уборки:</strong> {taskDetails.cleaning_type_name || 'Не указан'}
-                            </p>
-                             <p className="flex items-center mb-2">
-                                <UserIcon size={18} className="mr-2 "/>
-                                <strong>Назначена:</strong> {taskDetails.assigned_to_name || 'Не назначен'}
-                            </p>
-                             <p className="flex items-center mb-2">
-                                <BookOpen size={18} className="mr-2 "/>
-                                <strong>Назначена менеджером:</strong> {taskDetails.assigned_by_name || 'Неизвестно'}
-                            </p>
-                        </div>
-
-                        {/* Информация о статусе и времени */}
-                        <div>
-                             <p className="flex items-center mb-2">
-                                {statusInfo.icon}
-                                <strong>Статус:</strong> {statusInfo.text}
-                            </p>
-                             <p className="flex items-center mb-2">
-                                <Clock size={18} className="mr-2 "/>
-                                <strong>Срок выполнения:</strong> {taskDetails.due_time ? new Date(taskDetails.due_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Не указан'}
-                            </p>
-                             {/* TODO: Отобразить время начала, завершения, проверки, если они есть */}
-                             {taskDetails.started_at && (
-                                  <p className="flex items-center mb-2">
-                                     <Clock size={18} className="mr-2 "/>
-                                     <strong>Начата:</strong> {new Date(taskDetails.started_at).toLocaleString()}
-                                  </p>
-                             )}
-                             {taskDetails.completed_at && (
-                                  <p className="flex items-center mb-2">
-                                     <Clock size={18} className="mr-2 "/>
-                                     <strong>Завершена:</strong> {new Date(taskDetails.completed_at).toLocaleString()}
-                                  </p>
-                             )}
-                             {taskDetails.checked_at && (
-                                  <p className="flex items-center mb-2">
-                                     <Clock size={18} className="mr-2 "/>
-                                     <strong>Проверена:</strong> {new Date(taskDetails.checked_at).toLocaleString()}
-                                  </p>
-                             )}
-                              {taskDetails.checked_by_name && (
-                                  <p className="flex items-center mb-2">
-                                     <UserIcon size={18} className="mr-2 "/>
-                                     <strong>Проверена кем:</strong> {taskDetails.checked_by_name}
-                                  </p>
-                             )}
-                        </div>
-                    </div>
-
-                    {/* Секция "Заметки" */}
-                    <div className="mt-6 border-t pt-4 ">
-                        <p className="text-lg font-semibold  mb-2">Заметки:</p>
-                        <p className="bg p-3 rounded-md whitespace-pre-wrap ">{taskDetails.notes || 'Нет заметок'}</p>
-                    </div>
-
-                    {/* Секция "Чек-лист" */}
-                    {/* Проверяем наличие checklist_items и отображаем секцию только если они есть */}
-                    {taskDetails.checklist_data.items && taskDetails.checklist_data.items.length > 0 && (
-                        <div className="mt-6 border-t pt-4 ">
-                            <p className="text-lg font-semibold  mb-3 flex items-center">
-                                <ClipboardList size={20} className="mr-2 "/> Чек-лист:
-                            </p>
-                            <ul className="space-y-3">
-                                {taskDetails.checklist_data.items.map(item => (
-                                    <li key={item.id} className="flex items-center bgp-3 rounded-md shadow-sm">
-                                        {/* Отображаем иконку статуса пункта чек-листа без интерактивности */}
-                                        <span className="mr-3">
-                                         
-                                                <CircleDotDashed size={20} className=""/>
-                                    
-                                        </span>
-                                        {/* Текст пункта чек-листа */}
-                                        <span className={`flex-1 `}>
-                                            {item.text}
-                                        </span>
-                                        {/* TODO: Возможно, добавить иконку или текст для примечаний к пункту, если есть */}
-                                    </li>
-                                ))}
-                            </ul>
-                             {/* Отображение ошибки, если не удалось обновить пункт чек-листа - УДАЛЕНО */}
-                             {/* {error && isPerformingAction && (
-                                  <p className="text-red-500 text-xs italic mt-3 text-center">{error}</p>
-                             )} */}
-                        </div>
-                    )}
-                    {/* TODO: Добавить кнопки действий для задачи (Начать, Завершить, Проверить и т.д.) */}
-                    {/* Логика этих кнопок будет похожа на ту, что на странице списка */}
-                    {/* <div className="mt-6 flex justify-end space-x-4">
-                        <button className="bg0 hover:bg0 text-white font-bold py-2 px-4 rounded transition duration-200 ease-in-out">
-                            Начать
-                        </button>
-                        <button className="bg00 hover:bg00 text-white font-bold py-2 px-4 rounded transition duration-200 ease-in-out">
-                            Завершить
-                        </button>
-                        <button className="bg hover:bg text-white font-bold py-2 px-4 rounded transition duration-200 ease-in-out">
-                             Проверить
-                         </button>
-                    </div> */}
-                </div>
+            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+                <ErrorMessage message={error} onRetry={fetchTaskDetails} isLoading={isLoading} />
             </div>
         );
     }
 
-    // Если taskId доступен, но taskDetails null после загрузки (например, задача не найдена)
-    if (!isLoading && !taskDetails && taskId) {
-         return (
-            <div className="flex items-center justify-center min-h-screen bg">
-                <div className="p-8 rounded-lg shadow-lg x-w-md w-full text-center  font-bold">
+    if (!taskDetails && taskId) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+                <div className="rounded-md border bg-muted p-4">
                     Задача уборки с ID {taskId} не найдена.
                 </div>
             </div>
-         );
+        );
     }
 
-    // Запасной вариант, если что-то пошло не так и нет ни загрузки, ни ошибки, ни данных
-     return (
-        <div className="flex items-center justify-center min-h-screen bg">
-             <div className="p-8 rounded-lg shadow-lg x-w-md w-full text-center  font-bold">
-                 Неизвестная ошибка при загрузке страницы.
-             </div>
-         </div>
-     );
+    if (taskDetails) {
+        return (
+            <div className="container mx-auto py-10">
+                <Button variant="ghost" onClick={() => router.back()} className="mb-4">
+                    &#8592; Назад к списку задач
+                </Button>
+
+                <Card className="shadow-md">
+                    <CardHeader className="space-y-4">
+                        <CardTitle className="text-2xl font-bold">
+                            Задача уборки: {taskDetails.room_number || taskDetails.zone_name || "Общая"}
+                        </CardTitle>
+                        <CardDescription className="text-gray-500">
+                            Подробная информация о задаче.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <h3 className="text-lg font-semibold mb-2">
+                                    <FileText className="mr-2 inline-block h-5 w-5" />
+                                    Детали
+                                </h3>
+                                <ul className="list-none space-y-2">
+                                    <li className="flex items-center">
+                                        <Building className="mr-2 h-4 w-4" />
+                                        <span>
+                                            {taskDetails.room_number ? `Комната: ${taskDetails.room_number}` : `Зона: ${taskDetails.zone_name}`}
+                                        </span>
+                                    </li>
+                                    <li className="flex items-center">
+                                        <BookOpen className="mr-2 h-4 w-4" />
+                                        <span>Тип уборки: {taskDetails.cleaning_type_name}</span>
+                                    </li>
+                                    <li className="flex items-center">
+                                        <UserIcon className="mr-2 h-4 w-4" />
+                                        <span>Назначена: {taskDetails.assigned_to_name || "Не назначена"}</span>
+                                    </li>
+                                    <li className="flex items-center">
+                                        <Clock className="mr-2 h-4 w-4" />
+                                        <span>
+                                            {taskDetails.due_time
+                                                ? `Время: ${format(new Date(taskDetails.due_time), 'HH:mm', { locale: ru })}`
+                                                : "Время не указано"}
+                                        </span>
+                                    </li>
+                                    <li className="flex items-center">
+                                        <ClipboardList className="mr-2 h-4 w-4" />
+                                        <span>Описание: {taskDetails.notes || "Нет описания"}</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold mb-2">
+                                    <CircleDotDashed className="mr-2 inline-block h-5 w-5" />
+                                    Статус
+                                </h3>
+                                <Badge className={getStatusColor(taskDetails.status)}>
+                                    {taskDetails.status_display}
+                                </Badge>
+                            </div>
+                        </div>
+
+                        {/* Чек-лист */}
+                        {taskDetails.checklist_data && taskDetails.checklist_data.items && taskDetails.checklist_data.items.length > 0 && (
+                            <div className="mt-6 border-t pt-4">
+                                <h3 className="text-lg font-semibold mb-2">
+                                    <ClipboardList className="mr-2 inline-block h-5 w-5" />
+                                    Чек-лист
+                                </h3>
+                                <ul>
+                                    {checklistItems.map((item, index) => (
+                                        <li key={index} className="flex items-center py-2 border-b last:border-b-0">
+                                            <input
+                                                type="checkbox"
+                                                checked={checkedItemIds.includes(item.id)}
+                                                onChange={() => handleChecklistItemChange(item.id)}
+                                                className="mr-2 h-4 w-4"
+                                                disabled={user!.role !== 'housekeeper' || taskDetails.status !== 'in_progress'}
+                                            />
+                                            <span>{item.text}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </CardContent>
+                    <CardFooter className="flex justify-end gap-2">
+                        {renderActions()}
+                    </CardFooter>
+                </Card>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-100">
+            <div className="rounded-md border bg-muted p-4">
+                Неизвестная ошибка при загрузке...
+            </div>
+        </div>
+    );
 }
