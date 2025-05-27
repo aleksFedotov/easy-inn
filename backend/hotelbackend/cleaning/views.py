@@ -557,13 +557,13 @@ def get_cleaning_stats(request):
         )
         checkout_total = checkout_tasks.count()
         checkout_completed = checkout_tasks.filter(
-            status=CleaningTask.Status.COMPLETED
+            status=CleaningTask.Status.WAITING_CHECK
         ).count()
 
         # Среднее время уборки для выездов
         checkout_avg_time = None
         completed_checkout_tasks = checkout_tasks.filter(
-            status=CleaningTask.Status.COMPLETED,
+            status=CleaningTask.Status.WAITING_CHECK,
             started_at__isnull=False,
             completed_at__isnull=False
         )
@@ -572,7 +572,7 @@ def get_cleaning_stats(request):
             avg_duration = completed_checkout_tasks.annotate(
                 duration=ExtractHour('completed_at') - ExtractHour('started_at')
             ).aggregate(Avg('duration'))['duration__avg']
-
+           
             if avg_duration:
                 # Преобразуем в минуты
                 checkout_avg_time = avg_duration / 60

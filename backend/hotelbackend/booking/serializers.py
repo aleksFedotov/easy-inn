@@ -37,6 +37,7 @@ class BookingSerializer(serializers.ModelSerializer):
     # SerializerMethodField to get the name of the user who created the booking
     # SerializerMethodField для получения имени пользователя, создавшего бронирование
     created_by_name = serializers.SerializerMethodField()
+    booking_status_display = serializers.SerializerMethodField()
 
     def get_created_by_name(self, obj):
         """
@@ -49,7 +50,10 @@ class BookingSerializer(serializers.ModelSerializer):
         if obj.created_by:
             return obj.created_by.get_full_name() or obj.created_by.username
         return None
-
+    def get_booking_status_display(self, obj):
+        # obj - текущий экземпляр модели Booking.
+        # obj is the current Booking model instance.
+        return obj.get_status_display()
 
     # SerializerMethodField to get the duration of the booking in days
     # SerializerMethodField для получения продолжительности бронирования в днях
@@ -84,6 +88,7 @@ class BookingSerializer(serializers.ModelSerializer):
             'created_by',
             'created_by_name',
             'duration_days',
+            'booking_status_display'
         ]
 
         read_only_fields = [
@@ -93,6 +98,7 @@ class BookingSerializer(serializers.ModelSerializer):
             'room_number',
             'created_by_name',
             'duration_days',
+            'booking_status_display'
         ]
 
     def validate(self, attrs):

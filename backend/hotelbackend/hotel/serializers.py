@@ -38,7 +38,7 @@ class RoomSerializer(serializers.ModelSerializer):
         source='room_type', queryset=RoomType.objects.all(), write_only=True
     )
     
-    status_display = serializers.SerializerMethodField()
+    
     
     # Поле для отображения только названия типа номера (только для чтения).
     # Использует SerializerMethodField для кастомной логики получения значения.
