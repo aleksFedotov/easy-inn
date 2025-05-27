@@ -2,7 +2,7 @@ from rest_framework import viewsets
 import logging 
 from rest_framework.permissions import IsAuthenticated
 from .models import RoomType, Room, Zone
-from .serializers import RoomTypeSerializer, RoomSerializer, ZoneSerializer
+from .serializers import RoomTypeSerializer, RoomSerializer, ZoneSerializer, RoomStatusSerializer
 from utills.permissions import IsManager, IsManagerOrFrontDesk
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -127,4 +127,6 @@ class ZoneViewSet(AllowAllPaginationMixin,viewsets.ModelViewSet):
     
     
 
-
+class RoomStatusViewSet(AllowAllPaginationMixin,viewsets.ReadOnlyModelViewSet):
+    queryset = Room.objects.all()
+    serializer_class = RoomStatusSerializer

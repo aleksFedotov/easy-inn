@@ -138,3 +138,8 @@ class RoomShortSerializer(serializers.ModelSerializer):
     class Meta:
         model = Room
         fields = ['id', 'number', 'floor', 'room_type', 'status']
+
+class RoomStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Room
+        fields = ['id', 'number', 'status']

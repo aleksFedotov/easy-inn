@@ -9,7 +9,7 @@ from cleaning.views import (
     CleaningTaskViewSet,
     get_cleaning_stats
 )
-from hotel.views import RoomViewSet, RoomTypeViewSet, ZoneViewSet
+from hotel.views import RoomViewSet, RoomTypeViewSet, ZoneViewSet,RoomStatusViewSet
 
 
 # from incidents.views import IncidentReportViewSet # Uncomment if incidents app is ready
@@ -36,6 +36,7 @@ router.register(r'cleaningtasks', CleaningTaskViewSet, basename='cleaningtask')
 router.register(r'rooms', RoomViewSet, basename='room')
 router.register(r'room-types', RoomTypeViewSet, basename='roomtype')
 router.register(r'zones', ZoneViewSet, basename='zone')
+router.register(r'rooms-status', RoomStatusViewSet, basename='room-status')
 
 # Users App ViewSets
 router.register(r'users', UserViewSet, basename='user')
