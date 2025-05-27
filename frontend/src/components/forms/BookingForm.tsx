@@ -118,8 +118,16 @@ export default function BookingForm({ bookingToEdit, onSuccess, onCancel }: Book
             :
             { 
                 room_id: 0, // Инициализируем 0, Zod .positive() пометит как ошибку
-                check_in_datetime: new Date(), // Инициализируем текущей датой/временем
-                check_out_datetime: new Date(), // Инициализируем текущей датой/временем
+                check_in_datetime: (() => {
+                    const now = new Date();
+                    now.setHours(14, 0, 0, 0); // 14:00
+                    return now;
+                })(),
+                    check_out_datetime: (() => {
+                    const now = new Date();
+                    now.setHours(12, 0, 0, 0); // 12:00
+                    return now;
+                })(),
                 guest_count: 0, // Инициализируем 0, Zod .positive() пометит как ошибку
                 notes: '',
             },

@@ -229,7 +229,6 @@ export default function BookingDetailsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <p className="mb-1"><strong>Номер комнаты:</strong> {bookingDetails.room.number}</p>
-                                <p className="mb-1"><strong>Тип номера:</strong> {bookingDetails.room.room_type || 'N/A'}</p>
                                 {/* Форматируем дату заезда в DD/MM/YYYY */}
                                 <p className="mb-1"><strong>Дата заезда:</strong> {bookingDetails.check_in ? new Date(bookingDetails.check_in).toLocaleDateString('en-GB') : 'Не указана'}</p>
                                 {/* Форматируем время заезда в HH:MM (24-часовой формат) */}

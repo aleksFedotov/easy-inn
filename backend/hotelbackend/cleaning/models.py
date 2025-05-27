@@ -308,32 +308,40 @@ class CleaningTask(models.Model):
     # Переопределение метода save() для установки значений по умолчанию для due_time и scheduled_date
     # Override the save() method to set default values for due_time and scheduled_date
     def save(self, *args, **kwargs):
-        # Если due_time не установлено
-        # If due_time is not set
         if not self.due_time:
-            # Если есть связанное бронирование и у него есть дата заезда
-            # If there is a related booking and it has a check_in date
-            if self.booking and self.booking.check_in:
-                self.due_time = self.booking.check_in # Устанавливаем due_time равным дате заезда бронирования / Set due_time to the booking's check_in date
-                # Если scheduled_date не установлено, устанавливаем его равным дате из due_time
-                # If scheduled_date is not set, set it to the date from due_time
-                if not self.scheduled_date:
-                    self.scheduled_date = self.due_time.date()
-            else:
-                # Если нет связанного бронирования или даты заезда
-                # If there is no related booking or check_in date
-                # Если scheduled_date не установлено, устанавливаем его равным сегодняшней дате
-                # If scheduled_date is not set, set it to today's date
-                if not self.scheduled_date:
-                    self.scheduled_date = timezone.now().date()
-
-                # Устанавливаем due_time на 14:00 запланированной даты
-                # Set due_time to 2:00 PM on the scheduled date
-                self.due_time = datetime.combine(
-                    self.scheduled_date,
-                    time(14, 0), # Время 14:00 (2 PM) / Time 2:00 PM
-                    tzinfo=timezone.get_current_timezone() # Или timezone.utc / Or timezone.utc
-                )
+            # Уборка после выезда
+            if self.scheduled_date and self.booking:
+                if self.scheduled_date == self.booking.check_out.date():
+                    # Если есть связанное бронирование и у него есть дата заезда
+                    # If there is a related booking and it has a check_in date
+                    next_booking_qs = Booking.objects.filter(
+                        room=self.booking.room,
+                        check_in__date=self.scheduled_date
+                    )
+                    next_booking = next_booking_qs.first()  # Получаем первый объект Booking или None
+                    if next_booking and next_booking.check_in:  # Дополнительная проверка на None
+                        self.due_time = next_booking.check_in
+                        if timezone.is_naive(self.due_time):
+                            self.due_time = timezone.make_aware(self.due_time)
+                    else:
+                        # Устанавливаем время по умолчанию, даже если next_booking нет
+                        self.due_time_dt = timezone.datetime.combine(self.scheduled_date, time(14, 0, 0))
+                        self.due_time = timezone.make_aware(self.due_time_dt)
+                elif self.booking and self.booking.check_in and self.booking.check_out and \
+                     self.booking.check_in.date() <= self.scheduled_date and self.booking.check_out.date() < self.scheduled_date:
+                    # Текущая уборка (ИЗМЕНЕНО УСЛОВИЕ: < вместо >)
+                    self.due_time = None
+                elif self.scheduled_date and self.booking and \
+                     self.booking.check_in.date() <= self.scheduled_date and self.booking.check_out.date() >= self.scheduled_date:
+                    # Уборка во время бронирования (но не в день выезда)
+                    self.due_time = None
+            elif self.scheduled_date and not self.booking:
+                # Возможно, это задача для зоны, у которой нет booking
+                self.due_time = None  # Явно устанавливаем None, если это необходимо
+        
+        # Ensure due_time is not None before saving
+        if self.due_time is None:
+            self.due_time = None 
         is_new = self._state.adding
         if self.assigned_to:
             # Если задача новая ИЛИ была в статусе UNASSIGNED и ей назначают исполнителя

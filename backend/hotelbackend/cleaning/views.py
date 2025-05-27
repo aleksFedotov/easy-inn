@@ -11,8 +11,10 @@ from utills.views import LoggingModelViewSet
 from utills.mixins import AllowAllPaginationMixin
 from booking.models import Booking
 from django.db import transaction 
+from datetime import time
 
-from hotel.models import Zone
+from hotel.models import Zone, Room
+
 
 from .serializers import (
     CleaningTypeSerializer,
@@ -138,12 +140,13 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
             queryset = queryset.filter(scheduled_date=scheduled_date)
         if user.is_authenticated and user.role in [User.Role.FRONT_DESK, User.Role.MANAGER]:       
             logger.debug("User is Manager or Admin, returning all tasks.")
+
             return queryset
         # If the user is authenticated and is a housekeeper, return only tasks assigned to them
         # Если пользователь аутентифицирован и является горничной, вернуть только задачи, назначенные ему
         if user.is_authenticated and user.role == User.Role.HOUSEKEEPER:
             logger.debug(f"User is Housekeeper, returning tasks assigned to {user}.")
-            return queryset.filter(assigned_to=user)
+            return queryset.filter(assigned_to=user, status__in=['assigned', 'in_progress', 'waiting_inspection'])
         
         # For all other authenticated users or if the user is not authenticated,
         # return an empty queryset. Permission classes will further restrict access.
@@ -151,6 +154,20 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         # вернуть пустой набор данных. Классы разрешений дополнительно ограничат доступ.
         logger.debug("User is neither Manager/Admin nor Housekeeper, returning empty queryset.")
         return CleaningTask.objects.none()
+    
+    def retrieve(self, request, pk=None):
+        logger.info(f"Attempting to retrieve task with ID: {pk}")
+        try:
+            task = self.queryset.get(pk=pk)
+            serializer = self.get_serializer(task)
+            logger.info(f"Task found: {task}")
+            return Response(serializer.data)
+        except CleaningTask.DoesNotExist:
+            logger.warning(f"Task with ID: {pk} not found.")
+            return Response({"detail": "Задача не найдена."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"An unexpected error occurred: {e}")
+            return Response({"detail": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def get_permissions(self):
         """
@@ -250,6 +267,13 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
             task.status = CleaningTask.Status.IN_PROGRESS # Set status to IN_PROGRESS / Устанавливаем статус "В процессе уборки"
             task.started_at = timezone.now() # Set start time / Устанавливаем время начала
             task.save(update_fields=['status', 'started_at']) # Save only the changed fields / Сохраняем только измененные поля
+
+            if task.room:
+                room = task.room
+                room.status = "in_progress"  
+                room.save(update_fields=['status']) 
+                logger.info(f"Room {room.number} status changed to 'in_progress'.")
+
             serializer = self.get_serializer(task) # Serialize the updated object / Сериализуем обновленный объект
             logger.info(f"Task {task.pk} started successfully by user {request.user}.")
             return Response(serializer.data, status=status.HTTP_200_OK) # Return updated data / Возвращаем обновленные данные
@@ -283,9 +307,17 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
             task.status = CleaningTask.Status.WAITING_CHECK # Set status to WAITING_CHECK / Переводим в статус ожидания проверки
             task.completed_at = timezone.now() # Set completion time / Устанавливаем время завершения
             task.save(update_fields=['status', 'completed_at'])
+
+            if task.room:
+                room = task.room
+                room.status = "waiting_inspection"  
+                room.save(update_fields=['status'])
+                logger.info(f"Room {room.number} status changed to 'waiting_inspection'.")
+
             serializer = self.get_serializer(task)
             logger.info(f"Task {task.pk} completed successfully by user {request.user}.")
             return Response(serializer.data, status=status.HTTP_200_OK)
+
 
         # If the status does not allow completing the task
         # Если статус не позволяет завершить задачу
@@ -317,10 +349,16 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
             task.checked_at = timezone.now() # Set check time / Устанавливаем время проверки
             task.checked_by = request.user # Set the user who checked / Устанавливаем пользователя, который проверил
             task.save(update_fields=['status', 'checked_at', 'checked_by'])
+
+            if task.room:
+                room = task.room
+                room.status = "clean"
+                room.save(update_fields=['status'])
+                logger.info(f"Room {room.number} status changed to 'clean'.")
+
             serializer = self.get_serializer(task)
             logger.info(f"Task {task.pk} checked successfully by user {request.user}.")
             return Response(serializer.data, status=status.HTTP_200_OK)
-
         # If the status does not allow checking the task
         # Если статус не позволяет проверить задачу
         logger.warning(f"Task {task.pk} cannot be checked from status '{task.get_status_display()}' by user {request.user}.")
@@ -393,14 +431,15 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         created_tasks_count = 0
         created_tasks_details = []
 
-        with transaction.atomic(): 
+        with transaction.atomic():
             # --- Уборка после выезда ---
             checkout_bookings = Booking.objects.filter(check_out__date=scheduled_date).select_related("room")
+          
+
             for booking in checkout_bookings:
                 if not booking.room:
                     continue
 
-             
                 exists = CleaningTask.objects.filter(
                     booking=booking,
                     room=booking.room,
@@ -414,7 +453,8 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                         room=booking.room,
                         scheduled_date=scheduled_date,
                         cleaning_type=checkout_cleaning_type,
-                        status='unassigned' 
+                        status='unassigned',
+                        
                     )
                     created_tasks_count += 1
                     created_tasks_details.append(f"Комната {booking.room.number} (Выезд)")
@@ -473,7 +513,6 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
             "message": f"Создано {created_tasks_count} задач по уборке."
         }, status=status.HTTP_201_CREATED)
     
-
     @action(detail=False, methods=['post'])
     def assign_multiple(self, request):
         serializer = MultipleTaskAssignmentSerializer(data=request.data)

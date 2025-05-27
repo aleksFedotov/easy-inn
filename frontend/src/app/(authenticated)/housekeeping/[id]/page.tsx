@@ -27,11 +27,13 @@ import { Button } from "@/components/ui/button";
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import AuthRequiredMessage from '@/components/AuthRequiredMessage';
+import getCleaningStatusColor from '@/lib/cleaning/GetCLeaningStatusColor';
 
 export default function CleaningTaskDetailsPage() {
     const params = useParams<{ id: string }>();
     const router = useRouter();
     const taskId = params.id;
+
 
     const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth();
 
@@ -58,7 +60,6 @@ export default function CleaningTaskDetailsPage() {
             const response = await api.get(`/api/cleaningtasks/${taskId}/`);
             if (response.status === 200) {
                 setTaskDetails(response.data);
-                // Предполагаем, что checklist_data.items возвращается из API
                 setChecklistItems(response.data.checklist_data?.items || []);
             } else if (response.status === 404) {
                 setError(`Задача с ID ${taskId} не найдена.`);
@@ -94,7 +95,7 @@ export default function CleaningTaskDetailsPage() {
         setIsLoading(true);
         setError(null);
         try {
-            await api.patch(`/api/cleaningtasks/${taskId}/`, { status: 'in_progress' });
+            await api.patch(`/api/cleaningtasks/${taskId}/start/` );
             fetchTaskDetails();
         } catch (err) {
             console.error('Error during start cleaning:', err);
@@ -121,7 +122,7 @@ export default function CleaningTaskDetailsPage() {
         setIsLoading(true);
         setError(null);
         try {
-            await api.patch(`/api/cleaningtasks/${taskId}/`, { status: 'waiting_inspection' });
+            await api.patch(`/api/cleaningtasks/${taskId}/complete/`,);
             fetchTaskDetails();
         } catch (err) {
             console.error('Error during start cleaning:', err);
@@ -147,7 +148,7 @@ export default function CleaningTaskDetailsPage() {
         setIsLoading(true);
         setError(null);
         try {
-            await api.patch(`/api/cleaningtasks/${taskId}/`, { status: 'checked' }); // Или 'completed'
+            await api.patch(`/api/cleaningtasks/${taskId}/check/`);
             fetchTaskDetails(); // Обновляем данные после изменения статуса
         } catch (err) {
             console.error('Error during start cleaning:', err);
@@ -168,7 +169,7 @@ export default function CleaningTaskDetailsPage() {
         setIsLoading(true);
         setError(null);
         try {
-            await api.patch(`/api/cleaningtasks/${taskId}/`, { status: 'canceled' });
+            await api.patch(`/api/cleaningtasks/${taskId}/cancel/`);
             fetchTaskDetails(); // Обновляем данные после изменения статуса
         } catch (err) {
             console.error('Error during start cleaning:', err);
@@ -229,7 +230,7 @@ export default function CleaningTaskDetailsPage() {
                         </Button>
                     </>
                 );
-            } else if (taskDetails.status === 'waiting_inspection') {
+            } else if (taskDetails.status === 'waiting_check' || taskDetails.status === 'completed') {
                 return (
                     <Button variant="default" onClick={handleFinishInspection} disabled={!isChecklistComplete}>
                         <CheckCircle className="mr-2 h-4 w-4" />
@@ -241,20 +242,9 @@ export default function CleaningTaskDetailsPage() {
         return null;
     };
 
-
-    const getStatusColor = (status: string | undefined) => {
-        switch (status) {
-            case 'unassigned': return "bg-gray-100 text-gray-700";
-            case 'assigned': return "bg-blue-100 text-blue-700";
-            case 'in_progress': return "bg-yellow-100 text-yellow-700";
-            case 'completed': return "bg-green-100 text-green-700";
-            case 'waiting_inspection': return "bg-orange-100 text-orange-700";
-            case 'checked': return "bg-emerald-100 text-emerald-700";
-            case 'canceled': return "bg-red-100 text-red-700";
-            case 'on_hold': return "bg-purple-100 text-purple-700";
-            default: return "bg-gray-200 text-gray-700";
-        }
-    };
+    const canEditChecklist =
+        (user?.role === 'housekeeper' && taskDetails?.status === 'in_progress') ||
+        ((user?.role === 'manager' || user?.role === 'front-desk') && taskDetails?.status === 'waiting_check');
 
 
     if (isLoading || isAuthLoading) {
@@ -344,7 +334,7 @@ export default function CleaningTaskDetailsPage() {
                                     <CircleDotDashed className="mr-2 inline-block h-5 w-5" />
                                     Статус
                                 </h3>
-                                <Badge className={getStatusColor(taskDetails.status)}>
+                                <Badge className={getCleaningStatusColor(taskDetails.status)}>
                                     {taskDetails.status_display}
                                 </Badge>
                             </div>
@@ -365,7 +355,9 @@ export default function CleaningTaskDetailsPage() {
                                                 checked={checkedItemIds.includes(item.id)}
                                                 onChange={() => handleChecklistItemChange(item.id)}
                                                 className="mr-2 h-4 w-4"
-                                                disabled={user!.role !== 'housekeeper' || taskDetails.status !== 'in_progress'}
+                                                disabled={
+                                                    !canEditChecklist
+                                                }
                                             />
                                             <span>{item.text}</span>
                                         </li>

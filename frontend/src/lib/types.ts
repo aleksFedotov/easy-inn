@@ -87,18 +87,18 @@ export interface CleaningType {
 
 
 // Интерфейс для модели ChecklistTemplate 
-export interface ChecklistTemplate {
+export interface Checklist {
     id: number;
     name: string; 
     cleaning_type: number;
     cleaning_type_name: string;   
     description: string; 
-    items: ChecklistItemTemplate[]
+    items: ChecklistItem[]
 }
 
 
 // Интерфейс для модели ChecklistItemTemplate
-export interface ChecklistItemTemplate {
+export interface ChecklistItem {
     id: number;
     checklist_template: number;
     text: string; 
@@ -119,7 +119,7 @@ export interface CleaningTask {
     booking: number | null; 
     cleaning_type: number; 
     cleaning_type_name?: string; 
-    status: 'unassigned' | 'assigned' | 'in_progress' | 'completed' | 'waiting_inspection' | 'checked' | 'canceled' | 'on_hold'; // Пример статусов из вашей модели
+    status: 'unassigned'| "assigned" | "in_progress" | "completed" |"waiting_check" |"checked" |"canceled"; 
     status_display?: string; 
     scheduled_date: string | null; 
     due_time: string | null; 
@@ -129,6 +129,7 @@ export interface CleaningTask {
     checked_at: string | null; 
     checked_by: number | null; 
     checked_by_name?: string | null; 
-    notes: string | null; // Заметки (может быть null);
-    checklist_data: ChecklistTemplate;
+    notes: string | null; 
+    checklist_data: Checklist;
+    is_guest_checked_out: boolean;
 }

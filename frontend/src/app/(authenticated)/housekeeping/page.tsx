@@ -93,7 +93,6 @@ export default function HousekeepingPage() {
 
      const {
         isCreateEditTaskModalOpen,
-        setIsCreateEditTaskModalOpen,
         taskToEdit,
         setTaskToEdit,
         isDeleteModalOpen,
@@ -357,7 +356,7 @@ export default function HousekeepingPage() {
     }
     return (
         <div className="container mx-auto p-4">
-            <h1 className="text-3xl font-bold mb-6 text-gray-800">Управление Уборкой</h1>
+            <h1 className="text-3xl font-bold mb-6">Управление Уборкой</h1>
 
             {/* Control Panel: Date selection, action buttons */}
             <div className="flex flex-col sm:flex-row justify-between items-center mb-6 space-y-4 sm:space-y-0 sm:space-x-4">

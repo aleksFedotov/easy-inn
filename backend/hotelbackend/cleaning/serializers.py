@@ -177,8 +177,23 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
     assigned_to_name = serializers.SerializerMethodField()
     assigned_by_name = serializers.SerializerMethodField()
     checked_by_name = serializers.SerializerMethodField()
-
     checklist_data = serializers.SerializerMethodField()
+    is_guest_checked_out = serializers.SerializerMethodField()
+
+    
+    def get_is_guest_checked_out(self, obj) -> bool:
+        """
+        Возвращает True, если тип задачи — 'уборка после выезда',
+        и комната уже отмечена как dirty (гость выехал).
+        Иначе False или None.
+        """
+        if obj.cleaning_type and obj.room:
+            type_name = obj.cleaning_type.name.lower()
+            logger.info(type_name)
+            if 'уборка после выезда' in type_name:
+                return obj.room.status == 'dirty'
+        return False
+
 
     def get_assigned_to_name(self, obj):
         """
@@ -352,6 +367,7 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
             'checked_by_name', # Read-only, displays checking user's name / Только для чтения, отображает имя пользователя, проверившего задачу
             'notes', # Allows setting notes / Позволяет устанавливать заметки
             'checklist_data',
+            'is_guest_checked_out',
         ]
         # Define all fields that should only be included in the output, not accepted as input
         # Определяем все поля, которые должны быть включены только в вывод, но не приниматься в качестве ввода
@@ -368,4 +384,5 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
             'started_at',
             'completed_at',
             'checked_at',
+            'is_guest_checked_out',
         ]

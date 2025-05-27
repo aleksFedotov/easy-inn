@@ -11,13 +11,13 @@ import {
   Users,
   BedDouble, 
   Bubbles, 
+  ClipboardList
 } from 'lucide-react'; 
 import { SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  // SidebarGroup,
   SidebarHeader,
 } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
@@ -45,7 +45,14 @@ const menuItems = [
     name: 'Уборка',
     href: '/housekeeping', 
     icon: BrushCleaning, 
-    roles: ['frontDesk', 'manager', 'housekeeper'], 
+    roles: ['frontDesk', 'manager'], 
+  },
+  {
+    id: 'my-cleaning-task', 
+    name: 'Мои задачи',
+    href: '/my-cleaning-task', 
+    icon: ClipboardList,
+    roles: ['housekeeper']
   },
   
 ];
