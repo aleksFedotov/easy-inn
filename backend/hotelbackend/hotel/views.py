@@ -75,11 +75,15 @@ class RoomViewSet(AllowAllPaginationMixin,viewsets.ModelViewSet):
         """
         self.permission_classes = [IsAuthenticated, IsManagerOrFrontDesk] 
         self.check_permissions(request) 
-        summary = Room.objects.filter(is_active=True).aggregate( # Учитываем только активные номера
-            awaiting_cleaning=models.Count('pk', filter=models.Q(status='dirty')), 
-            in_progress=models.Count('pk', filter=models.Q(status='in_progress')), 
-            ready_for_inspection=models.Count('pk', filter=models.Q(status='waiting_inspection')), 
-           
+        summary = Room.objects.filter(is_active=True).aggregate(
+            free = models.Count('pk', filter=models.Q(status='free')),
+            occupied = models.Count('pk', filter=models.Q(status='occupied')),
+            dirty=models.Count('pk', filter=models.Q(status='dirty')),
+            assigned=models.Count('pk', filter=models.Q(status='assigned')),
+            in_progress=models.Count('pk', filter=models.Q(status='in_progress')),
+            waiting_inspection=models.Count('pk', filter=models.Q(status='waiting_inspection')),
+            clean=models.Count('pk', filter=models.Q(status='clean')),
+            on_maintenance=models.Count('pk', filter=models.Q(status='on_maintenance')),
         )
 
         
