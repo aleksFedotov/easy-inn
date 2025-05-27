@@ -3,7 +3,7 @@ from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.decorators import action 
+from rest_framework.decorators import action ,api_view
 from django.utils import timezone 
 from .models import CleaningType, ChecklistTemplate, CleaningTask
 from users.models import User
@@ -11,7 +11,9 @@ from utills.views import LoggingModelViewSet
 from utills.mixins import AllowAllPaginationMixin
 from booking.models import Booking
 from django.db import transaction 
-from datetime import time
+from django.db.models import Count, Q, Avg
+from django.db.models.functions import ExtractHour
+from django.utils import timezone
 
 from hotel.models import Zone, Room
 
@@ -539,3 +541,79 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
             return Response({"detail": "Задачи успешно назначены."}, status=status.HTTP_200_OK)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+
+@api_view(['GET'])
+def get_cleaning_stats(request):
+    """
+    Получает статистику по задачам уборки.
+    """
+    try:
+        # --- Общая статистика ---
+
+        # Задачи после выезда
+        checkout_tasks = CleaningTask.objects.filter(
+            cleaning_type__name="Уборка после выезда"
+        )
+        checkout_total = checkout_tasks.count()
+        checkout_completed = checkout_tasks.filter(
+            status=CleaningTask.Status.COMPLETED
+        ).count()
+
+        # Среднее время уборки для выездов
+        checkout_avg_time = None
+        completed_checkout_tasks = checkout_tasks.filter(
+            status=CleaningTask.Status.COMPLETED,
+            started_at__isnull=False,
+            completed_at__isnull=False
+        )
+        if completed_checkout_tasks.exists():
+            # Вычисляем разницу между completed_at и started_at в секундах
+            avg_duration = completed_checkout_tasks.annotate(
+                duration=ExtractHour('completed_at') - ExtractHour('started_at')
+            ).aggregate(Avg('duration'))['duration__avg']
+
+            if avg_duration:
+                # Преобразуем в минуты
+                checkout_avg_time = avg_duration / 60
+        
+
+        # Текущие задачи
+        current_tasks = CleaningTask.objects.exclude(
+            cleaning_type__name="Уборка после выезда"
+        ).filter(zone__isnull=True)  # Предполагаем, что текущие задачи не связаны с зоной
+        current_total = current_tasks.count()
+        current_completed = current_tasks.filter(
+            status=CleaningTask.Status.COMPLETED
+        ).count()
+
+        # Среднее время уборки для текущих задач
+        current_avg_time = None
+        completed_current_tasks = current_tasks.filter(
+            status=CleaningTask.Status.COMPLETED,
+            started_at__isnull=False,
+            completed_at__isnull=False
+        )
+        if completed_current_tasks.exists():
+            # Вычисляем разницу между completed_at и started_at в секундах
+            avg_duration = completed_current_tasks.annotate(
+                duration=ExtractHour('completed_at') - ExtractHour('started_at')
+            ).aggregate(Avg('duration'))['duration__avg']
+
+            if avg_duration:
+                # Преобразуем в минуты
+                current_avg_time = avg_duration / 60
+
+        stats = {
+            "checkoutTotal": checkout_total,
+            "checkoutCompleted": checkout_completed,
+            "checkoutAvgTime": checkout_avg_time,
+            "currentTotal": current_total,
+            "currentCompleted": current_completed,
+            "currentAvgTime": current_avg_time,
+        }
+
+        return Response(stats, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)    

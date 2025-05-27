@@ -1,13 +1,16 @@
 from rest_framework.routers import DefaultRouter
 
 # Import all ViewSets from your apps
+from django.urls import path, include
 from booking.views import BookingViewSet
 from cleaning.views import (
     CleaningTypeViewSet,
     ChecklistTemplateViewSet,
-    CleaningTaskViewSet
+    CleaningTaskViewSet,
+    get_cleaning_stats
 )
 from hotel.views import RoomViewSet, RoomTypeViewSet, ZoneViewSet
+
 
 # from incidents.views import IncidentReportViewSet # Uncomment if incidents app is ready
 # from shifts.views import ShiftNoteViewSet # Uncomment if shifts app is ready
@@ -45,4 +48,6 @@ router.register(r'users', UserViewSet, basename='user')
 # router.register(r'shiftnotes', ShiftNoteViewSet, basename='shiftnote')
 
 
-urlpatterns = router.urls
+urlpatterns = [
+    path('cleaning/stats/', get_cleaning_stats, name='cleaning-stats'),  
+] + router.urls
