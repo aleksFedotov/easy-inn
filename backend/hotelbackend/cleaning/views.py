@@ -581,12 +581,12 @@ def get_cleaning_stats(request):
         
         checkout_total = checkout_tasks.count()
         checkout_completed = checkout_tasks.filter(
-            status=CleaningTask.Status.WAITING_CHECK
+            status__in=[CleaningTask.Status.WAITING_CHECK,CleaningTask.Status.CHECKED,CleaningTask.Status.COMPLETED,]
         ).count()
 
         # Среднее время уборки для выездов
         completed_checkout_tasks = checkout_tasks.filter(
-            status=CleaningTask.Status.WAITING_CHECK,
+            status__in=[CleaningTask.Status.WAITING_CHECK,CleaningTask.Status.CHECKED,CleaningTask.Status.COMPLETED,],
             started_at__isnull=False,
             completed_at__isnull=False
         )
