@@ -11,9 +11,11 @@ from utills.views import LoggingModelViewSet
 from utills.mixins import AllowAllPaginationMixin
 from booking.models import Booking
 from django.db import transaction 
-from django.db.models import Count, Q, Avg
-from django.db.models.functions import ExtractHour
+from django.db.models import F, ExpressionWrapper, fields, Avg
+from django.db.models.functions import Cast,Extract
 from django.utils import timezone
+from django.db import models
+from utills.calculateAverageDuration import calculate_average_duration
 
 from hotel.models import Zone, Room
 
@@ -30,6 +32,7 @@ from utills.permissions import IsManagerOrFrontDesk, IsHouseKeeper, IsAssignedHo
 
 # Configure basic logging / Настраиваем базовое логирование
 logger = logging.getLogger(__name__)
+
 
 
 
@@ -306,13 +309,20 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         # Проверяем, можно ли завершить задачу из текущего статуса
         if task.status == CleaningTask.Status.IN_PROGRESS:
             logger.info(f"Task {task.pk} status is {task.get_status_display()}, allowing completion.")
-            task.status = CleaningTask.Status.WAITING_CHECK # Set status to WAITING_CHECK / Переводим в статус ожидания проверки
+            if task.cleaning_type.name == "Уборка после выезда":
+                task.status = CleaningTask.Status.WAITING_CHECK 
+            elif task.cleaning_type.name == "Текущая уборка":
+                task.status = CleaningTask.Status.CHECKED 
+
             task.completed_at = timezone.now() # Set completion time / Устанавливаем время завершения
             task.save(update_fields=['status', 'completed_at'])
 
             if task.room:
                 room = task.room
-                room.status = "waiting_inspection"  
+                if task.cleaning_type.name == "Уборка после выезда":
+                    room.status = Room.Status.WAITING_INSPECTION 
+                elif task.cleaning_type.name == "Текущая уборка":
+                    room.status = Room.Status.CLEAN  
                 room.save(update_fields=['status'])
                 logger.info(f"Room {room.number} status changed to 'waiting_inspection'.")
 
@@ -525,7 +535,7 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
 
             #  Получаем задачи, которые нужно назначить
             tasks = CleaningTask.objects.filter(id__in=task_ids, scheduled_date=scheduled_date)
-            logger.info(tasks)
+            
 
             #  Проверяем, что все задачи существуют и соответствуют дате
             if len(tasks) != len(task_ids):
@@ -550,59 +560,60 @@ def get_cleaning_stats(request):
     """
     try:
         # --- Общая статистика ---
+        scheduled_date_str = request.query_params.get('scheduled_date')
+        scheduled_date = None
+        if scheduled_date_str:
+            try:
+                scheduled_date = timezone.datetime.strptime(scheduled_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                logger.warning("Invalid date format. Expected YYYY-MM-DD.")
+                scheduled_date = timezone.localdate()
+        else:
+            scheduled_date = timezone.localdate()
 
-        # Задачи после выезда
+        # --- ЗАДАЧИ ПОСЛЕ ВЫЕЗДА ---
         checkout_tasks = CleaningTask.objects.filter(
             cleaning_type__name="Уборка после выезда"
         )
+        
+        if scheduled_date:
+            checkout_tasks = checkout_tasks.filter(scheduled_date=scheduled_date)
+        
         checkout_total = checkout_tasks.count()
         checkout_completed = checkout_tasks.filter(
             status=CleaningTask.Status.WAITING_CHECK
         ).count()
 
         # Среднее время уборки для выездов
-        checkout_avg_time = None
         completed_checkout_tasks = checkout_tasks.filter(
             status=CleaningTask.Status.WAITING_CHECK,
             started_at__isnull=False,
             completed_at__isnull=False
         )
-        if completed_checkout_tasks.exists():
-            # Вычисляем разницу между completed_at и started_at в секундах
-            avg_duration = completed_checkout_tasks.annotate(
-                duration=ExtractHour('completed_at') - ExtractHour('started_at')
-            ).aggregate(Avg('duration'))['duration__avg']
-           
-            if avg_duration:
-                # Преобразуем в минуты
-                checkout_avg_time = avg_duration / 60
         
+        logger.info(f"Completed checkout tasks count: {completed_checkout_tasks.count()}")
+        checkout_avg_time = calculate_average_duration(completed_checkout_tasks, "checkout")
 
-        # Текущие задачи
-        current_tasks = CleaningTask.objects.exclude(
-            cleaning_type__name="Уборка после выезда"
-        ).filter(zone__isnull=True)  # Предполагаем, что текущие задачи не связаны с зоной
+        # --- ТЕКУЩИЕ ЗАДАЧИ ---
+        current_tasks = CleaningTask.objects.filter( cleaning_type__name="Текущая уборка",zone__isnull=True) 
+        
+        if scheduled_date:
+            current_tasks = current_tasks.filter(scheduled_date=scheduled_date)
+        
         current_total = current_tasks.count()
         current_completed = current_tasks.filter(
-            status=CleaningTask.Status.COMPLETED
+            status=CleaningTask.Status.CHECKED
         ).count()
 
         # Среднее время уборки для текущих задач
-        current_avg_time = None
         completed_current_tasks = current_tasks.filter(
-            status=CleaningTask.Status.COMPLETED,
+            status=CleaningTask.Status.CHECKED,
             started_at__isnull=False,
             completed_at__isnull=False
         )
-        if completed_current_tasks.exists():
-            # Вычисляем разницу между completed_at и started_at в секундах
-            avg_duration = completed_current_tasks.annotate(
-                duration=ExtractHour('completed_at') - ExtractHour('started_at')
-            ).aggregate(Avg('duration'))['duration__avg']
-
-            if avg_duration:
-                # Преобразуем в минуты
-                current_avg_time = avg_duration / 60
+        
+        logger.info(f"Completed current tasks count: {completed_current_tasks.count()}")
+        current_avg_time = calculate_average_duration(completed_current_tasks, "current")
 
         stats = {
             "checkoutTotal": checkout_total,
@@ -616,4 +627,7 @@ def get_cleaning_stats(request):
         return Response(stats, status=status.HTTP_200_OK)
 
     except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)    
+        logger.error(f"Error in get_cleaning_stats: {str(e)}")
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
