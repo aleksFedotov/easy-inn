@@ -309,10 +309,10 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         # Проверяем, можно ли завершить задачу из текущего статуса
         if task.status == CleaningTask.Status.IN_PROGRESS:
             logger.info(f"Task {task.pk} status is {task.get_status_display()}, allowing completion.")
-            if task.cleaning_type.name == "Уборка после выезда":
-                task.status = CleaningTask.Status.WAITING_CHECK 
-            elif task.cleaning_type.name == "Текущая уборка":
+            if  task.cleaning_type == None or task.cleaning_type.name == "Текущая уборка":
                 task.status = CleaningTask.Status.CHECKED 
+            elif task.cleaning_type.name == "Уборка после выезда":
+                task.status = CleaningTask.Status.WAITING_CHECK 
 
             task.completed_at = timezone.now() # Set completion time / Устанавливаем время завершения
             task.save(update_fields=['status', 'completed_at'])
@@ -325,7 +325,11 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                     room.status = Room.Status.CLEAN  
                 room.save(update_fields=['status'])
                 logger.info(f"Room {room.number} status changed to 'waiting_inspection'.")
-
+            if task.zone:
+                zone = task.zone
+                zone.status = Zone.Status.CLEAN
+                zone.save(update_fields=['status'])
+                logger.info(f"Zone {zone.name} status changed to 'clean'.")
             serializer = self.get_serializer(task)
             logger.info(f"Task {task.pk} completed successfully by user {request.user}.")
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -473,7 +477,7 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
 
             # --- Текущая уборка ---
             staying_bookings = Booking.objects.filter(
-                check_in__date__lte=scheduled_date,
+                check_in__date__lt=scheduled_date,
                 check_out__date__gt=scheduled_date
             ).select_related("room")
 
