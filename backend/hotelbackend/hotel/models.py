@@ -119,6 +119,14 @@ class Room(models.Model):
 # Модель для представления зон в отеле, требующих уборки (например, "Лобби", "Ресторан").
 # Model for representing zones in the hotel that require cleaning (e.g., "Lobby", "Restaurant").
 class Zone(models.Model):
+
+    class Status(models.TextChoices):
+        DIRTY = "dirty", "Грязный" # Needs cleaning / Требуется уборка
+        ASSIGNED = "assigned", "Назначен" # Task assigned to a cleaner / Задача назначена горничной
+        IN_PROGRESS = "in_progress", "В процессе уборки" # Cleaning is currently in progress / Уборка в процессе
+        CLEAN = "clean", "Чистый" # Clean and ready for a new guest / Убран и готов к заселению
+        
+
     # Мета-класс для определения опций модели.
     # Meta class for defining model options.
     class Meta:
@@ -146,6 +154,14 @@ class Zone(models.Model):
         blank=True, # Allows the field to be blank in forms / Позволяет полю быть пустым в формах
         null=True # Allows the field to be NULL in the database / Позволяет полю быть NULL в базе данных
     )
+    # Текущий статус зоны. Выбирается из предопределенных вариантов.
+    # Current status of the room. Chosen from predefined options.
+    status = models.CharField(
+        max_length=20, # Max length for the status value / Максимальная длина для значения статуса
+        choices=Status.choices, # Use choices defined in the Status class / Использование вариантов выбора, определенных в классе Status
+        default=Status.CLEAN, # Default status when a new room is created / Статус по умолчанию при создании нового номера
+        verbose_name="Статус номера"
+        )
 
     # Строковое представление объекта Zone. Возвращает название зоны.
     # String representation of the Zone object. Returns the name of the zone.
