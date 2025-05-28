@@ -61,6 +61,9 @@ export default function CleaningTaskDetailsPage() {
             if (response.status === 200) {
                 setTaskDetails(response.data);
                 setChecklistItems(response.data.checklist_data?.items || []);
+                if(response.data.checklist_data?.items.length === 0) {
+                    setIsChecklistComplete(true)
+                }
             } else if (response.status === 404) {
                 setError(`Задача с ID ${taskId} не найдена.`);
             } else {
@@ -87,7 +90,7 @@ export default function CleaningTaskDetailsPage() {
             const allChecked = checklistItems.every(item => checkedItemIds.includes(item.id));
             setIsChecklistComplete(allChecked);
         } else {
-            setIsChecklistComplete(false); // Если нет пунктов, считаем, что не завершен
+            setIsChecklistComplete(true); 
         }
     }, [checklistItems, checkedItemIds]);
 
@@ -217,9 +220,15 @@ export default function CleaningTaskDetailsPage() {
                 );
             }
         } else if (['manager', 'front-desk'].includes(user.role)) {
-            if (taskDetails.status === 'assigned' || taskDetails.status === 'in_progress') {
+            
                 return (
-                    <>
+                    <>  {(taskDetails.status === 'waiting_check' || taskDetails.status === 'completed') &&
+                        <Button variant="default" onClick={handleFinishInspection} disabled={!isChecklistComplete}>
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Завершить проверку
+                    </Button>
+                    
+                    }
                         <Button variant="outline" onClick={() => router.push(`/housekeeping/${taskId}/edit`)}>
                             <Edit className="mr-2 h-4 w-4" />
                             Редактировать
@@ -229,15 +238,7 @@ export default function CleaningTaskDetailsPage() {
                             Отменить
                         </Button>
                     </>
-                );
-            } else if (taskDetails.status === 'waiting_check' || taskDetails.status === 'completed') {
-                return (
-                    <Button variant="default" onClick={handleFinishInspection} disabled={!isChecklistComplete}>
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Завершить проверку
-                    </Button>
-                );
-            }
+                )
         }
         return null;
     };
