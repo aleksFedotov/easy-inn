@@ -8,7 +8,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 
 from users.models import User
 from users.serializers import UserSerializer
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -71,3 +72,31 @@ class UserViewSet(viewsets.ModelViewSet):
             return None 
         return super().paginate_queryset(queryset)
     
+
+
+@api_view(['GET'])  # Or whatever method you use
+def get_assigned_housekeepers_for_date(request):
+    scheduled_date_str = request.query_params.get('scheduled_date')
+    logger.info(f'Поиск горничных на дату {scheduled_date_str}')
+    if not scheduled_date_str:
+        return Response({"error": "scheduled_date is required"}, status=400)
+    try:
+        scheduled_date = timezone.datetime.strptime(scheduled_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return Response({"error": "Invalid date format. Use YYYY-MM-DD"}, status=400)
+
+   
+    available_housekeepers = User.objects.filter(role=User.Role.HOUSEKEEPER)  
+
+    # 2. Get housekeepers *already* assigned to tasks on this date
+    already_assigned_housekeepers = User.objects.filter(
+        assigned_tasks__scheduled_date=scheduled_date
+    ).distinct().all()
+
+   
+    all_relevant_housekeepers = (already_assigned_housekeepers).distinct()
+
+   
+    serializer = UserSerializer(all_relevant_housekeepers, many=True)  
+    return Response(serializer.data)
+

@@ -9,12 +9,9 @@ from cleaning.views import (
     CleaningTaskViewSet,
     get_cleaning_stats
 )
+from users.views import UserViewSet, get_assigned_housekeepers_for_date
 from hotel.views import RoomViewSet, RoomTypeViewSet, ZoneViewSet,RoomStatusViewSet
 
-
-# from incidents.views import IncidentReportViewSet # Uncomment if incidents app is ready
-# from shifts.views import ShiftNoteViewSet # Uncomment if shifts app is ready
-from users.views import UserViewSet
 
 
 # Create an instance of DefaultRouter
@@ -43,6 +40,7 @@ router.register(r'users', UserViewSet, basename='user')
 
 
 
+
 # router.register(r'incidents', IncidentReportViewSet, basename='incidentreport')
 
 
@@ -51,4 +49,5 @@ router.register(r'users', UserViewSet, basename='user')
 
 urlpatterns = [
     path('cleaning/stats/', get_cleaning_stats, name='cleaning-stats'),  
+    path('housekeepers/assigned/', get_assigned_housekeepers_for_date, name='assigned-housekeepers'),  
 ] + router.urls
