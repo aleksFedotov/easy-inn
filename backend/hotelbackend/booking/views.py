@@ -185,7 +185,7 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         queryset = self.filter_queryset(
             self.get_queryset().filter(
-                check_in__date__lte=selected_date,
+                check_in__date__lt=selected_date,
                 check_out__date__gt=selected_date 
             )
         )
