@@ -11,6 +11,7 @@ import React from 'react';
 // } from "@/components/ui/dropdown-menu"
 // import { useTheme } from 'next-themes';
 import { SidebarTrigger } from '../ui/sidebar';
+import UserProfileDropdown from '../ui/UserProfileDropdown';
 
 
 
@@ -40,6 +41,7 @@ const Navbar = () => {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu> */}
+        <UserProfileDropdown/>
       </div>
         
     </nav>
