@@ -9,7 +9,7 @@ import { Spinner } from '@/components/spinner';
 import ErrorMessage from '@/components/ErrorMessage';
 import api from '@/lib/api';
 import axios  from 'axios';
-import { LogOut,CalendarCheck,Map } from 'lucide-react';
+import { LogOut,House, BedDouble } from 'lucide-react';
 
 
 const MyCleaningTasksPage: React.FC = () => {
@@ -85,11 +85,11 @@ const MyCleaningTasksPage: React.FC = () => {
                              <span>Выезд</span>
                         </TabsTrigger>
                         <TabsTrigger value="current">
-                            <CalendarCheck size={16} />
+                            <BedDouble size={16} />
                             <span>Текущая</span>
                         </TabsTrigger>
                         <TabsTrigger value="zones">
-                            <Map size={16} />
+                            <House size={16} />
                             <span>Зоны</span>
                         </TabsTrigger>
                     </TabsList>

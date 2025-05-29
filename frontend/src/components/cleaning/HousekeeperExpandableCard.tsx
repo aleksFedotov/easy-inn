@@ -1,7 +1,7 @@
 'use client'; // Указываем, что это клиентский компонент
 
 import React, { useState } from 'react';
-import {  ChevronDown, LogOut, Bed, MapPin } from 'lucide-react'; // Импорт иконок
+import {  ChevronDown, LogOut, Bed, House } from 'lucide-react'; // Импорт иконок
 import { CleaningTask, User } from '@/lib/types'; // Импорт типов User и CleaningTask
 import { Avatar, AvatarFallback,  } from '@/components/ui/avatar';
 
@@ -30,7 +30,7 @@ const TaskCard: React.FC<{ task: CleaningTask; }> = ({ task }) => {
             icon = <Bed size={16} className="text-green-500" />;
             break;
         default: // Для зон или других типов
-            icon = <MapPin size={16} className="text-purple-500" />;
+            icon = <House size={16} className="text-purple-500" />;
             break;
     }
 
