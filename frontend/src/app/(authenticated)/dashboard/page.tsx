@@ -15,6 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { CleaningStats, RoomStatuses } from '@/lib/types';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { format } from 'date-fns';
+import { CLEANING_TYPES } from '@/lib/constants';
 
 const COLORS = ['#2563eb', '#dc2626', '#a855f7', '#16a34a', '#eab308', '#0e7490', '#f97316', '#7e22ce', '#0284c7'];
 
@@ -54,8 +55,8 @@ const DashboardPage: React.FC = () => {
       try {
         const tasksResponse = await api.get(`/api/cleaningtasks/`, { params: { all: true , scheduled_date:format(new Date(), 'yyyy-MM-dd')} });
         const tasks: CleaningTask[] = tasksResponse.data;
-        setCheckoutTasks(tasks.filter(task => task.cleaning_type_name === 'Уборка после выезда'));
-        setCurrentTasks(tasks.filter(task => task.cleaning_type_name !== 'Уборка после выезда' && task.zone_name === null));
+        setCheckoutTasks(tasks.filter(task => task.cleaning_type === CLEANING_TYPES.DEPARTURE));
+        setCurrentTasks(tasks.filter(task => task.cleaning_type !== CLEANING_TYPES.DEPARTURE && task.zone_name === null));
         setZoneTasks(tasks.filter(task => task.zone_name !== null));
 
         const statsResponse = await api.get('/api/cleaning/stats/', { params: { all: true } });

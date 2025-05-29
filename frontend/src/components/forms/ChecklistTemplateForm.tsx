@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChecklistTemplate, CleaningType } from '@/lib/types';
+import { Checklist } from '@/lib/types';
 import axios from 'axios';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,10 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from 'zod';
 import { Trash2, Plus } from 'lucide-react';
+import { cleaningTypeOptions, CLEANING_TYPE_VALUES } from '@/lib/constants';
+
+
+const CleaningTypeEnum = z.enum(CLEANING_TYPE_VALUES);
 
 
 interface ChecklistTemplateFormData {
@@ -43,8 +47,8 @@ interface ChecklistTemplateFormData {
 
 const formSchema = z.object({
     name: z.string().min(1, { message: "Поле 'Название шаблона' обязательно для заполнения." }),
-    cleaning_type: z.string().min(1, { message: "Поле 'Тип уборки' обязательно для выбора." })
-        .refine(val => !isNaN(parseInt(val)), { message: "Неверный формат типа уборки." }), // Ensure it's a number string
+    cleaning_type: CleaningTypeEnum
+        .refine(val => !!val, { message: "Выберите тип уборки." }),
     description: z.string().optional(),
     items: z.array(
         z.object({
@@ -54,23 +58,24 @@ const formSchema = z.object({
     ).min(0, { message: "Должен быть хотя бы один пункт в чек-листе." }), // Allow empty array for now, adjust if needed
 });
 
+type ChecklisFormValues = z.infer<typeof formSchema>;
+
 interface ChecklistTemplateFormProps {
-    checklistTemplateToEdit?: ChecklistTemplate;
-    availableCleaningTypes: CleaningType[];
+    checklistTemplateToEdit?: Checklist;
     onSuccess: () => void;
     onCancel: () => void;
 }
 
-export default function ChecklistTemplateForm({ checklistTemplateToEdit, availableCleaningTypes, onSuccess, onCancel }: ChecklistTemplateFormProps) {
+export default function ChecklistTemplateForm({ checklistTemplateToEdit, onSuccess, onCancel }: ChecklistTemplateFormProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [generalError, setGeneralError] = useState<string | null>(null);
 
    
-    const form = useForm<ChecklistTemplateFormData>({
+    const form = useForm<ChecklisFormValues>({
         resolver: zodResolver(formSchema),
         defaultValues: checklistTemplateToEdit ? {
             name: checklistTemplateToEdit.name,
-            cleaning_type: checklistTemplateToEdit.cleaning_type.toString(), // Convert to string for Select
+            cleaning_type: checklistTemplateToEdit.cleaning_type, // Convert to string for Select
             description: checklistTemplateToEdit.description || '',
             items: checklistTemplateToEdit.items?.map(item => ({
                 id: item.id,
@@ -78,7 +83,7 @@ export default function ChecklistTemplateForm({ checklistTemplateToEdit, availab
             })) || [],
         } : {
             name: '',
-            cleaning_type: '', 
+            cleaning_type: undefined, 
             description: '',
             items: [],
         },
@@ -89,6 +94,7 @@ export default function ChecklistTemplateForm({ checklistTemplateToEdit, availab
         name: "items",
     });
 
+
     const onSubmit = async (data: ChecklistTemplateFormData) => {
         setIsLoading(true);
         setGeneralError(null); 
@@ -96,7 +102,7 @@ export default function ChecklistTemplateForm({ checklistTemplateToEdit, availab
             let response;
             const dataToSend = {
                 name: data.name,
-                cleaning_type: parseInt(data.cleaning_type),
+                cleaning_type: data.cleaning_type,
                 description: data.description,
                 items: data.items.map(item => ({
                     ...(item.id && { id: item.id }), 
@@ -200,9 +206,9 @@ export default function ChecklistTemplateForm({ checklistTemplateToEdit, availab
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    {availableCleaningTypes.map(type => (
-                                        <SelectItem key={type.id} value={type.id.toString()}>
-                                            {type.name}
+                                    {cleaningTypeOptions.map(type => (
+                                        <SelectItem key={type.value} value={type.value}>
+                                            {type.label}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

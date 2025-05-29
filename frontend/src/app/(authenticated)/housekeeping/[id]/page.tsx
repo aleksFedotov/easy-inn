@@ -310,7 +310,7 @@ export default function CleaningTaskDetailsPage() {
                                     </li>
                                     <li className="flex items-center">
                                         <BookOpen className="mr-2 h-4 w-4" />
-                                        <span>Тип уборки: {taskDetails.cleaning_type_name}</span>
+                                        <span>Тип уборки: {taskDetails.cleaning_type_display}</span>
                                     </li>
                                     <li className="flex items-center">
                                         <UserIcon className="mr-2 h-4 w-4" />

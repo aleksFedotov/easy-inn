@@ -10,6 +10,7 @@ import ErrorMessage from '@/components/ErrorMessage';
 import api from '@/lib/api';
 import axios  from 'axios';
 import { LogOut,House, BedDouble } from 'lucide-react';
+import { CLEANING_TYPES } from '@/lib/constants';
 
 
 const MyCleaningTasksPage: React.FC = () => {
@@ -34,8 +35,8 @@ const MyCleaningTasksPage: React.FC = () => {
                 });
                 const tasks: CleaningTask[] = response.data;
                 //  Фильтруем задачи по категориям
-                setCheckoutTasks(tasks.filter(task => task.cleaning_type_name === "Уборка после выезда"));
-                setCurrentTasks(tasks.filter(task => task.cleaning_type_name !== "Уборка после выезда" && task.zone_name === null));
+                setCheckoutTasks(tasks.filter(task => task.cleaning_type === CLEANING_TYPES.DEPARTURE));
+                setCurrentTasks(tasks.filter(task => task.cleaning_type !== CLEANING_TYPES.DEPARTURE && task.zone_name === null));
                 setZoneTasks(tasks.filter(task => task.zone_name !== null));
 
 
@@ -57,7 +58,6 @@ const MyCleaningTasksPage: React.FC = () => {
 
     //  Функция для определения цвета карточки для задач выезда
     const getCheckoutCardColor = (task: CleaningTask) => {
-        console.log(task.is_guest_checked_out)
         return task.is_guest_checked_out ? 'bg-red-100' : 'bg-gray-100';
     };
 

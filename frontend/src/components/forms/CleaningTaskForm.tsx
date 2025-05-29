@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { CleaningTask, Room, Zone, CleaningType, User } from '@/lib/types';
+import { CleaningTask, Room, Zone, User } from '@/lib/types';
 import axios from 'axios';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -24,28 +24,35 @@ import {
 } from "@/components/ui/form";
 import { Spinner } from '@/components/spinner';
 
-import { useForm } from "react-hook-form";
+import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from 'zod';
 import { CalendarDays, Clock, User as UserIcon, Tag, MapPin, FileText } from 'lucide-react';
+import { cleaningTypeOptions, CLEANING_TYPE_VALUES } from '@/lib/constants';
+
+
+
+
+const CleaningTypeEnum = z.enum(CLEANING_TYPE_VALUES);
+
 
 // Define the form data type
 interface CleaningTaskFormData {
-    room?: string;
-    zone?: string; 
-    cleaning_type: string; 
-    assigned_to: string; 
+    cleaning_type: "stayover" | "departure_cleaning" | "deep_cleaning" | "on_demand" | "post_renovation_cleaning" | "public_area_cleaning";
     scheduled_date: string;
-    due_time: string;
-    notes: string;
+    due_time?: string;
+    assigned_to?: string;
+    room?: string;
+    zone?: string;
+    notes?: string;
 }
 
 // Zod validation schema
 const formSchema = z.object({
     room: z.string().optional(),
     zone: z.string().optional(),
-    cleaning_type: z.string().min(1, { message: "Выберите тип уборки." })
-        .refine(val => !isNaN(parseInt(val)), { message: "Неверный формат типа уборки." }),
+    cleaning_type: CleaningTypeEnum
+        .refine(val => !!val, { message: "Выберите тип уборки." }),
     assigned_to: z.string().optional(),
     scheduled_date: z.string().min(1, { message: "Укажите запланированную дату." }),
     due_time: z.string().optional(),
@@ -71,17 +78,17 @@ interface CleaningTaskFormProps {
     cleaningTaskToEdit?: CleaningTask;
     availableRooms: Room[];
     availableZones: Zone[];
-    availableCleaningTypes: CleaningType[];
     availableHousekeepers: User[];
     onSuccess: () => void;
     onCancel: () => void;
 }
 
+
+
 export default function CleaningTaskForm({
     cleaningTaskToEdit,
     availableRooms,
     availableZones,
-    availableCleaningTypes,
     availableHousekeepers,
     onSuccess,
     onCancel
@@ -94,7 +101,7 @@ export default function CleaningTaskForm({
        defaultValues: cleaningTaskToEdit ? {
             room: cleaningTaskToEdit.room?.toString() || '',
             zone: cleaningTaskToEdit.zone?.toString() || '',
-            cleaning_type: cleaningTaskToEdit.cleaning_type.toString(),
+            cleaning_type: cleaningTaskToEdit.cleaning_type,
             assigned_to: cleaningTaskToEdit.assigned_to?.toString() || '',
             scheduled_date: cleaningTaskToEdit.scheduled_date ?? new Date().toISOString().split('T')[0], // ✅ Убедись, что это строка
             due_time: cleaningTaskToEdit.due_time ? cleaningTaskToEdit.due_time.substring(11, 16) : '',
@@ -102,7 +109,7 @@ export default function CleaningTaskForm({
         } : {
             room: '',
             zone: '',
-            cleaning_type: '',
+            cleaning_type: undefined,
             assigned_to: '',
             scheduled_date: new Date().toISOString().split('T')[0], // ✅ по умолчанию — сегодняшняя дата
             due_time: '',
@@ -129,16 +136,16 @@ export default function CleaningTaskForm({
     }, [zoneValue, form]);
 
 
-    const onSubmit = async (data: CleaningTaskFormData) => {
+    const onSubmit: SubmitHandler<CleaningTaskFormData>= async (data: CleaningTaskFormData) => {
         setIsLoading(true);
         setGeneralError(null);
 
         try {
             const dataToSend = {
-                room: data.room !== 'not_selected' ? parseInt(data.room) : null,
-                zone: data.zone !== 'not_selected' ? parseInt(data.zone) : null,
-                cleaning_type: parseInt(data.cleaning_type),
-                assigned_to: data.assigned_to !== 'not_selected' ? parseInt(data.assigned_to) : null,
+                room: data.room && data.room !== 'not_selected' ? parseInt(data.room) : null,
+                zone: data.zone && data.zone !== 'not_selected' ? parseInt(data.zone) : null,
+                cleaning_type:data.cleaning_type,
+                assigned_to:data.assigned_to && data.assigned_to !== 'not_selected' ? parseInt(data.assigned_to) : null,
                 scheduled_date: data.scheduled_date,
                 due_time: data.due_time !== '' ? `${data.scheduled_date}T${data.due_time}:00` : null,
                 notes: data.notes !== '' ? data.notes : null,
@@ -269,8 +276,8 @@ export default function CleaningTaskForm({
                                 </FormControl>
                                 <SelectContent>
                                     <SelectItem value="not_selected">Выберите тип уборки</SelectItem>
-                                    {availableCleaningTypes.map(type => (
-                                        <SelectItem key={type.id} value={type.id.toString()}>{type.name}</SelectItem>
+                                    {cleaningTypeOptions.map(typeOption => (
+                                        <SelectItem key={typeOption.value} value={typeOption.value}>{typeOption.label}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
