@@ -37,12 +37,14 @@ export interface Booking {
     notes: string | null;
     created_at: string; 
     updated_at: string; 
-    created_by: User | null; 
+    created_by: User | null;
+    status: string;
 
     // Поля только для чтения из сериализатора 
     created_by_name?: string | null; 
     duration_days?: number | null; 
-    status_display: string 
+    status_display: string ;
+    booking_status_display: string;
 }
 
 export interface RoomType {
@@ -132,4 +134,33 @@ export interface CleaningTask {
     notes: string | null; 
     checklist_data: Checklist;
     is_guest_checked_out: boolean;
+}
+
+
+export interface CleaningStats {
+    checkoutTotal: number;         
+    checkoutCompleted: number;     
+    checkoutAvgTime: number | null; 
+    currentTotal: number;          
+    currentCompleted: number;      
+    currentAvgTime: number | null;  
+}
+
+// --- Интерфейс для RoomStatuses ---
+
+export interface RoomStatuses {
+    free?: number;
+    occupied?:number;
+    dirty?: number,
+    in_progress?: number;          
+    assigned?: number,
+    waiting_inspection?: number;
+    clean?: number;
+    on_maintenance?: number;              
+}
+
+export interface RoomStatusesApi {
+    id: number;   
+    number: number;          
+    status: 'free' | 'occupied' | 'waiting_checkout' | 'dirty' | 'assigned' | 'in_progress' |'waiting_inspection' |'clean' |'on_maintenance'  ;              
 }

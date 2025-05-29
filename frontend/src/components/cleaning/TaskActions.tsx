@@ -59,83 +59,83 @@ const TaskActions = ({ task, user, fetchCleaningTasks, selectedDate, onDelete, o
     },[fetchCleaningTasks, selectedDate,  task.id]);
 
     // Memoized array of available actions based on task status and user role
-    const actions = useMemo(() => {
-        const availableActions = [];
+    // const actions = useMemo(() => {
+    //     const availableActions = [];
 
-        if (user) { // Check if user object exists
-            switch (task.status) {
-                case 'assigned': // Assigned status
-                case 'on_hold': // On hold status
-                    // "Start" button for housekeeper (if assigned) or manager/front-desk
-                    if ((user.role === 'housekeeper' && task.assigned_to === user.id) || user.role === 'manager' || user.role === 'front-desk') {
-                        availableActions.push({
-                            label: 'Начать',
-                            icon: <Play size={16} className="mr-2 h-4 w-4" />,
-                            onClick: () => handleStatusChange('start'),
-                        });
-                    }
-                    // "Cancel" button for manager/front-desk
-                    if (user.role === 'manager' || user.role === 'front-desk') {
-                        availableActions.push({
-                            label: 'Отменить',
-                            icon: <XCircle size={16} className="mr-2 h-4 w-4" />,
-                            onClick: () => handleStatusChange('cancel'),
-                        });
-                    }
-                    break;
-                case 'in_progress': // In progress status
-                    // "Complete" button for housekeeper (if assigned) or manager/front-desk
-                    if ((user.role === 'housekeeper' && task.assigned_to === user.id) || user.role === 'manager' || user.role === 'front-desk') {
-                        availableActions.push({
-                            label: 'Завершить',
-                            icon: <CheckSquare size={16} className="mr-2 h-4 w-4" />,
-                            onClick: () => handleStatusChange('complete'),
-                        });
-                    }
-                    // "Cancel" button for manager/front-desk
-                    if (user.role === 'manager' || user.role === 'front-desk') {
-                        availableActions.push({
-                            label: 'Отменить',
-                            icon: <XCircle size={16} className="mr-2 h-4 w-4" />,
-                            onClick: () => handleStatusChange('cancel'),
-                        });
-                    }
+    //     if (user) { // Check if user object exists
+    //         switch (task.status) {
+    //             case 'assigned': // Assigned status
+    //             case 'on_hold': // On hold status
+    //                 // "Start" button for housekeeper (if assigned) or manager/front-desk
+    //                 if ((user.role === 'housekeeper' && task.assigned_to === user.id) || user.role === 'manager' || user.role === 'front-desk') {
+    //                     availableActions.push({
+    //                         label: 'Начать',
+    //                         icon: <Play size={16} className="mr-2 h-4 w-4" />,
+    //                         onClick: () => handleStatusChange('start'),
+    //                     });
+    //                 }
+    //                 // "Cancel" button for manager/front-desk
+    //                 if (user.role === 'manager' || user.role === 'front-desk') {
+    //                     availableActions.push({
+    //                         label: 'Отменить',
+    //                         icon: <XCircle size={16} className="mr-2 h-4 w-4" />,
+    //                         onClick: () => handleStatusChange('cancel'),
+    //                     });
+    //                 }
+    //                 break;
+    //             case 'in_progress': // In progress status
+    //                 // "Complete" button for housekeeper (if assigned) or manager/front-desk
+    //                 if ((user.role === 'housekeeper' && task.assigned_to === user.id) || user.role === 'manager' || user.role === 'front-desk') {
+    //                     availableActions.push({
+    //                         label: 'Завершить',
+    //                         icon: <CheckSquare size={16} className="mr-2 h-4 w-4" />,
+    //                         onClick: () => handleStatusChange('complete'),
+    //                     });
+    //                 }
+    //                 // "Cancel" button for manager/front-desk
+    //                 if (user.role === 'manager' || user.role === 'front-desk') {
+    //                     availableActions.push({
+    //                         label: 'Отменить',
+    //                         icon: <XCircle size={16} className="mr-2 h-4 w-4" />,
+    //                         onClick: () => handleStatusChange('cancel'),
+    //                     });
+    //                 }
 
-                    break;
-                case 'completed': // Completed status
-                case 'waiting_inspection': // Waiting inspection status
-                    // "Check" button for manager/front-desk
-                    if (user.role === 'manager' || user.role === 'front-desk') {
-                        availableActions.push({
-                            label: 'Проверить',
-                            icon: <Eye size={16} className="mr-2 h-4 w-4" />,
-                            onClick: () => handleStatusChange('check'),
-                        });
-                        // "Cancel" button for manager/front-desk
-                        availableActions.push({
-                            label: 'Отменить',
-                            icon: <XCircle size={16} className="mr-2 h-4 w-4" />,
-                            onClick: () => handleStatusChange('cancel'),
-                        });
-                    }
-                    break;
-                case 'checked': // Checked status
-                    // "Cancel" button for manager/front-desk
-                    if (user.role === 'manager' || user.role === 'front-desk') {
-                        availableActions.push({
-                            label: 'Отменить',
-                            icon: <XCircle size={16} className="mr-2 h-4 w-4" />,
-                            onClick: () => handleStatusChange('cancel'),
-                        });
-                    }
-                    break;
-                case 'canceled': // Canceled status
-                    break;
-            }
-        }
+    //                 break;
+    //             case 'completed': // Completed status
+    //             case 'waiting_check': // Waiting inspection status
+    //                 // "Check" button for manager/front-desk
+    //                 if (user.role === 'manager' || user.role === 'front-desk') {
+    //                     availableActions.push({
+    //                         label: 'Проверить',
+    //                         icon: <Eye size={16} className="mr-2 h-4 w-4" />,
+    //                         onClick: () => handleStatusChange('check'),
+    //                     });
+    //                     // "Cancel" button for manager/front-desk
+    //                     availableActions.push({
+    //                         label: 'Отменить',
+    //                         icon: <XCircle size={16} className="mr-2 h-4 w-4" />,
+    //                         onClick: () => handleStatusChange('cancel'),
+    //                     });
+    //                 }
+    //                 break;
+    //             case 'checked': // Checked status
+    //                 // "Cancel" button for manager/front-desk
+    //                 if (user.role === 'manager' || user.role === 'front-desk') {
+    //                     availableActions.push({
+    //                         label: 'Отменить',
+    //                         icon: <XCircle size={16} className="mr-2 h-4 w-4" />,
+    //                         onClick: () => handleStatusChange('cancel'),
+    //                     });
+    //                 }
+    //                 break;
+    //             case 'canceled': // Canceled status
+    //                 break;
+    //         }
+    //     }
 
-        return availableActions;
-    }, [task, user, handleStatusChange]);
+    //     return availableActions;
+    // }, [task, user, handleStatusChange]);
 
     // Show spinner if an action is in progress
     if (isPerformingAction) {
@@ -167,13 +167,13 @@ const TaskActions = ({ task, user, fetchCleaningTasks, selectedDate, onDelete, o
                         </DropdownMenuItem>
                 </Fragment>
                 )}
-                {/* Render status change actions */}
+                {/* Render status change actions
                 {actions.map((action, index) => (
                     <DropdownMenuItem key={index} onClick={action.onClick}>
                         {action.icon}
                         {action.label}
                     </DropdownMenuItem>
-                ))}
+                ))} */}
             </DropdownMenuContent>
         </DropdownMenu>
     );

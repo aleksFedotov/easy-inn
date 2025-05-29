@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import  api  from '@/lib/api';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import api from '@/lib/api';
 import { CleaningTask, User, Room, Zone, CleaningType } from '@/lib/types';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -17,8 +17,11 @@ const useHousekeepingData = ({ selectedDate }: UseHousekeepingDataProps) => {
     const [cleaningTypes, setCleaningTypes] = useState<CleaningType[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    
+    // Используем ref для отслеживания, чтобы избежать лишних перерендеров
+    const lastFetchedDateRef = useRef<string | null>(null);
 
-    // Callback to fetch cleaning tasks
+    // Callback to fetch cleaning tasks - убираем из зависимостей
     const fetchCleaningTasks = useCallback(async (date: string) => {
         try {
             const response = await api.get<CleaningTask[]>('/api/cleaningtasks/', {
@@ -39,9 +42,9 @@ const useHousekeepingData = ({ selectedDate }: UseHousekeepingDataProps) => {
                 toast.error('Произошла ошибка при загрузке задач.');
             }
         }
-    }, []);
+    }, []); // Пустой массив зависимостей
 
-    // Callback to fetch ALL housekeepers
+    // Остальные fetch функции тоже делаем стабильными
     const fetchAllHousekeepers = useCallback(async () => {
         try {
             const response = await api.get<User[]>('/api/users/', {
@@ -64,7 +67,6 @@ const useHousekeepingData = ({ selectedDate }: UseHousekeepingDataProps) => {
         }
     }, []);
 
-    // Callback to fetch rooms
     const fetchRooms = useCallback(async () => {
         try {
             const response = await api.get<Room[]>('/api/rooms/', {
@@ -86,7 +88,6 @@ const useHousekeepingData = ({ selectedDate }: UseHousekeepingDataProps) => {
         }
     }, []);
 
-    // Callback to fetch zones
     const fetchZones = useCallback(async () => {
         try {
             const response = await api.get<Zone[]>('/api/zones/', {
@@ -108,7 +109,6 @@ const useHousekeepingData = ({ selectedDate }: UseHousekeepingDataProps) => {
         }
     }, []);
 
-    // Callback to fetch cleaning types
     const fetchCleaningTypes = useCallback(async () => {
         try {
             const response = await api.get<CleaningType[]>('/api/cleaningtypes/', {
@@ -130,10 +130,19 @@ const useHousekeepingData = ({ selectedDate }: UseHousekeepingDataProps) => {
         }
     }, []);
 
-    const fetchData = useCallback(async () => {
+    // Главная функция загрузки данных
+    const fetchData = useCallback(async (forceRefresh = false) => {
+        const dateString = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+        
+        // Проверяем, нужно ли перезагружать данные
+        if (!forceRefresh && lastFetchedDateRef.current === dateString && 
+            cleaningTasks.length > 0 && allAvailableHousekeepers.length > 0) {
+            return; // Данные уже загружены для этой даты
+        }
+
         setIsLoadingData(true);
         setError(null);
-        const dateString = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+        lastFetchedDateRef.current = dateString;
 
         try {
             await Promise.all([
@@ -149,14 +158,16 @@ const useHousekeepingData = ({ selectedDate }: UseHousekeepingDataProps) => {
         } finally {
             setIsLoadingData(false);
         }
-    }, [selectedDate, fetchCleaningTasks, fetchAllHousekeepers, fetchRooms, fetchZones, fetchCleaningTypes]);
+    }, [selectedDate, fetchCleaningTasks, fetchAllHousekeepers, fetchRooms, fetchZones, fetchCleaningTypes, cleaningTasks.length, allAvailableHousekeepers.length]);
 
+    // Эффект для загрузки данных при изменении даты
     useEffect(() => {
         fetchData();
-    }, [fetchData]);
+    }, [selectedDate]); // Только selectedDate в зависимостях
 
+    // Функция для принудительного обновления данных
     const refetchData = useCallback(() => {
-        fetchData();
+        fetchData(true); // Передаем forceRefresh = true
     }, [fetchData]);
 
     return {
@@ -173,8 +184,8 @@ const useHousekeepingData = ({ selectedDate }: UseHousekeepingDataProps) => {
         isLoadingData,
         error,
         setError,
-        refetchData, // Export the refetchData function
-        fetchCleaningTasks, // Keep individual fetch functions for potential specific uses
+        refetchData,
+        fetchCleaningTasks,
         fetchAllHousekeepers,
         fetchRooms,
         fetchZones,
@@ -182,4 +193,4 @@ const useHousekeepingData = ({ selectedDate }: UseHousekeepingDataProps) => {
     };
 };
 
-export default useHousekeepingData;
+export default useHousekeepingData

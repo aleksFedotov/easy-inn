@@ -470,7 +470,7 @@ export default function FrontDeskPage() {
             {
                 accessorKey: 'status_display',
                 header: 'Статус',
-                cell: ({ row }) => row.original.status_display,
+                cell: ({ row }) => row.original.booking_status_display,
             },
             {
                 id: 'actions',

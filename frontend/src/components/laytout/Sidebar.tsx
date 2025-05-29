@@ -31,7 +31,7 @@ const menuItems = [
     name: 'Главная',
     href: '/dashboard',
     icon: Home,
-    roles: ['frontDesk', 'manager', 'housekeeper'], 
+    roles: ['frontDesk', 'manager',], 
   },
   {
     id: 'front-desk', 

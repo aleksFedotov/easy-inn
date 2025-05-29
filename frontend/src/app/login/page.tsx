@@ -14,7 +14,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const { isAuthenticated, isLoading, login } = useAuth(); // Получаем состояние и функцию login из контекста
+  const { isAuthenticated, isLoading, login, user } = useAuth(); // Получаем состояние и функцию login из контекста
 
   // Если пользователь уже аутентифицирован (например, вернулся на страницу логина),
   // перенаправляем его на dashboard
@@ -22,7 +22,11 @@ export default function LoginPage() {
       // Проверяем isLoading, чтобы не перенаправить до завершения первичной проверки в AuthProvider
       if (!isLoading && isAuthenticated) {
           console.log("User already authenticated. Redirecting from login page to dashboard.");
-          router.push('/dashboard');
+          if(user?.role == 'housekeeper') {
+            router.push('/my-cleaning-task')
+          } else {
+            router.push('/dashboard');
+          }
       }
   }, [isAuthenticated, isLoading, router]); // Зависимости от состояния контекста и router
 
