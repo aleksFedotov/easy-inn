@@ -33,6 +33,7 @@ import {
     Search,
     User as UserIcon,
     Loader,
+    RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -129,6 +130,7 @@ export default function HousekeepingPage() {
         } catch (error) {
             if (axios.isAxiosError(error) && error.response) {
                 toast.error(error.response.data.detail || error.response.data.message || JSON.stringify(error.response.data));
+                console.log(error.response.data.detail || error.response.data.message || JSON.stringify(error.response.data))
             } else {
                 toast.error('Произошла ошибка при автоматической генерации задач.');
             }
@@ -417,13 +419,7 @@ export default function HousekeepingPage() {
                     </Button>
                 </div>
 
-              
-                    <Button
-                        onClick={handleCreateEditTaskClick}
-                        disabled={isLoadingData || isAutoAssigning || isCreateEditTaskModalOpen || isDeleteModalOpen || isHousekeeperSelectionModalOpen}
-                    >
-                        <Plus size={18} className="mr-2" /> Создать задачу
-                    </Button>
+                
                      
             </div>
 
@@ -476,10 +472,28 @@ export default function HousekeepingPage() {
                 </div>
 
                 {/* Right Column: Cleaning Tasks List */}
-                <div className="md:col-span-2 bg-white shadow-md rounded-lg p-4">
+                <div className="md:col-span-2 shadow-md rounded-lg p-4 ">
                     <h2 className="text-xl font-semibold text-gray-700 mb-4">
                         Задачи уборки ({selectedDate ? format(selectedDate, 'dd.MM.yyyy', { locale: ru }) : 'Выберите дату'})
                     </h2>
+                    <div className="flex space-x-2 py-2 w-full">
+                    
+
+                        <Button
+                            onClick={handleAutoGenerateTasks}
+                            disabled={isLoadingData || isAutoAssigning || isCreateEditTaskModalOpen || isDeleteModalOpen || isHousekeeperSelectionModalOpen}
+                        >
+                            <RefreshCw size={18} className="mr-2" /> Обновить задачи
+                        </Button>
+                        <Button
+                            onClick={handleCreateEditTaskClick}
+                            disabled={isLoadingData || isAutoAssigning || isCreateEditTaskModalOpen || isDeleteModalOpen || isHousekeeperSelectionModalOpen}
+                        >
+                            <Plus size={18} className="mr-2" /> Создать задачу
+                        </Button>
+
+
+                    </div>
                     {/* Task Search Input */}
                     <div className="relative mb-4">
                         <Input
