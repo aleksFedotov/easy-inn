@@ -1,32 +1,16 @@
 from rest_framework import serializers 
 from django.contrib.auth import get_user_model # Import get_user_model to reference the User model
-from .models import CleaningType, ChecklistTemplate, ChecklistItemTemplate, CleaningTask
+from .models import  ChecklistTemplate, ChecklistItemTemplate, CleaningTask
 from django.core.exceptions import ValidationError as DjangoValidationError 
 from rest_framework.exceptions import ValidationError as DRFValidationError
-from hotel.models import Room, Zone 
+from cleaning.cleaningTypeChoices import CleaningTypeChoices
+from hotel.models import Room
 import logging 
+
 
 UserModel = get_user_model() # Get the custom User model / Получаем пользовательскую модель User
 logger = logging.getLogger(__name__)
-# --- CleaningType Serializer ---
 
-class CleaningTypeSerializer(serializers.ModelSerializer):
-    """
-    Serializer for the CleaningType model.
-    Handles serialization and deserialization of cleaning type data.
-    Сериализатор для модели CleaningType.
-    Обрабатывает сериализацию и десериализацию данных о типах уборок.
-    """
-    class Meta:
-        model = CleaningType # Specify the model to be serialized / Указываем модель для сериализации
-        fields = [ # List of fields to include in the serialization / Список полей для включения в сериализацию
-            'id',
-            'name',
-            'description'
-        ]
-        read_only_fields = ['id'] # Fields that should be included in the output but not accepted for input / Поля, которые должны быть включены в вывод, но не приниматься для ввода
-
-# --- ChecklistItemTemplate Serializer ---
 
 class ChecklistItemTemplateSerializer(serializers.ModelSerializer):
     """
@@ -60,7 +44,7 @@ class ChecklistTemplateSerializer(serializers.ModelSerializer):
     """
     # To display the name of the related CleaningType instead of just its ID
     # Используется для отображения имени связанного CleaningType вместо его ID
-    cleaning_type_name = serializers.CharField(source='cleaning_type.name', read_only=True)
+    cleaning_type_display = serializers.SerializerMethodField()
 
     items = ChecklistItemTemplateSerializer(many=True)
 
@@ -70,11 +54,11 @@ class ChecklistTemplateSerializer(serializers.ModelSerializer):
             'id',
             'name',
             'cleaning_type', # Allows setting the CleaningType via its ID / Позволяет устанавливать CleaningType по его ID
-            'cleaning_type_name', # Read-only field displaying the name / Поле только для чтения, отображающее имя
+            'cleaning_type_display', # Read-only field displaying the name / Поле только для чтения, отображающее имя
             'description',
             'items', 
         ]
-        read_only_fields = ['id', 'cleaning_type_name'] # Read-only fields / Поля только для чтения
+        read_only_fields = ['id',  'cleaning_type_display',] # Read-only fields / Поля только для чтения
 
     def create(self, validated_data):
         
@@ -120,6 +104,8 @@ class ChecklistTemplateSerializer(serializers.ModelSerializer):
                  )
 
         return instance
+    def get_cleaning_type_display(self, obj):
+        return obj.get_cleaning_type_display()
 
 class MultipleTaskAssignmentSerializer(serializers.Serializer):
     task_ids = serializers.ListField(child=serializers.IntegerField(), required=True)
@@ -168,7 +154,7 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
     # allow_null=True используется, потому что связанные поля ForeignKey могут быть NULL.
     room_number = serializers.CharField(source='room.number', read_only=True, allow_null=True)
     zone_name = serializers.CharField(source='zone.name', read_only=True, allow_null=True)
-    cleaning_type_name = serializers.CharField(source='cleaning_type.name', read_only=True, allow_null=True)
+    cleaning_type_display = serializers.SerializerMethodField()
 
     # Use SerializerMethodField for user names to handle None assigned users gracefully.
     # These methods are defined below and return the name or None if the user is not assigned.
@@ -180,19 +166,19 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
     checklist_data = serializers.SerializerMethodField()
     is_guest_checked_out = serializers.SerializerMethodField()
 
+    def get_cleaning_type_display(self, obj):
+        return obj.get_cleaning_type_display()
     
-    def get_is_guest_checked_out(self, obj) -> bool:
+    def get_is_guest_checked_out(self, obj):
         """
         Возвращает True, если тип задачи — 'уборка после выезда',
         и комната уже отмечена как dirty (гость выехал).
         Иначе False или None.
         """
-        if obj.cleaning_type and obj.room:
-            type_name = obj.cleaning_type.name.lower()
-            logger.info(type_name)
-            if 'уборка после выезда' in type_name:
-                return obj.room.status == 'dirty'
+        if obj.cleaning_type == CleaningTypeChoices.DEPARTURE_CLEANING and obj.room:
+            return obj.room.status == Room.Status.DIRTY
         return False
+
 
 
     def get_assigned_to_name(self, obj):
@@ -318,6 +304,7 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
         """
         Получает данные шаблона чек-листа, связанные с типом уборки данной задачи.
         """
+        logger.info(f'cleaning type {obj.cleaning_type}')
         if not obj.cleaning_type:
             return {
                 "name": None,
@@ -328,7 +315,7 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
         checklist_template = ChecklistTemplate.objects.filter(
             cleaning_type=obj.cleaning_type
         ).prefetch_related('items').first()
-
+        logger.info(f'!!!!!!!checklist_templatee {checklist_template}')
         if checklist_template:
             return ChecklistTemplateSerializer(checklist_template, context=self.context).data
 
@@ -354,7 +341,7 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
             'zone_name', # Read-only, displays zone name / Только для чтения, отображает название зоны
             'booking', # Allows setting the Booking via ID / Позволяет устанавливать бронирование по ID
             'cleaning_type', # Allows setting the CleaningType via ID / Позволяет устанавливать тип уборки по ID
-            'cleaning_type_name', # Read-only, displays cleaning type name / Только для чтения, отображает название типа уборки
+            'cleaning_type_display', # Read-only, displays cleaning type name / Только для чтения, отображает название типа уборки
             'status', # Allows setting the status / Позволяет устанавливать статус
             'status_display', # Read-only, displays human-readable status / Только для чтения, отображает человекочитаемый статус
             'scheduled_date', # Allows setting the scheduled date / Позволяет устанавливать запланированную дату
@@ -377,7 +364,7 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
             'assigned_by_name',
             'room_number',
             'zone_name',
-            'cleaning_type_name',
+            'cleaning_type_display',
             'checked_by_name',
             'status_display',
             'assigned_at',

@@ -4,7 +4,7 @@ from django.db import IntegrityError
 from django.contrib.auth import get_user_model 
 from django.utils import timezone 
 from datetime import datetime, time, date 
-from cleaning.models import CleaningType, ChecklistTemplate, ChecklistItemTemplate, CleaningTask
+from cleaning.models import ChecklistTemplate, ChecklistItemTemplate, CleaningTask
 from hotel.models import Room, Zone, RoomType
 from booking.models import Booking
 from users.models import User
@@ -45,10 +45,6 @@ def zone_instance():
     """Fixture to create a Zone instance."""
     return Zone.objects.create(name="Lobby_Test", floor=1)
 
-@pytest.fixture
-def cleaning_type_instance():
-    """Fixture to create a CleaningType instance."""
-    return CleaningType.objects.create(name="Daily_Test")
 
 @pytest.fixture
 def checklist_template_instance(cleaning_type_instance):
@@ -87,56 +83,6 @@ def cleaning_task_instance(room_instance, cleaning_type_instance, housekeeper_us
         scheduled_date=date.today(),
         due_time=timezone.now() + timezone.timedelta(hours=1)
     )
-
-
-# --- CleaningType Model Tests ---
-# Тесты для модели CleaningType
-# Tests for the CleaningType model
-
-@pytest.mark.django_db # Mark test to use the database / Отмечаем тест для использования базы данных
-def test_cleaningtype_creation():
-    """
-    Test that a CleaningType object can be created.
-    Тест, что объект CleaningType может быть создан.
-    """
-    # Create a CleaningType instance / Создаем экземпляр CleaningType
-    cleaning_type = CleaningType.objects.create(name="Test Cleaning Type")
-
-    # Assert that the object was created and has the correct attributes
-    # Проверяем, что объект был создан и имеет корректные атрибуты
-    assert cleaning_type.pk is not None # Check if a primary key was assigned / Проверяем, был ли присвоен первичный ключ
-    assert cleaning_type.name == "Test Cleaning Type"
-    assert CleaningType.objects.count() == 1 # Check if one object exists in the database / Проверяем, существует ли один объект в базе данных
-
-
-@pytest.mark.django_db
-def test_cleaningtype_unique_name():
-    """
-    Test that creating a CleaningType with a duplicate name raises IntegrityError.
-    Тест, что создание CleaningType с дублирующимся именем вызывает IntegrityError.
-    """
-    # Create the first instance / Создаем первый экземпляр
-    CleaningType.objects.create(name="Unique Name")
-
-    # Attempt to create a second instance with the same name and assert that it raises IntegrityError
-    # Пытаемся создать второй экземпляр с тем же именем и проверяем, что это вызывает IntegrityError
-    with pytest.raises(IntegrityError):
-        CleaningType.objects.create(name="Unique Name")
-
-    # Removed the assertion about object count here, as it causes TransactionManagementError after IntegrityError
-    # Удалено утверждение о количестве объектов здесь, так как оно вызывает TransactionManagementError после IntegrityError
-
-
-@pytest.mark.django_db
-def test_cleaningtype_str_representation():
-    """
-    Test the __str__ method of the CleaningType model.
-    Тест метода __str__ модели CleaningType.
-    """
-    cleaning_type = CleaningType.objects.create(name="Test Type Str")
-    # Assert that the string representation is the name of the cleaning type
-    # Проверяем, что строковое представление является именем типа уборки
-    assert str(cleaning_type) == "Test Type Str"
 
 
 # --- ChecklistTemplate Model Tests ---

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import CleaningType, ChecklistTemplate, ChecklistItemTemplate, CleaningTask
+from .models import ChecklistTemplate, ChecklistItemTemplate, CleaningTask
 
 class ChecklistItemTemplateInline(admin.TabularInline): 
     model = ChecklistItemTemplate 
@@ -12,7 +12,6 @@ class CleaningTypeAdmin(admin.ModelAdmin):
     list_display = ('name',)
     search_fields = ('name',)
 
-admin.site.register(CleaningType, CleaningTypeAdmin)
 
 class ChecklistTemplateAdmin(admin.ModelAdmin):
     list_display = ('name', 'cleaning_type')

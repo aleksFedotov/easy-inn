@@ -4,40 +4,16 @@ from users.models import User
 from booking.models import Booking
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from datetime import datetime, time
+from datetime import time
+from .cleaningTypeChoices import CleaningTypeChoices
 
 # Create your models here.
 # Создайте свои модели здесь.
 
-class CleaningType(models.Model):
-    # Мета-параметры модели
-    # Model meta options
-    class Meta:
-        verbose_name = "Тип уборки" # Человекочитаемое имя модели в единственном числе / Human-readable name for the model (singular)
-        verbose_name_plural = "Типы уборок" # Человекочитаемое имя модели во множественном числе / Human-readable name for the model (plural)
-        ordering = ['name'] # Порядок сортировки по умолчанию / Default ordering
-
-    # Поле для названия типа уборки (например, "Ежедневная", "Генеральная")
-    # Field for the cleaning type name (e.g., "Daily", "Deep Clean")
-    name = models.CharField(
-        max_length=50,
-        unique=True, # Название должно быть уникальным / Name must be unique
-        verbose_name="Название типа уборки" # Человекочитаемое имя поля / Human-readable field name
-        )
-    
-    # Описание типа уборки (необязательное)
-    # Description of the cleaning type (optional)
-    description = models.TextField(
-        blank=True, # Поле может быть пустым / Field can be blank
-        verbose_name="Описание" # Человекочитаемое имя поля / Human-readable field name
-    )
-
-    # Строковое представление объекта CleaningType
-    # String representation of the CleaningType object
-    def __str__(self):
-        return self.name
 
 class ChecklistTemplate(models.Model):
+
+
     # Мета-параметры модели
     # Model meta options
     class Meta:
@@ -55,9 +31,10 @@ class ChecklistTemplate(models.Model):
 
     # Связь с типом уборки (один ко многим)
     # Relationship with CleaningType (one-to-many)
-    cleaning_type = models.ForeignKey(
-        "CleaningType", # Ссылка на модель CleaningType / Link to the CleaningType model
-        on_delete=models.CASCADE, # При удалении типа уборки удаляются все связанные шаблоны / Deleting a CleaningType deletes all related templates
+    cleaning_type = models.CharField(
+        max_length=40,
+        choices=CleaningTypeChoices.choices, # Используем варианты из внутреннего класса Type / Use choices from the inner Type class
+        default=CleaningTypeChoices.STAYOVER, # Тип по умолчанию / Default type
         verbose_name="Тип уборки" # Человекочитаемое имя поля / Human-readable field name
     )
 
@@ -198,12 +175,10 @@ class CleaningTask(models.Model):
 
     # Связь с типом уборки для этой задачи (один ко многим, необязательная)
     # Relationship with CleaningType for this specific task (one-to-many, optional)
-    cleaning_type = models.ForeignKey(
-        "CleaningType", # Ссылка на модель CleaningType / Link to the CleaningType model
-        on_delete=models.SET_NULL, # При удалении типа уборки, поле устанавливается в NULL / When cleaning type is deleted, set field to NULL
-        blank=True, # Поле может быть пустым в формах / Field can be blank in forms
-        null=True, # Поле может быть NULL в базе данных / Field can be NULL in the database
-        related_name='tasks', # Имя обратной связи из CleaningType / Reverse relationship name from CleaningType
+    cleaning_type = models.CharField(
+        max_length=40,
+        choices=CleaningTypeChoices.choices, # Используем варианты из внутреннего класса Type / Use choices from the inner Type class
+        default=CleaningTypeChoices.STAYOVER, # Тип по умолчанию / Default type
         verbose_name="Тип уборки" # Человекочитаемое имя поля / Human-readable field name
     )
 

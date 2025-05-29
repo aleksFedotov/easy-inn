@@ -4,7 +4,6 @@ from rest_framework.routers import DefaultRouter
 from django.urls import path, include
 from booking.views import BookingViewSet
 from cleaning.views import (
-    CleaningTypeViewSet,
     ChecklistTemplateViewSet,
     CleaningTaskViewSet,
     get_cleaning_stats
@@ -23,7 +22,6 @@ router = DefaultRouter()
 router.register(r'bookings', BookingViewSet, basename='booking')
 
 # Cleaning App ViewSets
-router.register(r'cleaningtypes', CleaningTypeViewSet, basename='cleaningtype')
 router.register(r'checklisttemplates', ChecklistTemplateViewSet, basename='checklisttemplate')
 router.register(r'cleaningtasks', CleaningTaskViewSet, basename='cleaningtask')
 
