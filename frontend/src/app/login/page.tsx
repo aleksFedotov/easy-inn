@@ -1,44 +1,52 @@
 'use client';
 
-import React, { useState, FormEvent, useEffect } from 'react'; // Добавлен useEffect
+import React, { useState, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '@/lib/api'
-import { useAuth } from '@/lib/AuthContext'; // Импортируем useAuth
+import api from '@/lib/api';
+import { useAuth } from '@/lib/AuthContext';
 import { Spinner } from '@/components/spinner';
 import axios from 'axios';
 
-
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
+import { USER_ROLES } from '@/lib/constants';
 
 export default function LoginPage() {
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const { isAuthenticated, isLoading, login, user } = useAuth(); // Получаем состояние и функцию login из контекста
+  const { isAuthenticated, isLoading, login, user } = useAuth();
 
-  // Если пользователь уже аутентифицирован (например, вернулся на страницу логина),
-  // перенаправляем его на dashboard
   useEffect(() => {
-      // Проверяем isLoading, чтобы не перенаправить до завершения первичной проверки в AuthProvider
-      if (!isLoading && isAuthenticated) {
-          console.log("User already authenticated. Redirecting from login page to dashboard.");
-          if(user?.role == 'housekeeper') {
-            router.push('/my-cleaning-task')
-          } else {
-            router.push('/dashboard');
-          }
+    if (!isLoading && isAuthenticated) {
+      console.log('User already authenticated. Redirecting from login page to dashboard.');
+      if (user?.role == USER_ROLES.HOUSEKEEPER) {
+        router.push('/my-cleaning-task');
+      } else {
+        router.push('/dashboard');
       }
-  }, [isAuthenticated, isLoading, router]); // Зависимости от состояния контекста и router
-
+    }
+  }, [isAuthenticated, isLoading, router, user?.role]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
 
     if (!api.defaults.baseURL) {
-        setError('Ошибка конфигурации: API_BASE_URL не установлен в .env.local');
-        console.error('NEXT_PUBLIC_API_BASE_URL is not defined or incorrectly set for Axios instance.');
-        return;
+      setError('Ошибка конфигурации: API_BASE_URL не установлен в .env.local');
+      console.error('NEXT_PUBLIC_API_BASE_URL is not defined or incorrectly set for Axios instance.');
+      return;
     }
 
     try {
@@ -50,77 +58,81 @@ export default function LoginPage() {
       const accessToken = response.data.access;
       const refreshToken = response.data.refresh;
 
-      if (accessToken && refreshToken) { // Убедимся, что оба токена получены
-        login(accessToken, refreshToken); // Используем функцию login из контекста
+      if (accessToken && refreshToken) {
+        login(accessToken, refreshToken);
       } else {
-        setError('Токены не получены.'); // Более точное сообщение
+        setError('Токены не получены.');
       }
     } catch (err) {
-      if(axios.isAxiosError(err)){
+      let errorMessage = 'Ошибка входа. Проверьте логин и пароль.';
+      if (axios.isAxiosError(err)) {
         if (err.response) {
-          setError(err.response.data.detail || 'Ошибка входа. Проверьте логин и пароль.');
+          errorMessage = err.response.data.detail || 'Ошибка входа. Проверьте логин и пароль.';
         } else if (err.request) {
-           setError('Нет ответа от сервера. Проверьте подключение или URL API.');
+          errorMessage = 'Нет ответа от сервера. Проверьте подключение или URL API.';
         } else {
-          setError('Ошибка сети или сервера. Пожалуйста, попробуйте позже.');
+          errorMessage = 'Ошибка сети или сервера. Пожалуйста, попробуйте позже.';
         }
       } else {
-        setError('Произошла непредвиденная ошибка. Пожалуйста, попробуйте позже.');
+        errorMessage = 'Произошла непредвиденная ошибка. Пожалуйста, попробуйте позже.';
       }
+      setError(errorMessage);
       console.error('Ошибка при входе:', err);
     }
   };
 
-   // Пока AuthProvider загружается показываем спиннер
-   if (isLoading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-100">
-                 <Spinner/> 
-            </div>
-        );
-    }
-
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <Spinner />
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="p-8 rounded-lg shadow-lg bg-white max-w-sm w-full">
-        <h1 className="text-2xl font-bold text-center mb-6 text-gray-800">Вход в EasyInn</h1>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label htmlFor="username" className="block text-gray-700 text-sm font-bold mb-2">
-              Имя пользователя:
-            </label>
-            <input
-              type="text"
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <div className="mb-6">
-            <label htmlFor="password" className="block text-gray-700 text-sm font-bold mb-2">
-              Пароль:
-            </label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          {error && <p className="text-red-500 text-sm text-center mb-4">{error}</p>}
-          <button
-            type="submit"
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full transition duration-200 ease-in-out"
-          >
-            Войти
-          </button>
-        </form>
-      </div>
+      <Card className="w-full max-w-sm">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold">Вход в EasyInn</CardTitle>
+          <CardDescription className="text-sm text-gray-500">
+            Введите свои учетные данные для входа в систему
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Имя пользователя:</Label>
+              <Input
+                type="text"
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Пароль:</Label>
+              <Input
+                type="password"
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Ошибка</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            <Button type="submit" className="w-full">
+              Войти
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
