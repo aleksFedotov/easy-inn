@@ -80,20 +80,22 @@ export interface Zone {
     floor: number;     
 }
 
-// Интерфейс для модели CleaningType 
-export interface CleaningType {
-    id: number;
-    name: string; 
-    description: string;   
-}
 
+
+export type CleaningType =
+  | 'stayover'
+  | 'departure_cleaning'
+  | 'deep_cleaning'
+  | 'on_demand'
+  | 'post_renovation_cleaning'
+  | 'public_area_cleaning';
 
 // Интерфейс для модели ChecklistTemplate 
 export interface Checklist {
     id: number;
     name: string; 
-    cleaning_type: number;
-    cleaning_type_name: string;   
+    cleaning_type: CleaningType;
+    cleaning_type_display: string;   
     description: string; 
     items: ChecklistItem[]
 }
@@ -119,8 +121,8 @@ export interface CleaningTask {
     zone: number | null; 
     zone_name?: string | null; 
     booking: number | null; 
-    cleaning_type: number; 
-    cleaning_type_name?: string; 
+    cleaning_type: CleaningType; 
+    cleaning_type_display: string; 
     status: 'unassigned'| "assigned" | "in_progress" | "completed" |"waiting_check" |"checked" |"canceled"; 
     status_display?: string; 
     scheduled_date: string | null; 

@@ -5,8 +5,9 @@ import api  from '@/lib/api';
 import axios from 'axios';
 import { toast } from 'sonner';
 
+
 interface UseTaskModalsProps {
-    fetchCleaningTasks: (date: string) => Promise<void>;
+    fetchCleaningTasks: (date: string) => Promise<CleaningTask[]>;
     selectedDate?: Date;
 }
 
