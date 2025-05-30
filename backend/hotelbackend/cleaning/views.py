@@ -483,7 +483,7 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                 task = CleaningTask.objects.create(
                     zone=zone,
                     scheduled_date=scheduled_date,
-                    leaning_type=CleaningTypeChoices.PUBLIC_AREA_CLEANING,
+                    cleaning_type=CleaningTypeChoices.PUBLIC_AREA_CLEANING,
                     status=CleaningTask.Status.UNASSIGNED
                 )
                 created_tasks_count += 1

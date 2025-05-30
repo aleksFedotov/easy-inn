@@ -304,7 +304,6 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
         """
         Получает данные шаблона чек-листа, связанные с типом уборки данной задачи.
         """
-        logger.info(f'cleaning type {obj.cleaning_type}')
         if not obj.cleaning_type:
             return {
                 "name": None,
@@ -315,7 +314,6 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
         checklist_template = ChecklistTemplate.objects.filter(
             cleaning_type=obj.cleaning_type
         ).prefetch_related('items').first()
-        logger.info(f'!!!!!!!checklist_templatee {checklist_template}')
         if checklist_template:
             return ChecklistTemplateSerializer(checklist_template, context=self.context).data
 
