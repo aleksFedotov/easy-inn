@@ -14,6 +14,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
+import { toast } from 'sonner';
 
 import {
     Table,
@@ -313,87 +314,81 @@ export default function FrontDeskPage() {
 
 
 
-    const handleCheckout = async (bookingId: number, roomId: number) => {
-        if (isPerformingAction || isCreateSheetOpen || isConfirmDeleteModalOpen ) return;
+    const handleCheckout = async (bookingId: number, room: string) => {
+        if (isPerformingAction || isCreateSheetOpen || isConfirmDeleteModalOpen) return;
 
         setIsPerformingAction(true);
         setError(null);
 
         try {
-            const roomResponse = await api.post(`/api/rooms/${roomId}/change_status/`, { 'new_status': 'dirty' });
-            const bookingResponse = await api.post(`/api/bookings/${bookingId}/change_status/`, { 'new_status': 'checked_out' });
+            const bookingResponse = await api.post(`/api/bookings/${bookingId}/check_out/`);
 
-            if (roomResponse.status === 200 && bookingResponse.status === 200) {
-                console.log(`Check-out successful for booking ID: ${bookingId}`);
+            if (bookingResponse.status === 200) {
+                toast.success(`Выезд из номера ${room} успешно отмечен.`);
                 const currentPaginationState = selectedTab === 'departures' ? departuresPagination : selectedTab === 'arrivals' ? arrivalsPagination : staysPagination;
                 fetchBookings(selectedDate, selectedTab, currentPaginationState.currentPage, currentPaginationState.pageSize);
                 fetchSummaryData();
             } else {
-                if (roomResponse.status !== 200) {
-                    setError('Не удалось изменить статус комнаты при выезде. Статус: ' + roomResponse.status);
-                    console.error("Room status change failed during check-out. Status:", roomResponse.status);
-                }
-                if (bookingResponse.status !== 200) {
-                    setError('Не удалось изменить статус бронирования при выезде. Статус: ' + bookingResponse.status);
-                    console.error("Booking status change failed during check-out. Status:", bookingResponse.status);
-                }
-                if (roomResponse.status !== 200 && bookingResponse.status !== 200) {
-                    setError(`Не удалось выполнить выезд. Ошибки: Статус комнаты ${roomResponse.status}, Статус бронирования ${bookingResponse.status}`);
-                }
+                toast.error(`Не удалось отметить выезд номера ${room}. Пожалуйста, попробуйте ещё раз. (Status: ${bookingResponse.status})`);
+                console.error("Booking status change failed during check-out. Status:", bookingResponse.status);
             }
 
         } catch (err) {
             console.error('Error during check-out:', err);
-            if (axios.isAxiosError(err) && err.response) {
-                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при выполнении выезда.');
-            } else if (axios.isAxiosError(err) && err.request) {
-                setError('Нет ответа от сервера при выполнении выезда.');
+            let errorMessage = 'Ошибка при выполнении выезда.'; 
+
+            if (axios.isAxiosError(err)) {
+                if (err.response) {
+                    errorMessage = err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при выполнении выезда.';
+                } else if (err.request) {
+                    errorMessage = 'Нет ответа от сервера при выполнении выезда.';
+                }
             } else {
-                setError('Произошла непредвиденная ошибка при выполнении выезда.');
+                errorMessage = 'Произошла непредвиденная ошибка при выполнении выезда.';
             }
+
+            toast.error(errorMessage);
+            // setError(errorMessage);
         } finally {
             setIsPerformingAction(false);
         }
     };
 
-    const handleCheckin = async (bookingId: number, roomId: number) => {
-        if (isPerformingAction || isCreateSheetOpen || isConfirmDeleteModalOpen ) return;
+    const handleCheckin = async (bookingId: number, room: string) => {
+        if (isPerformingAction || isCreateSheetOpen || isConfirmDeleteModalOpen) return;
 
         setIsPerformingAction(true);
         setError(null);
 
         try {
-            const roomResponse = await api.post(`/api/rooms/${roomId}/change_status/`, { 'new_status': 'occupied' });
-            const bookingResponse = await api.post(`/api/bookings/${bookingId}/change_status/`, { 'new_status': 'in_progress' });
+            const bookingResponse = await api.post(`/api/bookings/${bookingId}/check_in/`);
 
-            if (roomResponse.status === 200 && bookingResponse.status === 200) {
-                console.log(`Check-in successful for booking ID: ${bookingId}`);
+            if (bookingResponse.status === 200) {
+                toast.success(`Заезд в номер ${room} успешно отмечен.`);
                 const currentPaginationState = selectedTab === 'departures' ? departuresPagination : selectedTab === 'arrivals' ? arrivalsPagination : staysPagination;
                 fetchBookings(selectedDate, selectedTab, currentPaginationState.currentPage, currentPaginationState.pageSize);
                 fetchSummaryData();
             } else {
-                if (roomResponse.status !== 200) {
-                    setError('Не удалось изменить статус комнаты при заезде. Статус: ' + roomResponse.status);
-                    console.error("Room status change failed during check-in. Status:", roomResponse.status);
-                }
-                if (bookingResponse.status !== 200) {
-                    setError('Не удалось изменить статус бронирования при заезде. Статус: ' + bookingResponse.status);
-                    console.error("Booking status change failed during check-in. Status:", bookingResponse.status);
-                }
-                if (roomResponse.status !== 200 && bookingResponse.status !== 200) {
-                    setError(`Не удалось выполнить заезд. Ошибки: Статус комнаты ${roomResponse.status}, Статус бронирования ${bookingResponse.status}`);
-                }
+                toast.error(`Не удалось отметить заезд номера ${room}. Пожалуйста, попробуйте ещё раз. (Status: ${bookingResponse.status})`);
+                console.error("Booking status change failed during check-out. Status:", bookingResponse.status);
             }
 
         } catch (err) {
-            console.error('Error during check-in:', err);
-            if (axios.isAxiosError(err) && err.response) {
-                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при выполнении заезда.');
-            } else if (axios.isAxiosError(err) && err.request) {
-                setError('Нет ответа от сервера при выполнении заезда.');
+            console.error('Error during check-out:', err);
+            let errorMessage = 'Ошибка при выполнении заезда.'; 
+
+            if (axios.isAxiosError(err)) {
+                if (err.response) {
+                    errorMessage = err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при выполнении заезда.';
+                } else if (err.request) {
+                    errorMessage = 'Нет ответа от сервера при выполнении заезда.';
+                }
             } else {
-                setError('Произошла непредвиденная ошибка при выполнении заезда.');
+                errorMessage = 'Произошла непредвиденная ошибка при выполнении заезда.';
             }
+
+            toast.error(errorMessage);
+            // setError(errorMessage);
         } finally {
             setIsPerformingAction(false);
         }
@@ -495,13 +490,13 @@ export default function FrontDeskPage() {
                                 <DropdownMenuSeparator />
                                 {/* Кнопка "Выезд" (только для вкладки "Выезды" и если статус не "checked_out" или "cancelled") */}
                                 {selectedTab === 'departures' && booking.status_display !== 'checked_out' && booking.status_display !== 'cancelled' && (
-                                     <DropdownMenuItem onClick={() => handleCheckout(booking.id, booking.room.id)}>
+                                     <DropdownMenuItem onClick={() => handleCheckout(booking.id, booking.room.number)}>
                                          <CheckCircle className="mr-2 h-4 w-4" /> Выезд
                                      </DropdownMenuItem>
                                 )}
                                  {/* Кнопка "Заезд" (только для вкладки "Заезды" и если статус не "in_progress" или "cancelled") */}
                                  {selectedTab === 'arrivals' && booking.status_display !== 'in_progress' && booking.status_display !== 'cancelled' && (
-                                     <DropdownMenuItem onClick={() => handleCheckin(booking.id, booking.room.id)}>
+                                     <DropdownMenuItem onClick={() => handleCheckin(booking.id, booking.room.number)}>
                                          <CheckCircle className="mr-2 h-4 w-4" /> Заезд
                                      </DropdownMenuItem>
                                  )}

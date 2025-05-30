@@ -6,6 +6,7 @@ from rest_framework.filters import OrderingFilter
 from django.utils.dateparse import parse_date
 from rest_framework.permissions import IsAuthenticated 
 from .models import Booking
+from hotel.models import Room
 from .serializers import BookingSerializer
 from utills.permissions import IsManagerOrFrontDesk
 
@@ -200,14 +201,36 @@ class BookingViewSet(viewsets.ModelViewSet):
     
 
     @action(detail=True, methods=['post'])
-    def change_status(self,request, pk=None):
-        booking = self.get_object()
-        new_status = request.data.get('new_status')
-        if new_status not in Booking.BookingStatus.values:
-            Response({'error': "Недопустимый статус"},status=status.HTTP_400_BAD_REQUEST)
-        booking.status = new_status
-        booking.save()
-        return Response()
+    def check_out(self,request, pk=None):
+        try:
+            booking = self.get_object()
+            booking.status = Booking.BookingStatus.CHECKED_OUT
+            booking.save()
+            room = booking.room
+            room.status = Room.Status.DIRTY
+            room.save()
+            serializer = self.get_serializer(booking)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Booking.DoesNotExist:
+            return Response({"error": "Бронирование не найдено."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+    @action(detail=True, methods=['post'])
+    def check_in(self,request, pk=None):
+        try:
+            booking = self.get_object()
+            booking.status = Booking.BookingStatus.IN_PROGRESS
+            booking.save()
+            room = booking.room
+            room.status = Room.Status.OCCUPIED
+            room.save()
+            serializer = self.get_serializer(booking)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Booking.DoesNotExist:
+            return Response({"error": "Бронирование не найдено."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def paginate_queryset(self, queryset):
         if self.request.query_params.get('all') == 'true':
