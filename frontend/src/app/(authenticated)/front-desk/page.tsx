@@ -83,9 +83,9 @@ interface PaginatedResponse<T> {
 
 // Определяем тип для ответа API со сводными данными по номерам
 interface RoomSummaryResponse {
-    awaiting_cleaning: number;
+    dirty: number;
     in_progress: number;
-    ready_for_inspection: number;
+    waiting_inspection: number;
 }
 
 // Тип для хранения данных пагинации на фронтенде для каждой вкладки
@@ -119,9 +119,9 @@ export default function FrontDeskPage() {
 
     // Состояния для сводных карточек
     const [summaryData, setSummaryData] = useState<RoomSummaryResponse>({
-        awaiting_cleaning: 0,
+        dirty: 0,
         in_progress: 0,
-        ready_for_inspection: 0,
+        waiting_inspection: 0,
     });
     const [isLoadingSummary, setIsLoadingSummary] = useState(false);
     const [summaryError, setSummaryError] = useState<string | null>(null);
@@ -634,13 +634,6 @@ export default function FrontDeskPage() {
             {/* Заголовок и кнопка выхода */}
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bol">Служба приема</h1>
-                {/* <Button
-                    variant="outline"
-                    onClick={handleLogout}
-                    disabled={isPerformingAction || isLoadingData || isLoadingSummary || isCreateSheetOpen || isConfirmDeleteModalOpen }
-                >
-                    <LogOut size={18} className="mr-2" /> Выйти
-                </Button> */}
             </div>
 
 
@@ -703,7 +696,7 @@ export default function FrontDeskPage() {
                                 <BrushCleaning size={20} className="text-yellow-600" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold text-yellow-800">{summaryData.awaiting_cleaning}</div>
+                                <div className="text-2xl font-bold text-yellow-800">{summaryData.dirty}</div>
                             </CardContent>
                         </Card>
                         <Card className="bg-sky-100 text-sky-600">
@@ -721,7 +714,7 @@ export default function FrontDeskPage() {
                                 <CheckCircle size={20} className="text-green-600" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold text-green-800">{summaryData.ready_for_inspection}</div>
+                                <div className="text-2xl font-bold text-green-800">{summaryData.waiting_inspection}</div>
                             </CardContent>
                         </Card>
                     </div>

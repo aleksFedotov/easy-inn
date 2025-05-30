@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { CleaningTask, User} from '@/lib/types';
 import { format } from 'date-fns';
@@ -64,36 +64,33 @@ export default function HousekeepingPage() {
 
     const [housekeepers, setHousekeepers] = useState<User[]>([]); 
     
-    const [isAutoAssigning, setIsAutoAssigning] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [housekeeperSearchQuery, setHousekeeperSearchQuery] = useState('');
-    const [activeTab, setActiveTab] = useState<'unassigned' | 'assigned' | 'all'>('all');
+    const [activeTab, setActiveTab] = useState<'unassigned' | 'assigned' | 'all'>('unassigned');
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
     const [seletedTasks, setSelectedTask] = useState({});
-
-     const autoGenerationTriggeredRef = useRef(false);
     
     const {
         cleaningTasks,
         allAvailableHousekeepers,
         rooms,
         zones,
-        cleaningTypes,
         isLoadingData,
         error,
         setError,
         fetchCleaningTasks,
         refetchData, 
+        clearCache
     } = useHousekeepingData({ selectedDate });
 
-     const {
+    const {
         isCreateEditTaskModalOpen,
         taskToEdit,
         setTaskToEdit,
         isDeleteModalOpen,
         setIsDeleteModalOpen,
         taskToDelete,
-        // setTaskToDelete,
         isHousekeeperSelectionModalOpen,
         setIsHousekeeperSelectionModalOpen,
         isAssignTasksModalOpened,
@@ -108,36 +105,82 @@ export default function HousekeepingPage() {
         handleCloseHousekeeperSelectionModal,
     } = useTaskModals({ fetchCleaningTasks, selectedDate });
 
-    const handleAutoGenerateTasks = useCallback(async () => {
-        if (!user || !['manager', 'front-desk'].includes(user.role)) {
+    const handleGenerateTasks = useCallback(async () => {
+        if (!user || !['manager', 'front-desk'].includes(user.role) || isGenerating) {
             return;
         }
 
-        setIsAutoAssigning(true);
+    setIsGenerating(true);
         try {
-            const dateToGenerate = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
-            const response = await api.post('/api/cleaningtasks/auto_generate/', { 
-                scheduled_date: dateToGenerate
-            });
+            // Всегда генерируем задачи на текущий день
+            const dateToGenerate = format(new Date(), 'yyyy-MM-dd');
             
-            if (response.status === 201) {
-                if(response.data.created_count > 0) {
-                    toast.success(`Автоматически создано задач: ${response.data.created_count}`);
+            let retryCount = 0;
+            const maxRetries = 3;
+            
+            while (retryCount < maxRetries) {
+                try {
+                    const response = await api.post('/api/cleaningtasks/auto_generate/', { 
+                        scheduled_date: dateToGenerate
+                    });
+                    
+                    if (response.status === 201) {
+                        if(response.data.created_count > 0) {
+                            if (clearCache) {
+                                clearCache();
+                            }
+                            setTimeout(() => {
+                                refetchData();
+                            }, 500);
+                            toast.success(`Создано задач на сегодня: ${response.data.created_count}`);
+                        } else {
+                            toast.info('Задачи на сегодня уже существуют');
+                        }
+                    } else {
+                        toast.error(`Ошибка генерации задач: ${response.status}`);
+                    }
+                    break;
+                    
+                } catch (retryError) {
+                    retryCount++;
+                    
+                    if (axios.isAxiosError(retryError) && retryError.response) {
+                        const errorMessage = retryError.response.data.detail || 
+                                        retryError.response.data.message || 
+                                        JSON.stringify(retryError.response.data);
+                        
+                        if (errorMessage.includes('database is locked') && retryCount < maxRetries) {
+                            console.log(`Попытка ${retryCount}/${maxRetries}: База данных заблокирована, повторяем через 2 секунды...`);
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+                            continue;
+                        }
+                        
+                        if (retryCount >= maxRetries) {
+                            toast.error(errorMessage);
+                            console.error('Ошибка генерации:', errorMessage);
+                        }
+                    } else {
+                        if (retryCount >= maxRetries) {
+                            toast.error('Произошла ошибка при генерации задач.');
+                            console.error('Ошибка генерации:', retryError);
+                        }
+                    }
+                    
+                    if (retryCount >= maxRetries) {
+                        toast.error('Не удалось выполнить генерацию после нескольких попыток. Попробуйте позже.');
+                    }
+                    break;
                 }
-            } else {
-                toast.error(`Ошибка автоматической генерации: ${response.status}`);
             }
+            
         } catch (error) {
-            if (axios.isAxiosError(error) && error.response) {
-                toast.error(error.response.data.detail || error.response.data.message || JSON.stringify(error.response.data));
-                console.log(error.response.data.detail || error.response.data.message || JSON.stringify(error.response.data))
-            } else {
-                toast.error('Произошла ошибка при автоматической генерации задач.');
-            }
+            console.error('Критическая ошибка генерации:', error);
+            toast.error('Произошла критическая ошибка при генерации задач.');
         } finally {
-            setIsAutoAssigning(false);
+            setIsGenerating(false);
         }
-    }, [user, selectedDate]);
+        
+    }, [user, refetchData, isGenerating,clearCache]);
 
     useEffect(() => {
         if (!isAuthLoading && (!user || !['front-desk', 'manager', 'housekeeper'].includes(user.role))) {
@@ -145,63 +188,43 @@ export default function HousekeepingPage() {
         }
     }, [user, isAuthLoading, setError]);
 
-    // Эффект для автогенерации (выполняется только один раз)
-    useEffect(() => {
-        if (!isAuthLoading && 
-            user && 
-            ['manager', 'front-desk'].includes(user.role) && 
-            !autoGenerationTriggeredRef.current && 
-            cleaningTasks.length === 0 && // Только если нет задач
-            !isLoadingData) {
-            
-            autoGenerationTriggeredRef.current = true;
-            
-            const performAutoGeneration = async () => {
-                await handleAutoGenerateTasks();
-                // Обновляем данные через небольшую задержку
-                setTimeout(() => {
-                    refetchData();
-                }, 1000);
-            };
-            
-            performAutoGeneration();
-        }
-    }, [user, isAuthLoading, cleaningTasks.length, isLoadingData, handleAutoGenerateTasks, refetchData]);
-
-    // Сброс флага при изменении даты
-    useEffect(() => {
-        autoGenerationTriggeredRef.current = false;
-    }, [selectedDate]);
-
     useEffect(() => {
         const fetchAssignedHousekeepers = async () => {
-            if (selectedDate) {
+            if (selectedDate && !isLoadingData) { 
                 try {
-                    const response = await api.get('/api/housekeepers/assigned/', {  //  <--  Adjust URL as needed
+                    const response = await api.get('/api/housekeepers/assigned/', {
                         params: { scheduled_date: format(selectedDate, 'yyyy-MM-dd') }
                     });
-                    setHousekeepers(response.data);  //  <--  Update your state
+                    setHousekeepers(response.data);
                 } catch (error) {
-                    console.error("Error fetching housekeepers:", error);
-                    toast.error("Failed to fetch housekeepers.");
+                     if (axios.isAxiosError(error) && error.response) {
+                        toast.error(error.response.data.detail || error.response.data.message || JSON.stringify(error.response.data));
+                    } else {
+                        toast.error('Произошла ошибка при загрузки списка горничных.');
+                    }
                 }
             }
         };
 
-        fetchAssignedHousekeepers();
-    }, [selectedDate]);
+        // Добавляем небольшую задержку, чтобы избежать race condition
+        const timer = setTimeout(() => {
+            fetchAssignedHousekeepers();
+        }, 200);
+        
+        return () => clearTimeout(timer);
+    }, [selectedDate, isLoadingData]);
 
   
-    // Filtered cleaning tasks based on search query AND active tab
+    
     const filteredCleaningTasks = useMemo(() => {
         let currentTasks = cleaningTasks;
 
-        // Apply search query filter first
+      
         if (searchQuery) {
             currentTasks = currentTasks.filter(task =>
                 task.room_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 task.zone_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                task.cleaning_type_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                task.cleaning_type_display?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 task.assigned_to_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 task.assigned_by_name?.toLowerCase().includes(searchQuery.toLowerCase())
             );
@@ -216,14 +239,11 @@ export default function HousekeepingPage() {
         // 'all' tab returns all tasks (after search filter)
         return currentTasks;
     }, [cleaningTasks, searchQuery, activeTab]);
-
-    
-
-
-    // Filtered housekeepers based on search query (for the displayed list)
+   
+ 
     const filteredHousekeepers = useMemo(() => {
         if (!housekeeperSearchQuery) {
-            return housekeepers; // Filter the *selected* housekeepers
+            return housekeepers; 
         }
         return housekeepers.filter(housekeeper =>
             housekeeper.first_name.toLowerCase().includes(housekeeperSearchQuery.toLowerCase()) ||
@@ -232,7 +252,7 @@ export default function HousekeepingPage() {
     }, [housekeepers, housekeeperSearchQuery]);
 
 
-    // TanStack Table Column Definitions
+
     const columnHelper = createColumnHelper<CleaningTask>();
 
     const columns = useMemo(() => [
@@ -263,7 +283,7 @@ export default function HousekeepingPage() {
             header: () => 'Комната/Зона',
             cell: info => <span className="font-medium">{info.getValue()}</span>,
         }),
-        columnHelper.accessor(row => row.cleaning_type_name || 'N/A', {
+        columnHelper.accessor(row => row.cleaning_type_display || 'N/A', {
             id: 'cleaning_type',
             header: () => 'Тип уборки',
         }),
@@ -301,24 +321,20 @@ export default function HousekeepingPage() {
     });
 
 
-     const handleConfirmHousekeeperSelection = useCallback((selectedIds: number[]) => {
-    const newlySelectedHousekeepers = allAvailableHousekeepers.filter(h => selectedIds.includes(h.id));
-    
-    // Create a map of existing housekeeper IDs for quick lookup
-    const existingHousekeeperIds = new Set(housekeepers.map(h => h.id));
+    const handleConfirmHousekeeperSelection = useCallback((selectedIds: number[]) => {
+        const newlySelectedHousekeepers = allAvailableHousekeepers.filter(h => selectedIds.includes(h.id));
+        
+        const existingHousekeeperIds = new Set(housekeepers.map(h => h.id));
+      const combinedHousekeepers = [
+            ...housekeepers,
+            ...newlySelectedHousekeepers.filter(h => !existingHousekeeperIds.has(h.id))
+        ];
 
-    // Combine newly selected with existing, avoiding duplicates
-    const combinedHousekeepers = [
-        ...housekeepers,
-        ...newlySelectedHousekeepers.filter(h => !existingHousekeeperIds.has(h.id))
-    ];
-
-    setHousekeepers(combinedHousekeepers);
-    setIsHousekeeperSelectionModalOpen(false);
-}, [housekeepers, allAvailableHousekeepers, setIsHousekeeperSelectionModalOpen])
+        setHousekeepers(combinedHousekeepers);
+        setIsHousekeeperSelectionModalOpen(false);
+    }, [housekeepers, allAvailableHousekeepers, setIsHousekeeperSelectionModalOpen])
 
     const handleAssignSelectedTasks = async (housekeeperId: number) => {
-        // Get the IDs of the selected tasks
         const selectedTaskIds = table.getSelectedRowModel().rows.map(row => row.original.id);
 
         if (selectedTaskIds.length === 0) {
@@ -332,15 +348,20 @@ export default function HousekeepingPage() {
         
         try {
             const response = await api.post("/api/cleaningtasks/assign_multiple/", { 
-                task_ids : selectedTaskIds, // Pass only IDs
+                task_ids : selectedTaskIds, 
                 housekeeper_id: housekeeperId,
                 scheduled_date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
             })
 
             if (response.status === 200) {
+                 if (clearCache) {
+                    clearCache();
+                }
+                setTimeout(() => {
+                    refetchData();
+                }, 500);
                 toast.success(`Назначено ${selectedTaskIds.length} задач горничной.`);
-                refetchData(); // Reload data to reflect changes
-                table.toggleAllRowsSelected(false); // Clear all row selections
+                table.toggleAllRowsSelected(false); 
             } else {
                 toast.error(`Не удалось назначить задачи: ${response.status}`);
             }
@@ -352,13 +373,13 @@ export default function HousekeepingPage() {
                 toast.error("Произошла ошибка при назначении задач.");
             }
         } finally {
-            setIsAssignTasksModalOpened(false); // Close the assignment modal
+            setIsAssignTasksModalOpened(false);
         }
     };
 
-    // Conditional rendering based on authentication and data loading status
+   
     if (isAuthLoading) {
-        return null; // Render nothing while auth is loading
+        return null; 
     }
 
     if (!user || !['front-desk', 'manager', 'housekeeper'].includes(user.role)) {
@@ -383,7 +404,7 @@ export default function HousekeepingPage() {
         return (
             <ErrorMessage
                 message={error}
-                onRetry={refetchData} // Use the refetchData function from the hook
+                onRetry={refetchData} 
                 isLoading={isLoadingData}
             />
         );
@@ -391,29 +412,24 @@ export default function HousekeepingPage() {
     return (
         <div className="container mx-auto p-4">
             <h1 className="text-3xl font-bold mb-6">Управление Уборкой</h1>
-
-            {/* Control Panel: Date selection, action buttons */}
             <div className="flex flex-col sm:flex-row justify-between items-center mb-6 space-y-4 sm:space-y-0 sm:space-x-4">
-                {/* Date Picker */}
                 <div className="flex items-center space-x-2">
                     <Label htmlFor="date-picker">Дата:</Label>
                     <DatePicker date={selectedDate} setDate={setSelectedDate} />
                 </div>
-
-                {/* Action Buttons (e.g., Auto Assign, Assign Selected) */}
                 <div className="flex space-x-2">
                     <Button
                         variant="outline"
                         onClick={() =>{}}
-                        disabled={isLoadingData || isAutoAssigning || isCreateEditTaskModalOpen || isCreateEditTaskModalOpen || isDeleteModalOpen || isHousekeeperSelectionModalOpen}
+                        disabled={isLoadingData || isGenerating || isCreateEditTaskModalOpen || isCreateEditTaskModalOpen || isDeleteModalOpen || isHousekeeperSelectionModalOpen}
                     >
-                        {isAutoAssigning ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {isGenerating ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : null}
                         Автоназначение
                     </Button>
                     <Button
                         variant="outline"
-                        onClick={() => {setIsAssignTasksModalOpened(true)}} // New handler for assigning selected tasks
-                        disabled={isLoadingData || isAutoAssigning || isCreateEditTaskModalOpen || isCreateEditTaskModalOpen || isDeleteModalOpen || housekeepers.length === 0 || table.getSelectedRowModel().rows.length === 0}
+                        onClick={() => {setIsAssignTasksModalOpened(true)}} 
+                        disabled={isLoadingData || isGenerating || isCreateEditTaskModalOpen || isCreateEditTaskModalOpen || isDeleteModalOpen || housekeepers.length === 0 || table.getSelectedRowModel().rows.length === 0}
                     >
                         Назначить выбранное ({table.getSelectedRowModel().rows.length})
                     </Button>
@@ -424,15 +440,13 @@ export default function HousekeepingPage() {
             </div>
 
 
-            {/* Main Content: Two columns */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-                {/* Left Column: Housekeepers List */}
                 <div className="md:col-span-1 shadow-md rounded-lg p-4">
                     <h2 className="text-xl font-semibold mb-4 flex items-center">
                         <UserIcon size={20} className="mr-2" /> Горничные
                     </h2>
-                    {/* Housekeeper Search Input */}
+                   
                     <div className="relative mb-4">
                         <Input
                             type="text"
@@ -444,24 +458,23 @@ export default function HousekeepingPage() {
                         <Search size={20} className="absolute left-3 top-2.5 text-muted-foreground" />
                     </div>
 
-                    {/* Button to open housekeeper selection modal */}
                     <Button
                         variant="outline"
                         onClick={handleOpenHousekeeperSelectionModal}
                         className="w-full mb-4"
-                        disabled={isLoadingData || isAutoAssigning || isCreateEditTaskModalOpen || isCreateEditTaskModalOpen || isDeleteModalOpen}
+                        disabled={isLoadingData || isGenerating || isCreateEditTaskModalOpen || isCreateEditTaskModalOpen || isDeleteModalOpen}
                     >
                         Выбрать горничных
                     </Button>
 
-                    {/* List of SELECTED Housekeepers */}
+                   
                     <div className="space-y-4">
                         {filteredHousekeepers.length > 0 ? (
                             filteredHousekeepers.map(housekeeper => (
                                 <HousekeeperExpandableCard
                                     key={housekeeper.id}
                                     housekeeper={housekeeper}
-                                    // Передаем только те задачи, которые назначены этой горничной
+                                   
                                     cleaningTasks={cleaningTasks.filter(task => task.assigned_to === housekeeper.id)}
                                 />
                             ))
@@ -471,7 +484,7 @@ export default function HousekeepingPage() {
                     </div>
                 </div>
 
-                {/* Right Column: Cleaning Tasks List */}
+              
                 <div className="md:col-span-2 shadow-md rounded-lg p-4 ">
                     <h2 className="text-xl font-semibold text-gray-700 mb-4">
                         Задачи уборки ({selectedDate ? format(selectedDate, 'dd.MM.yyyy', { locale: ru }) : 'Выберите дату'})
@@ -480,21 +493,21 @@ export default function HousekeepingPage() {
                     
 
                         <Button
-                            onClick={handleAutoGenerateTasks}
-                            disabled={isLoadingData || isAutoAssigning || isCreateEditTaskModalOpen || isDeleteModalOpen || isHousekeeperSelectionModalOpen}
+                            onClick={handleGenerateTasks}
+                            disabled={isLoadingData || isGenerating || isCreateEditTaskModalOpen || isDeleteModalOpen || isHousekeeperSelectionModalOpen}
                         >
-                            <RefreshCw size={18} className="mr-2" /> Обновить задачи
+                            <RefreshCw size={18} className="mr-2" /> Создать задачи
                         </Button>
                         <Button
                             onClick={handleCreateEditTaskClick}
-                            disabled={isLoadingData || isAutoAssigning || isCreateEditTaskModalOpen || isDeleteModalOpen || isHousekeeperSelectionModalOpen}
+                            disabled={isLoadingData || isGenerating || isCreateEditTaskModalOpen || isDeleteModalOpen || isHousekeeperSelectionModalOpen}
                         >
                             <Plus size={18} className="mr-2" /> Создать задачу
                         </Button>
 
 
                     </div>
-                    {/* Task Search Input */}
+                  
                     <div className="relative mb-4">
                         <Input
                             type="text"
@@ -506,12 +519,12 @@ export default function HousekeepingPage() {
                         <Search size={20} className="absolute left-3 top-2.5 text-muted-foreground" />
                     </div>
 
-                    {/* Tabs for Cleaning Tasks */}
+                    
                     <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'unassigned' | 'assigned' | 'all')} className="w-full">
                         <TabsList className="grid w-full grid-cols-3">
-                            <TabsTrigger value="all">Все</TabsTrigger>
-                            <TabsTrigger value="assigned">Назначенные</TabsTrigger>
                             <TabsTrigger value="unassigned">Не назначенные</TabsTrigger>
+                            <TabsTrigger value="assigned">Назначенные</TabsTrigger>
+                            <TabsTrigger value="all">Все</TabsTrigger>
                         </TabsList>
                         <TabsContent value="all" className="mt-4">
                             <div className="overflow-x-auto">
@@ -666,7 +679,6 @@ export default function HousekeepingPage() {
                             cleaningTaskToEdit={taskToEdit ? taskToEdit : undefined}
                             availableRooms={rooms}
                             availableZones={zones}
-                            availableCleaningTypes={cleaningTypes}
                             availableHousekeepers={allAvailableHousekeepers}
                             onSuccess={handleCreateEditTaskSuccess}
                             onCancel={handleCreateEditTaskCancel}
@@ -676,7 +688,7 @@ export default function HousekeepingPage() {
                 </Sheet>
             )}
 
-           {/* Delete Task Modal */}
+           
             {isDeleteModalOpen && taskToDelete && (
                 <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
                     <DialogContent className="max-w-sm">
@@ -714,7 +726,6 @@ export default function HousekeepingPage() {
                 </Dialog>
             )}
 
-            {/* --- Модальное окно для выбора горничных --- */}
             <Dialog open={isHousekeeperSelectionModalOpen} onOpenChange={setIsHousekeeperSelectionModalOpen}>
                 <HousekeeperSelectionModal
                     availableHousekeepers={allAvailableHousekeepers}

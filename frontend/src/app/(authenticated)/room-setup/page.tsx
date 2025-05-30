@@ -52,8 +52,8 @@ export const getRoomTypeColumns = (
   handleEdit: (roomType: RoomType) => void,
   handleDeleteClick: (id: number, name: string) => void,
   isActionDisabled: (id: number) => boolean,
-  sorting: SortingState,
-  setSorting: React.Dispatch<React.SetStateAction<SortingState>>
+  // sorting: SortingState,
+  // setSorting: React.Dispatch<React.SetStateAction<SortingState>>
 ): ColumnDef<RoomType>[] => [
   {
     accessorKey: 'name',
@@ -130,8 +130,8 @@ export const getRoomColumns = (
   handleEdit: (room: Room) => void,
   handleDeleteClick: (id: number, number: string) => void,
   isActionDisabled: (id: number) => boolean,
-  sorting: SortingState,
-  setSorting: React.Dispatch<React.SetStateAction<SortingState>>
+  // sorting: SortingState,
+  // setSorting: React.Dispatch<React.SetStateAction<SortingState>>
 ): ColumnDef<Room>[] => [
   {
     accessorKey: 'number',
@@ -324,8 +324,8 @@ export default function RoomSetupPage() {
   const [deletingRoomTypeId, setDeletingRoomTypeId] = useState<number | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<number | null>(null);
   
-  const [roomTypeSorting, setRoomTypeSorting] = useState<SortingState>([]);
-  const [roomSorting, setRoomSorting] = useState<SortingState>([]);
+  // const [roomTypeSorting, setRoomTypeSorting] = useState<SortingState>([]);
+  // const [roomSorting, setRoomSorting] = useState<SortingState>([]);
 
 
   const fetchRoomTypes = useCallback(async () => {
@@ -468,12 +468,36 @@ export default function RoomSetupPage() {
   const isActionDisabled = (id: number | null) => !!deletingRoomTypeId || !!deletingRoomId || isRoomTypeSheetOpen || isRoomSheetOpen;
 
   const roomTypeTableColumns = useMemo(
-    () => getRoomTypeColumns(handleEditRoomType, handleDeleteRoomTypeClick, (id) => isActionDisabled(id) || deletingRoomTypeId === id, roomTypeSorting, setRoomTypeSorting),
-    [deletingRoomTypeId, deletingRoomId, isRoomTypeSheetOpen, isRoomSheetOpen, roomTypeSorting]
+    () => getRoomTypeColumns(
+        handleEditRoomType,
+        handleDeleteRoomTypeClick, 
+        (id) => isActionDisabled(id) || deletingRoomTypeId === id, 
+        // roomTypeSorting, 
+        // setRoomTypeSorting
+      ),
+    [
+      deletingRoomTypeId, 
+      deletingRoomId, 
+      isRoomTypeSheetOpen, 
+      isRoomSheetOpen,
+      //  roomTypeSorting
+      ]
   );
   const roomTableColumns = useMemo(
-    () => getRoomColumns(handleEditRoom, handleDeleteRoomClick, (id) => isActionDisabled(id) || deletingRoomId === id, roomSorting, setRoomSorting),
-    [deletingRoomTypeId, deletingRoomId, isRoomTypeSheetOpen, isRoomSheetOpen, roomSorting]
+    () => getRoomColumns(
+      handleEditRoom, 
+      handleDeleteRoomClick, 
+      (id) => isActionDisabled(id) || deletingRoomId === id, 
+      // roomSorting, 
+      // setRoomSorting
+    ),
+    [
+      deletingRoomTypeId, 
+      deletingRoomId, 
+      isRoomTypeSheetOpen,
+      isRoomSheetOpen, 
+      // roomSorting
+    ]
   );
 
 
