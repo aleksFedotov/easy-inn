@@ -221,14 +221,14 @@ export const getChecklistTemplateColumns = (
     cell: ({ row }) => row.original.cleaning_type_display || <span className="text-muted-foreground">N/A</span>,
   },
   {
-    accessorKey: 'description',
-    header: 'Описание',
-    cell: ({ row }) => row.getValue('description') || <span className="text-muted-foreground">Нет описания</span>,
-  },
-  {
     accessorKey: 'items',
     header: 'Кол-во пунктов',
     cell: ({ row }) => row.original.items?.length || 0,
+  },
+  {
+    accessorKey: 'periodicity',
+    header: 'Периодичность раз в дней',
+    cell: ({ row }) => row.original.periodicity || 1,
   },
   {
     id: 'actions',
