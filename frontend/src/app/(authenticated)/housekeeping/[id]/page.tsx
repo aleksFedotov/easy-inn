@@ -7,7 +7,6 @@ import { Spinner } from '@/components/spinner';
 import ErrorMessage from '@/components/ErrorMessage';
 import api from '@/lib/api';
 import axios from 'axios';
-import { ChecklistItem, CleaningTask } from '@/lib/types';
 import {
     Building,
     FileText,
@@ -28,6 +27,11 @@ import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import AuthRequiredMessage from '@/components/AuthRequiredMessage';
 import getCleaningStatusColor from '@/lib/cleaning/GetCLeaningStatusColor';
+import { CLEANICNG_STATUSES, USER_ROLES } from '@/lib/constants';
+import ChecklistCardList from '@/components/cleaning/ChecklistCardList';
+import { Checklist, CleaningTask } from '@/lib/types';
+
+
 
 export default function CleaningTaskDetailsPage() {
     const params = useParams<{ id: string }>();
@@ -38,7 +42,8 @@ export default function CleaningTaskDetailsPage() {
     const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth();
 
     const [taskDetails, setTaskDetails] = useState<CleaningTask | null>(null);
-    const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+    // Изменяем состояние для хранения всего объекта Checklist, а не только items
+    const [checklistData, setChecklistData] = useState<Checklist[]>([]);
     const [checkedItemIds, setCheckedItemIds] = useState<number[]>([]);
     const [isChecklistComplete, setIsChecklistComplete] = useState<boolean>(false);
 
@@ -60,10 +65,21 @@ export default function CleaningTaskDetailsPage() {
             const response = await api.get(`/api/cleaningtasks/${taskId}/`);
             if (response.status === 200) {
                 setTaskDetails(response.data);
-                setChecklistItems(response.data.checklist_data?.items || []);
-                if(response.data.checklist_data?.items.length === 0) {
-                    setIsChecklistComplete(true)
+                // Если `checklist_data` приходит как массив шаблонов, возьмем первый или нужный
+                // В данном случае, так как задача связана с одним типом уборки,
+                // предполагаем, что `checklist_data` в ответе будет массивом,
+                // и мы возьмем первый подходящий шаблон.
+                if (response.data.checklist_data && response.data.checklist_data.length > 0) {
+                    setChecklistData(response.data.checklist_data); // Берем первый шаблон из списка
+                    // Инициализируем checkedItemIds как пустой массив, так как 'checked' нет на бэкенде
+                    // Пользователь будет отмечать пункты на фронтенде
+                
+                    setCheckedItemIds([]); 
+                } else {
+                    setChecklistData([]); // Нет связанных чек-листов
+                    setIsChecklistComplete(true); // Если нет чек-листа, считаем его завершенным
                 }
+
             } else if (response.status === 404) {
                 setError(`Задача с ID ${taskId} не найдена.`);
             } else {
@@ -86,19 +102,19 @@ export default function CleaningTaskDetailsPage() {
 
     useEffect(() => {
         // Проверяем, все ли пункты чек-листа отмечены
-        if (checklistItems.length > 0) {
-            const allChecked = checklistItems.every(item => checkedItemIds.includes(item.id));
+        if (checklistData && checklistData.length > 0) {
+            const allChecked = checklistData.every(checklist => checklist.includes(item.id));
             setIsChecklistComplete(allChecked);
         } else {
-            setIsChecklistComplete(true); 
+            setIsChecklistComplete(true); // Если нет чек-листа или пунктов, считаем его завершенным
         }
-    }, [checklistItems, checkedItemIds]);
+    }, [checklistData, checkedItemIds]);
 
     const handleStartCleaning = async () => {
         setIsLoading(true);
         setError(null);
         try {
-            await api.patch(`/api/cleaningtasks/${taskId}/start/` );
+            await api.patch(`/api/cleaningtasks/${taskId}/start/`);
             fetchTaskDetails();
         } catch (err) {
             console.error('Error during start cleaning:', err);
@@ -125,7 +141,10 @@ export default function CleaningTaskDetailsPage() {
         setIsLoading(true);
         setError(null);
         try {
-            await api.patch(`/api/cleaningtasks/${taskId}/complete/`,);
+            // Отправляем список отмеченных пунктов при завершении уборки
+            await api.patch(`/api/cleaningtasks/${taskId}/complete/`, {
+                completed_checklist_items: checkedItemIds
+            });
             fetchTaskDetails();
         } catch (err) {
             console.error('Error during start cleaning:', err);
@@ -151,7 +170,10 @@ export default function CleaningTaskDetailsPage() {
         setIsLoading(true);
         setError(null);
         try {
-            await api.patch(`/api/cleaningtasks/${taskId}/check/`);
+            // Отправляем список отмеченных пунктов при завершении проверки
+            await api.patch(`/api/cleaningtasks/${taskId}/check/`, {
+                completed_checklist_items: checkedItemIds
+            });
             fetchTaskDetails(); // Обновляем данные после изменения статуса
         } catch (err) {
             console.error('Error during start cleaning:', err);
@@ -189,7 +211,7 @@ export default function CleaningTaskDetailsPage() {
         }
     };
 
-    const handleChecklistItemChange = (itemId: number) => {
+     const handleChecklistItemChange = (checklistId: number,itemId: number) => {
         setCheckedItemIds(prevIds => {
             if (prevIds.includes(itemId)) {
                 return prevIds.filter(id => id !== itemId);
@@ -199,19 +221,81 @@ export default function CleaningTaskDetailsPage() {
         });
     };
 
+    // Обновленная функция для изменения состояния пункта чек-листа
+    // const handleChecklistItemChange = async (checklistId: number, itemId: number) => {
+    //     // Определяем новое состояние для пункта
+    //     const isCurrentlyChecked = checkedItemIds.includes(itemId);
+    //     const newCheckedState = !isCurrentlyChecked;
+
+    //     // Оптимистичное обновление UI
+    //     setCheckedItemIds(prevIds => {
+    //         if (newCheckedState) {
+    //             return [...prevIds, itemId];
+    //         } else {
+    //             return prevIds.filter(id => id !== itemId);
+    //         }
+    //     });
+
+    //     try {
+    //         // Отправляем PATCH запрос на бэкенд для обновления статуса пункта
+    //         // Предполагается, что у вас есть API endpoint для этого:
+    //         // PATCH /api/cleaningtasks/{taskId}/checklist_items/{itemId}/
+    //         // Или, что более вероятно, вы отправляете весь список отмеченных ID
+    //         await api.patch(`/api/cleaningtasks/${taskId}/update_checklist_items/`, {
+    //             checklist_template_id: checklistId, // ID шаблона чек-листа
+    //             checked_item_ids: newCheckedState
+    //                 ? [...checkedItemIds, itemId] // Если отмечаем, добавляем ID
+    //                 : checkedItemIds.filter(id => id !== itemId) // Если снимаем отметку, удаляем ID
+    //         });
+    //         // Если успешно, UI уже обновлен.
+    //         // Если нужно, можно повторно получить детали задачи для полной синхронизации
+    //         // fetchTaskDetails();
+    //     } catch (err) {
+    //         console.error('Error updating checklist item:', err);
+    //         // Откатываем UI в случае ошибки
+    //         setCheckedItemIds(prevIds => {
+    //             if (isCurrentlyChecked) { // Если изначально был отмечен, возвращаем обратно
+    //                 return [...prevIds, itemId];
+    //             } else { // Если изначально не был отмечен, убираем из списка
+    //                 return prevIds.filter(id => id !== itemId);
+    //             }
+    //         });
+    //         // Выводим сообщение об ошибке пользователю
+    //         if (axios.isAxiosError(err) && err.response) {
+    //             setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при обновлении пункта чек-листа.');
+    //         } else {
+    //             setError('Произошла непредвиденная ошибка при обновлении пункта чек-листа.');
+    //         }
+    //     }
+    // };
+
+    // Функция для удаления чек-листа (если это применимо к вашей логике)
+    // В данном контексте, чек-лист связан с задачей, поэтому удаление всего чек-листа
+    // может быть непрямым действием. Возможно, это действие для менеджера,
+    // чтобы удалить шаблон чек-листа, а не экземпляр, связанный с задачей.
+    // Если это удаление шаблона, то этот метод должен быть в другом месте.
+    // Если это "отвязать" чек-лист от задачи, то логика будет другой.
+    // Для демонстрации оставим заглушку.
+    // const handleDeleteChecklist = async (checklistId: number) => {
+    //     console.log(`Attempting to delete checklist with ID: ${checklistId}`);
+    //     // Здесь должна быть логика удаления чек-листа, возможно, через другой API
+    //     // Или это действие не должно быть доступно здесь, если чек-лист жестко привязан к задаче.
+    //     setError("Удаление чек-листа из задачи пока не поддерживается.");
+    // };
+
 
     const renderActions = () => {
         if (!user || !taskDetails) return null;
 
         if (user.role === 'housekeeper') {
-            if (taskDetails.status === 'assigned') {
+            if (taskDetails.status === CLEANICNG_STATUSES.ASSIGNED) {
                 return (
                     <Button variant="default" onClick={handleStartCleaning}>
                         <Play className="mr-2 h-4 w-4" />
                         Начать уборку
                     </Button>
                 );
-            } else if (taskDetails.status === 'in_progress') {
+            } else if (taskDetails.status === CLEANICNG_STATUSES.IN_PROGRESS) {
                 return (
                     <Button variant="default" onClick={handleFinishCleaning} disabled={!isChecklistComplete}>
                         <CheckCircle className="mr-2 h-4 w-4" />
@@ -219,33 +303,32 @@ export default function CleaningTaskDetailsPage() {
                     </Button>
                 );
             }
-        } else if (['manager', 'front-desk'].includes(user.role)) {
-            
-                return (
-                    <>  {(taskDetails.status === 'waiting_check' || taskDetails.status === 'completed') &&
+        } else if ([USER_ROLES.MANAGER, USER_ROLES.FRONT_DESK].includes(user.role)) {
+            return (
+                <>
+                    {(taskDetails.status === CLEANICNG_STATUSES.WAITING_CHECK || taskDetails.status === CLEANICNG_STATUSES.COMPLETED) &&
                         <Button variant="default" onClick={handleFinishInspection} disabled={!isChecklistComplete}>
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Завершить проверку
-                    </Button>
-                    
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Завершить проверку
+                        </Button>
                     }
-                        <Button variant="outline" onClick={() => router.push(`/housekeeping/${taskId}/edit`)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Редактировать
-                        </Button>
-                        <Button variant="destructive" onClick={handleCancelTask}>
-                            <XCircle className="mr-2 h-4 w-4" />
-                            Отменить
-                        </Button>
-                    </>
-                )
+                    <Button variant="outline" onClick={() => router.push(`/housekeeping/${taskId}/edit`)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Редактировать
+                    </Button>
+                    <Button variant="destructive" onClick={handleCancelTask}>
+                        <XCircle className="mr-2 h-4 w-4" />
+                        Отменить
+                    </Button>
+                </>
+            )
         }
         return null;
     };
 
     const canEditChecklist =
-        (user?.role === 'housekeeper' && taskDetails?.status === 'in_progress') ||
-        ((user?.role === 'manager' || user?.role === 'front-desk') && taskDetails?.status === 'waiting_check');
+        (user?.role === USER_ROLES.HOUSEKEEPER && taskDetails?.status === CLEANICNG_STATUSES.IN_PROGRESS) ||
+        ((user?.role === USER_ROLES.MANAGER || user?.role === USER_ROLES.FRONT_DESK) && taskDetails?.status === CLEANICNG_STATUSES.WAITING_CHECK);
 
 
     if (isLoading || isAuthLoading) {
@@ -257,7 +340,7 @@ export default function CleaningTaskDetailsPage() {
     }
 
     if (!isAuthenticated || !user) {
-        return <AuthRequiredMessage/>;
+        return <AuthRequiredMessage />;
     }
 
     if (error) {
@@ -279,6 +362,9 @@ export default function CleaningTaskDetailsPage() {
     }
 
     if (taskDetails) {
+        // Оборачиваем checklistData в массив, так как ChecklistCardList ожидает массив
+        const checklistsToDisplay = checklistData ? [checklistData] : [];
+
         return (
             <div className="container mx-auto py-10">
                 <Button variant="ghost" onClick={() => router.back()} className="mb-4">
@@ -341,29 +427,20 @@ export default function CleaningTaskDetailsPage() {
                             </div>
                         </div>
 
-                        {/* Чек-лист */}
-                        {taskDetails.checklist_data && taskDetails.checklist_data.items && taskDetails.checklist_data.items.length > 0 && (
+                        {/* Заменяем старый рендеринг чек-листа на ChecklistCardList */}
+                        {checklistsToDisplay.length > 0 && (
                             <div className="mt-6 border-t pt-4">
                                 <h3 className="text-lg font-semibold mb-2">
                                     <ClipboardList className="mr-2 inline-block h-5 w-5" />
                                     Чек-лист
                                 </h3>
-                                <ul>
-                                    {checklistItems.map((item, index) => (
-                                        <li key={index} className="flex items-center py-2 border-b last:border-b-0">
-                                            <input
-                                                type="checkbox"
-                                                checked={checkedItemIds.includes(item.id)}
-                                                onChange={() => handleChecklistItemChange(item.id)}
-                                                className="mr-2 h-4 w-4"
-                                                disabled={
-                                                    !canEditChecklist
-                                                }
-                                            />
-                                            <span>{item.text}</span>
-                                        </li>
-                                    ))}
-                                </ul>
+                                <ChecklistCardList
+                                    checklists={checklistsToDisplay}
+                                    checkedItemIds={checkedItemIds}
+                                    onChecklistItemChange={handleChecklistItemChange}
+                                    // onDeleteChecklist={handleDeleteChecklist} // Передаем заглушку или реальную функцию
+                                    canEditChecklist={canEditChecklist}
+                                />
                             </div>
                         )}
                     </CardContent>
