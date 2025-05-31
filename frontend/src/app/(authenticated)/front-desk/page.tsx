@@ -399,9 +399,7 @@ export default function FrontDeskPage() {
         router.push(`/bookings/${bookingId}`);
     };
 
-    // const handleLogout = () => {
-    //     logout();
-    // };
+
 
     // --- Функции для удаления и отмены бронирования ---
 

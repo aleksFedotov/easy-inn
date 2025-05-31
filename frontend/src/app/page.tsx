@@ -14,7 +14,6 @@ export default function HomePage() {
           </Link>
         </div>
         
-        {/* TODO: Можно добавить больше информации о приложении, картинки и т.д. */}
       </div>
     </div>
   );

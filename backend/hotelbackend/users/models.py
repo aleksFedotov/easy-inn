@@ -9,8 +9,7 @@ class User(AbstractUser):
     # Defines user roles using TextChoices
     # Определяет роли пользователей с использованием TextChoices
     class Role(models.TextChoices):
-        HOUSEKEEPER = 'housekeeper', 'Горничная'
-        # ADMIN = 'admin', 'Администратор'     
+        HOUSEKEEPER = 'housekeeper', 'Горничная'    
         MANAGER = 'manager', 'Управляющий'
         FRONT_DESK = 'front-desk', 'Ресепшн'
 

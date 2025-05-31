@@ -96,6 +96,8 @@ export interface Checklist {
     name: string; 
     cleaning_type: CleaningType;
     cleaning_type_display: string;   
+    periodicity: number; 
+    offset_days: number;
     description: string; 
     items: ChecklistItem[]
 }

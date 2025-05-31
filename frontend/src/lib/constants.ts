@@ -11,7 +11,7 @@ export const CLEANING_TYPES = {
   PUBLIC_AREA: 'public_area_cleaning', // Текущая уборка общих зон
 };
 
-export const CLEANING_STATUSES = {
+export const CLEANICNG_STATUSES = {
   UNASSIGNED: 'unassigned', // Задача не назначена
   ASSIGNED: 'assigned', // Задача назначена горничной
   IN_PROGRESS: 'in_progress', // В процессе уборки
@@ -49,3 +49,17 @@ export const CLEANING_TYPE_VALUES = [
   'post_renovation_cleaning',
   'public_area_cleaning',
 ] as const;
+
+
+export const USER_ROLES = {
+  HOUSEKEEPER : 'housekeeper',     
+  MANAGER : 'manager', 
+  FRONT_DESK : 'front-desk', 
+}
+export const BOOKING_STATUSES = {
+  UPCOMING : 'upcoming',     
+  IN_PROGRESS : 'in_progress', 
+  CHECKED_OUT : 'front-checked_out', 
+  CANCELLED : 'front-cancelled', 
+  NO_SHOW : 'front-no_show', 
+}

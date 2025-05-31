@@ -33,11 +33,22 @@ import { cleaningTypeOptions, CLEANING_TYPE_VALUES } from '@/lib/constants';
 
 const CleaningTypeEnum = z.enum(CLEANING_TYPE_VALUES);
 
+const periodicityOptions = [ // Define periodicity options for the select
+{ value: 1, label: "Каждый день" },
+{ value: 2, label: "Раз в 2 дня" },
+{ value: 3, label: "Раз в 3 дня" },
+{ value: 4, label: "Раз в 4 дня" },
+{ value: 7, label: "Раз в неделю" },
+{ value: 30, label: "Раз в месяц" },
+];
+
 
 interface ChecklistTemplateFormData {
     name: string;
     cleaning_type: string; // Changed to string for Select component
     description?: string;
+    periodicity: number; 
+    offset_days: number; 
     items: {
         id?: number;
         text: string;
@@ -50,6 +61,8 @@ const formSchema = z.object({
     cleaning_type: CleaningTypeEnum
         .refine(val => !!val, { message: "Выберите тип уборки." }),
     description: z.string().optional(),
+    periodicity: z.number().min(1, { message: "Периодичность должна быть не менее 1 дня" }), 
+    offset_days: z.number().min(0, { message: "Смещение не может быть отрицательным" }), 
     items: z.array(
         z.object({
             id: z.number().optional(),
@@ -77,6 +90,8 @@ export default function ChecklistTemplateForm({ checklistTemplateToEdit, onSucce
             name: checklistTemplateToEdit.name,
             cleaning_type: checklistTemplateToEdit.cleaning_type, // Convert to string for Select
             description: checklistTemplateToEdit.description || '',
+            periodicity: checklistTemplateToEdit.periodicity || 1, 
+            offset_days: checklistTemplateToEdit.offset_days || 0, 
             items: checklistTemplateToEdit.items?.map(item => ({
                 id: item.id,
                 text: item.text,
@@ -85,6 +100,8 @@ export default function ChecklistTemplateForm({ checklistTemplateToEdit, onSucce
             name: '',
             cleaning_type: undefined, 
             description: '',
+            periodicity: 1, 
+            offset_days: 0, 
             items: [],
         },
     });
@@ -104,6 +121,8 @@ export default function ChecklistTemplateForm({ checklistTemplateToEdit, onSucce
                 name: data.name,
                 cleaning_type: data.cleaning_type,
                 description: data.description,
+                periodicity: data.periodicity,
+                offset_days: data.offset_days,
                 items: data.items.map(item => ({
                     ...(item.id && { id: item.id }), 
                     text: item.text,
@@ -216,6 +235,49 @@ export default function ChecklistTemplateForm({ checklistTemplateToEdit, onSucce
                             <FormMessage />
                         </FormItem>
                     )}
+                />
+
+                {/* New Periodicity Field */}
+                <FormField
+                    control={form.control}
+                    name="periodicity"
+                    render={({ field }) => (
+                        <FormItem className="mb-4">
+                            <FormLabel>Периодичность уборки</FormLabel>
+                                <Select
+                                    onValueChange={(value) => field.onChange(Number(value))}
+                                    value={field.value?.toString()}
+                                >
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Выберите периодичность" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {periodicityOptions.map(option => (
+                                            <SelectItem key={option.value} value={option.value.toString()}>{option.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            <FormMessage />
+                        </FormItem>
+                )}
+                />
+                
+
+                {/* New Offset Days Field */}
+                <FormField
+                    control={form.control}
+                    name="offset_days"
+                    render={({ field }) => (
+                        <FormItem className="mb-4">
+                            <FormLabel>Смещение (дни)</FormLabel>
+                            <FormControl>
+                                <Input type="number" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                )}
                 />
 
                 <FormField
