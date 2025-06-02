@@ -285,10 +285,11 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         # Проверяем, можно ли завершить задачу из текущего статуса
         if task.status == CleaningTask.Status.IN_PROGRESS:
             logger.info(f"Task {task.pk} status is {task.get_status_display()}, allowing completion.")
-            if  task.cleaning_type == None or task.cleaning_type == CleaningTypeChoices.STAYOVER:
+            if  task.cleaning_type == None or task.cleaning_type == CleaningTypeChoices.STAYOVER or task.cleaning_type == CleaningTypeChoices.PUBLIC_AREA_CLEANING:
                 task.status = CleaningTask.Status.CHECKED 
             elif task.cleaning_type == CleaningTypeChoices.DEPARTURE_CLEANING:
                 task.status = CleaningTask.Status.WAITING_CHECK 
+             
 
             task.completed_at = timezone.now() # Set completion time / Устанавливаем время завершения
             task.save(update_fields=['status', 'completed_at'])
@@ -305,6 +306,7 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                 zone = task.zone
                 zone.status = Zone.Status.CLEAN
                 zone.save(update_fields=['status'])
+                logger.info(f"Zone new status {zone.status}.")
                 logger.info(f"Zone {zone.name} status changed to 'clean'.")
             serializer = self.get_serializer(task)
             logger.info(f"Task {task.pk} completed successfully by user {request.user}.")

@@ -75,7 +75,7 @@ export default function CleaningTaskDetailsPage() {
             const response = await api.get(`/api/cleaningtasks/${taskId}/`);
             if (response.status === 200) {
                 setTaskDetails(response.data);
-                console.log('Fetched task details:', response.data);
+                // console.log('Fetched task details:', response.data);
                 if (response.data.checklist_data && response.data.checklist_data.length > 0) {
                     setChecklistData(response.data.checklist_data); 
         
@@ -151,10 +151,10 @@ export default function CleaningTaskDetailsPage() {
         setIsLoading(true);
         setError(null);
         try {
+            console.log("trying to finish inspection with checked items:", checkedItemIds);
             // Отправляем список отмеченных пунктов при завершении уборки
-            await api.patch(`/api/cleaningtasks/${taskId}/complete/`, {
-                completed_checklist_items: checkedItemIds
-            });
+            const response = await api.patch(`/api/cleaningtasks/${taskId}/complete/`);
+            console.log('Finish inspection response:', response.data);
             fetchTaskDetails();
         } catch (err) {
             console.error('Error during start cleaning:', err);
@@ -172,6 +172,7 @@ export default function CleaningTaskDetailsPage() {
     };
 
     const handleFinishInspection = async () => {
+        
         if (!isChecklistComplete) {
             setError("Пожалуйста, проверьте все пункты чек-листа.");
             return;
@@ -180,10 +181,10 @@ export default function CleaningTaskDetailsPage() {
         setIsLoading(true);
         setError(null);
         try {
+         
             // Отправляем список отмеченных пунктов при завершении проверки
-            await api.patch(`/api/cleaningtasks/${taskId}/check/`, {
-                completed_checklist_items: checkedItemIds
-            });
+            await api.patch(`/api/cleaningtasks/${taskId}/check/`);
+           
             fetchTaskDetails(); // Обновляем данные после изменения статуса
         } catch (err) {
             console.error('Error during start cleaning:', err);
@@ -393,7 +394,7 @@ export default function CleaningTaskDetailsPage() {
                                 Общий прогресс
                             </p>
                         </div>
-                    d
+                    
 
                         {/* Заменяем старый рендеринг чек-листа на ChecklistCardList */}
                         {checklistData.length > 0 && (

@@ -248,7 +248,7 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': False,
         },
-        'user': {
+        'users': {
             'handlers': ['console',],
             'level': 'DEBUG',
             'propagate': False,
