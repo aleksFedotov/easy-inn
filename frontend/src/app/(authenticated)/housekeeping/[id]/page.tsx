@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 import { Spinner } from '@/components/spinner';
@@ -30,6 +30,8 @@ import getCleaningStatusColor from '@/lib/cleaning/GetCLeaningStatusColor';
 import { CLEANICNG_STATUSES, USER_ROLES } from '@/lib/constants';
 import ChecklistCardList from '@/components/cleaning/ChecklistCardList';
 import { Checklist, CleaningTask, ChecklistProgress } from '@/lib/types/housekeeping';
+import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
+import 'react-circular-progressbar/dist/styles.css'; //  Подключаем стили
 
 
 
@@ -73,20 +75,14 @@ export default function CleaningTaskDetailsPage() {
             const response = await api.get(`/api/cleaningtasks/${taskId}/`);
             if (response.status === 200) {
                 setTaskDetails(response.data);
-                // Если `checklist_data` приходит как массив шаблонов, возьмем первый или нужный
-                // В данном случае, так как задача связана с одним типом уборки,
-                // предполагаем, что `checklist_data` в ответе будет массивом,
-                // и мы возьмем первый подходящий шаблон.
                 console.log('Fetched task details:', response.data);
                 if (response.data.checklist_data && response.data.checklist_data.length > 0) {
-                    setChecklistData(response.data.checklist_data); // Берем первый шаблон из списка
-                    // Инициализируем checkedItemIds как пустой массив, так как 'checked' нет на бэкенде
-                    // Пользователь будет отмечать пункты на фронтенде
-                
+                    setChecklistData(response.data.checklist_data); 
+        
                     setCheckedItemIds([]); 
                 } else {
-                    setChecklistData([]); // Нет связанных чек-листов
-                    setIsChecklistComplete(true); // Если нет чек-листа, считаем его завершенным
+                    setChecklistData([]);  
+                    setIsChecklistComplete(true); 
                 }
 
             } else if (response.status === 404) {
@@ -150,6 +146,7 @@ export default function CleaningTaskDetailsPage() {
             setError("Пожалуйста, завершите все пункты чек-листа.");
             return;
         }
+
 
         setIsLoading(true);
         setError(null);
@@ -223,6 +220,21 @@ export default function CleaningTaskDetailsPage() {
             setIsLoading(false);
         }
     };
+
+    const totalProgress = useMemo(() => {
+    if (checklistData.length === 0) return 0;
+
+    const total = checklistData.reduce((sum, checklist) => {
+        const checklistProgress = checklistsState[checklist.id];
+        if (!checklistProgress) return sum; //  Если нет данных о прогрессе, не учитываем
+
+        const completed = checklistProgress.completed || 0;
+        const totalItems = checklistProgress.total || 0;
+        return sum + (totalItems === 0 ? 100 : (completed / totalItems) * 100);
+    }, 0);
+
+    return checklistData.length === 0 ? 0 : total / checklistData.length;
+}, [checklistsState, checklistData]);
 
     // Функция для рендеринга действий в зависимости от роли пользователя и статуса задачи
 
@@ -366,6 +378,22 @@ export default function CleaningTaskDetailsPage() {
                                 </Badge>
                             </div>
                         </div>
+                       
+                        <div className="w-30 mx-auto">
+                            <CircularProgressbar
+                                value={totalProgress}
+                                text={`${Math.round(totalProgress)}%`}
+                                styles={buildStyles({
+                                    textColor: 'black',
+                                    pathColor: '#0070f3', 
+                                    trailColor: '#d6d6d6',
+                                })}
+                            />
+                            <p className="text-center mt-2 text-sm text-gray-500">
+                                Общий прогресс
+                            </p>
+                        </div>
+                    d
 
                         {/* Заменяем старый рендеринг чек-листа на ChecklistCardList */}
                         {checklistData.length > 0 && (
