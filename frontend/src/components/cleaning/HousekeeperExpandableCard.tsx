@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import {  ChevronDown, LogOut, Bed, House } from 'lucide-react'; // Импорт иконок
 import { CleaningTask, User } from '@/lib/types'; // Импорт типов User и CleaningTask
 import { Avatar, AvatarFallback,  } from '@/components/ui/avatar';
+import { CLEANING_TYPES } from '@/lib/constants';
+
 
 // Интерфейс для пропсов компонента HousekeeperExpandableCard
 interface HousekeeperExpandableCardProps {
@@ -22,11 +24,11 @@ const getInitials = (firstName?: string, lastName?: string): string => {
 const TaskCard: React.FC<{ task: CleaningTask; }> = ({ task }) => {
     let icon;
     // Определяем иконку в зависимости от типа уборки
-    switch (task.cleaning_type_name) {
-        case 'Уборка после выезда': // Предполагаем, что это название типа уборки для выезда
+    switch (task.cleaning_type) {
+        case CLEANING_TYPES.DEPARTURE: // Предполагаем, что это название типа уборки для выезда
             icon = <LogOut size={16} className="text-blue-500" />;
             break;
-        case 'Текущая уборка': // Предполагаем, что это название типа уборки для текущей
+        case CLEANING_TYPES.STAYOVER: // Предполагаем, что это название типа уборки для текущей
             icon = <Bed size={16} className="text-green-500" />;
             break;
         default: // Для зон или других типов
@@ -64,10 +66,10 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
 
     // Фильтрация задач по типу уборки
     const checkoutTasks = cleaningTasks.filter(
-        (task) => task.cleaning_type_name === 'Уборка после выезда'
+        (task) => task.cleaning_type === CLEANING_TYPES.DEPARTURE
     );
     const currentTasks = cleaningTasks.filter(
-        (task) => task.cleaning_type_name === 'Текущая уборка' && task.room_number
+        (task) => task.cleaning_type === CLEANING_TYPES.STAYOVER && task.room_number
     );
     const zoneTasks = cleaningTasks.filter((task) => task.zone_name);
 
