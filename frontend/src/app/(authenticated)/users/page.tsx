@@ -386,14 +386,14 @@ export default function ManageUsersPage() {
             return null;
         }
         return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+            <div className="flex items-center justify-center min-h-screen">
             </div>
         );
     }
 
     if (isLoading && !isFormOpen && !isDeleteConfirmDialogOpen && !isErrorDialogOpen) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+            <div className="flex items-center justify-center min-h-screen">
                 <Spinner/>
             </div>
         );

@@ -250,7 +250,7 @@ export default function CleaningTaskDetailsPage() {
 
     if (isLoading || isAuthLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+            <div className="flex items-center justify-center min-h-screen">
                 <Spinner />
             </div>
         );
@@ -262,7 +262,7 @@ export default function CleaningTaskDetailsPage() {
 
     if (error) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+            <div className="flex items-center justify-center min-h-screen">
                 <ErrorMessage message={error} onRetry={fetchTaskDetails} isLoading={isLoading} />
             </div>
         );
@@ -270,7 +270,7 @@ export default function CleaningTaskDetailsPage() {
 
     if (!taskDetails && taskId) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+            <div className="flex items-center justify-center min-h-screen">
                 <div className="rounded-md border bg-muted p-4">
                     Задача уборки с ID {taskId} не найдена.
                 </div>
@@ -382,7 +382,7 @@ export default function CleaningTaskDetailsPage() {
     }
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="flex items-center justify-center min-h-screen">
             <div className="rounded-md border bg-muted p-4">
                 Неизвестная ошибка при загрузке...
             </div>

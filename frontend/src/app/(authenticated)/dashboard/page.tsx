@@ -157,7 +157,7 @@ const DashboardPage: React.FC = () => {
                     <Tooltip
                       content={({ active, payload }) =>
                         active && payload && payload.length ? (
-                          <div className="bg-white dark:bg-gray-800 p-2 rounded shadow text-sm">
+                          <div className="p-2 rounded shadow text-sm">
                             <p className="font-semibold">{payload[0].payload.name}</p>
                             <p>Количество: {payload[0].value}</p>
                           </div>
