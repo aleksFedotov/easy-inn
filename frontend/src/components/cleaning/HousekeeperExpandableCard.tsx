@@ -106,7 +106,7 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
 
             {/* Разворачиваемая область с разделами задач */}
             {isCardExpanded && (
-                <div className="p-4 border-t border-gray-100 bg-gray-50">
+                <div className="p-4 border-t border-gray-100">
                     {/* Раздел "Заезд" */}
                     <div className="mb-4 last:mb-0">
                         <div

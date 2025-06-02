@@ -38,7 +38,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, cardColor }) => {
                 <CardContent className="grid gap-2">
                     <div className="flex items-center">
                         <FileText className="mr-2 h-4 w-4" />
-                        <span>Тип: {task.cleaning_type_name}</span>
+                        <span>Тип: {task.cleaning_type_display}</span>
                     </div>
                     <div className="flex items-center">
                         <Clock className="mr-2 h-4 w-4" />
