@@ -64,7 +64,10 @@ class UserViewSet(viewsets.ModelViewSet):
         Получить данные текущего аутентифицированного пользователя.
         """
         # request.user содержит объект текущего аутентифицированного пользователя
+        logger.info(f'Получение данных для пользователя {request.user.username, request.user.id}')
         serializer = self.get_serializer(request.user)
+        logger.info(f'AUTHENTICATION BACKEND: {request.successful_authenticator.__class__.__name__}')
+
         return Response(serializer.data)
     
     def paginate_queryset(self, queryset):

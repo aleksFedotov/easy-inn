@@ -27,28 +27,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Logout function
   const logout = useCallback(async () => {
     try {
-      await AsyncStorage.removeItem('accessToken');
-      await AsyncStorage.removeItem('refreshToken');
-      setIsAuthenticated(false);
-      setUser(null);
-      router.push('/login'); // Перенаправляем на экран логина
-      console.log('User logged out.');
+        await AsyncStorage.removeItem('accessToken');
+        await AsyncStorage.removeItem('refreshToken');
+        setIsAuthenticated(false);
+        setUser(null);
+        router.replace('/login'); // Перенаправляем на экран логина
+        console.log('User logged out.');
     } catch (error) {
-      console.error('Error during logout:', error);
-      Alert.alert('Ошибка', 'Не удалось выйти из системы.');
+        console.error('Error during logout:', error);
+        Alert.alert('Ошибка', 'Не удалось выйти из системы.');
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
   }, [router]);
 
   // Fetch User Data
   const fetchUser = useCallback(async (accessTokenOverride?: string) => {
     try {
-          const accessToken = accessTokenOverride || await AsyncStorage.getItem('accessToken');
-          console.log('Fetching user data with access token:', accessToken);
-          const decoded = jwtDecode(accessToken);
-          console.log("DECODED ACCESS:", decoded);
-          const response = await api.get<User>('/api/users/me/'); // Замените на ваш эндпоинт для получения данных пользователя
+        const accessToken = accessTokenOverride || await AsyncStorage.getItem('accessToken');
+    
+        const response = await api.get<User>('/api/users/me/', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
       if (response.status === 200) {
           console.log('User data fetched:', response.data);
           setUser(response.data);
@@ -75,9 +77,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       await AsyncStorage.setItem('accessToken', accessToken);
       await AsyncStorage.setItem('refreshToken', refreshToken);
-      const storedAccessToken = await AsyncStorage.getItem('accessToken');
-      const storedRefreshToken = await AsyncStorage.getItem('refreshToken');
-      console.log('Tokens setted in AsyncStorage.' ,storedAccessToken , storedRefreshToken);
       await fetchUser(accessToken); // Fetch user data after login
     } catch (error) {
       console.error('Error during login:', error);

@@ -4,7 +4,7 @@ import api from '../lib/api'; // Импорт вашего экземпляра 
 import { useAuth } from '../context/AuthContext'; // Импорт хука useAuth
 import { useRouter } from 'expo-router'; // Импорт useRouter для навигации
 import { isAxiosError } from 'axios'; // Для проверки ошибок Axios
-import {jwtDecode} from 'jwt-decode'; // Импорт функции декодирования JWT
+
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('');
@@ -31,9 +31,6 @@ export default function LoginScreen() {
 
       if (response.status === 200) {
         const { access, refresh } = response.data;
-        console.log('Access Token:', access);
-        const decoded =  jwtDecode(access);
-        console.log("DECODED ACCESS:", decoded);
         // Вызываем функцию login из AuthContext, которая сохранит токены и получит данные пользователя
         await login(access, refresh);
 
@@ -47,6 +44,7 @@ export default function LoginScreen() {
         } else {
           router.replace('/dashboard'); // Перенаправляем на дашборд для других ролей
         }
+       
 
       } else {
         // Обработка ошибок, если статус ответа не 200

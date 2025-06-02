@@ -1,110 +1,81 @@
 import React from 'react';
 import { Drawer } from 'expo-router/drawer';
 import { useAuth } from '../../context/AuthContext';
-import { Redirect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import {
-  View,
   TouchableOpacity,
   Text,
   StyleSheet,
+  View,
 } from 'react-native';
 
 const menuItems = [
-  {
-    id: 'dashboard',
-    name: 'Главная',
-    href: '/dashboard',
-    roles: ['frontDesk', 'manager'],
-  },
-  {
-    id: 'front-desk',
-    name: 'Служба приема',
-    href: '/front-desk',
-    roles: ['frontDesk', 'manager'],
-  },
-  {
-    id: 'housekeeping',
-    name: 'Уборка',
-    href: '/housekeeping/index',
-    roles: ['frontDesk', 'manager'],
-  },
-  {
-    id: 'my-cleaning-task',
-    name: 'Мои задачи',
-    href: '/my-cleaning-task',
-    roles: ['housekeeper'],
-  },
+  { id: 'dashboard', name: 'Главная', routeName: 'dashboard', roles: ['frontdesk', 'manager'] },
+  { id: 'front-desk', name: 'Служба приема', routeName: 'front-desk', roles: ['frontdesk', 'manager'] },
+  { id: 'housekeeping', name: 'Уборка', routeName: 'housekeeping', roles: ['frontdesk', 'manager'] },
+  { id: 'my-cleaning-task', name: 'Мои задачи', routeName: 'my-cleaning-task', roles: ['housekeeper'] },
 ];
 
 const settingsItems = [
-  {
-    id: 'settings-users',
-    name: 'Пользователи',
-    href: '/users',
-    roles: ['manager'],
-  },
-  {
-    id: 'settings-rooms',
-    name: 'Настройка комнат',
-    href: '/room-setup',
-    roles: ['manager'],
-  },
-  {
-    id: 'settings-cleaning',
-    name: 'Настройка уборки',
-    href: '/cleaning-setup',
-    roles: ['manager'],
-  },
+  { id: 'settings-users', name: 'Пользователи', routeName: 'users', roles: ['manager'] },
+  { id: 'settings-rooms', name: 'Настройка комнат', routeName: 'room-setup', roles: ['manager'] },
+  { id: 'settings-cleaning', name: 'Настройка уборки', routeName: 'cleaning-setup', roles: ['manager'] },
 ];
-
-
-
-
 
 const AuthenticatedLayout = () => {
   const { isAuthenticated, isLoading, user, logout } = useAuth();
   const router = useRouter();
 
   if (isLoading) {
-    return <View style={styles.loading}><Text>Загрузка...</Text></View>;
+    return (
+      <View style={styles.loading}>
+        <Text>Загрузка...</Text>
+      </View>
+    );
   }
 
   if (!isAuthenticated) {
-    return <Redirect href="/login" />;
+    router.replace('/login');
+    return null;
   }
 
-  const visibleMenuItems = menuItems.filter(item => item.roles.includes(user!.role));
-  const visibleSettingsItems = settingsItems.filter(item => item.roles.includes(user!.role));
+  // Фильтруем меню по роли
+  const visibleMenuItems = menuItems.filter(item => item.roles.includes(user?.role ?? ''));
+  const visibleSettingsItems = settingsItems.filter(item => item.roles.includes(user?.role ?? ''));
 
   return (
     <Drawer>
-      {visibleMenuItems.map((item) => (
+      {visibleMenuItems.map(item => (
         <Drawer.Screen
           key={item.id}
-          name={item.href.startsWith('/') ? item.href.slice(1) : item.href}
+          name={item.routeName}
           options={{
-            drawerLabel: ({ focused }) => <Text style={[styles.drawerLabel, focused && styles.drawerLabelFocused]}>{item.name}</Text>,
+            drawerLabel: ({ focused }) => (
+              <Text style={[styles.drawerLabel, focused && styles.drawerLabelFocused]}>
+                {item.name}
+              </Text>
+            ),
             title: item.name,
             headerShown: true,
           }}
         />
       ))}
 
-        {visibleSettingsItems.map((item) => (
+      {visibleSettingsItems.map(item => (
         <Drawer.Screen
-            key={item.id}
-            name={item.href.startsWith('/') ? item.href.slice(1) : item.href}
-            options={{
+          key={item.id}
+          name={item.routeName}
+          options={{
             drawerLabel: ({ focused }) => (
-                <Text style={[styles.drawerLabel, focused && styles.drawerLabelFocused]}>
+              <Text style={[styles.drawerLabel, focused && styles.drawerLabelFocused]}>
                 {item.name}
-                </Text>
+              </Text>
             ),
             title: item.name,
             headerShown: true,
-            }}
+          }}
         />
-        ))}
+      ))}
 
       <Drawer.Screen
         name="logout"
@@ -117,7 +88,9 @@ const AuthenticatedLayout = () => {
               }}
               style={{ width: '100%' }}
             >
-              <Text style={[styles.drawerLabel, { fontWeight: 'bold', color: '#d00', paddingVertical: 10 }]}>Выйти</Text>
+              <Text style={[styles.drawerLabel, { fontWeight: 'bold', color: '#d00', paddingVertical: 10 }]}>
+                Выйти
+              </Text>
             </TouchableOpacity>
           ),
           title: 'Выйти',
@@ -134,21 +107,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  drawerSection: {
-    marginTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    paddingTop: 10,
-  },
-  drawerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  drawerItemFocused: {
-    backgroundColor: '#e6f7ff',
   },
   drawerLabel: {
     fontSize: 16,

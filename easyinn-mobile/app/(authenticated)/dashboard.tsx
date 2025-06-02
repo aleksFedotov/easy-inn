@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 const DashboardScreen = () => {
   const { logout, user } = useAuth();
   const router = useRouter();
-  console.log(user)
+  
 
   return (
     <View style={styles.container}>
