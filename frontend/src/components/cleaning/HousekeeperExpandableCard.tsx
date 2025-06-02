@@ -66,8 +66,10 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
     // Фильтрация задач по типу уборки
     const checkoutTasks = cleaningTasks.filter(
         (task) => task.cleaning_type === CLEANING_TYPES.DEPARTURE
+        (task) => task.cleaning_type === CLEANING_TYPES.DEPARTURE
     );
     const currentTasks = cleaningTasks.filter(
+        (task) => task.cleaning_type === CLEANING_TYPES.STAYOVER && task.room_number
         (task) => task.cleaning_type === CLEANING_TYPES.STAYOVER && task.room_number
     );
     const zoneTasks = cleaningTasks.filter((task) => task.zone_name);
@@ -105,7 +107,7 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
 
             {/* Разворачиваемая область с разделами задач */}
             {isCardExpanded && (
-                <div className="p-4 border-t border-gray-100 bg-gray-50">
+                <div className="p-4 border-t border-gray-100">
                     {/* Раздел "Заезд" */}
                     <div className="mb-4 last:mb-0">
                         <div

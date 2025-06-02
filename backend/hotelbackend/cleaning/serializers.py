@@ -55,6 +55,8 @@ class ChecklistTemplateSerializer(serializers.ModelSerializer):
             'name',
             'cleaning_type', # Allows setting the CleaningType via its ID / Позволяет устанавливать CleaningType по его ID
             'cleaning_type_display', # Read-only field displaying the name / Поле только для чтения, отображающее имя
+            'periodicity',  
+            'offset_days',  
             'description',
             'items', 
         ]
@@ -302,28 +304,42 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
 
     def get_checklist_data(self, obj: CleaningTask):
         """
-        Получает данные шаблона чек-листа, связанные с типом уборки данной задачи.
+        Получает данные шаблонов чек-листов, применимых к данной задаче с учетом периодичности.
         """
-        if not obj.cleaning_type:
-            return {
-                "name": None,
-                "description": None,
-                "items": []
-            }
-
-        checklist_template = ChecklistTemplate.objects.filter(
-            cleaning_type=obj.cleaning_type
-        ).prefetch_related('items').first()
-        if checklist_template:
-            return ChecklistTemplateSerializer(checklist_template, context=self.context).data
-
-        # Если шаблон не найден, возвращаем пустую структуру
-        return {
-            "name": None,
-            "description": None,
-            "items": []
-        }
+        if not obj.cleaning_type or not obj.scheduled_date:
+            return []  # Возвращаем пустой список, если нет типа уборки или даты
         
+
+        checklist_templates = ChecklistTemplate.objects.filter(
+        cleaning_type=obj.cleaning_type
+        ).prefetch_related('items')
+        
+
+        applicable_checklists = []
+        days_since_start = 0  # Default to 0 if we don't have a booking to calculate from
+        
+
+        if obj.booking:
+            days_since_start = (obj.scheduled_date - obj.booking.check_in.date()).days
+        else:
+        # If there is no booking, calculate from the scheduled date
+        # This might need to be adjusted based on your application's logic
+            days_since_start = (obj.scheduled_date - obj.scheduled_date).days # Which is 0
+        
+        
+
+        for template in checklist_templates:
+        # Check if the checklist is due on this day
+            if (days_since_start - template.offset_days) >= 0 and \
+            (days_since_start - template.offset_days) % template.periodicity == 0:
+                applicable_checklists.append(template)
+        
+
+        if applicable_checklists:
+            return ChecklistTemplateSerializer(applicable_checklists, many=True, context=self.context).data
+        else:
+            return []
+            
 
     class Meta:
         model = CleaningTask # Specify the model / Указываем модель
