@@ -65,3 +65,9 @@ export interface CleaningStats {
     currentCompleted: number;      
     currentAvgTime: number | null;  
 }
+
+
+export interface ChecklistProgress {
+  total: number;
+  completed: number;
+}

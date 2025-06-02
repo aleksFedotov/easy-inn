@@ -27,9 +27,11 @@ import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import AuthRequiredMessage from '@/components/AuthRequiredMessage';
 import getCleaningStatusColor from '@/lib/cleaning/GetCLeaningStatusColor';
-import { CLEANING_STATUSES, USER_ROLES } from '@/lib/constants';
+import { CLEANICNG_STATUSES, USER_ROLES } from '@/lib/constants';
 import ChecklistCardList from '@/components/cleaning/ChecklistCardList';
-import { Checklist, CleaningTask, ChecklistProgress } from '@/lib/types';
+import { Checklist, CleaningTask, ChecklistProgress } from '@/lib/types/housekeeping';
+
+
 
 
 
@@ -228,14 +230,14 @@ export default function CleaningTaskDetailsPage() {
         if (!user || !taskDetails) return null;
 
         if (user.role === USER_ROLES.HOUSEKEEPER) {
-            if (taskDetails.status === CLEANING_STATUSES.ASSIGNED) {
+            if (taskDetails.status === CLEANICNG_STATUSES.ASSIGNED) {
                 return (
                     <Button variant="default" onClick={handleStartCleaning}>
                         <Play className="mr-2 h-4 w-4" />
                         Начать уборку
                     </Button>
                 );
-            } else if (taskDetails.status === CLEANING_STATUSES.IN_PROGRESS) {
+            } else if (taskDetails.status === CLEANICNG_STATUSES.IN_PROGRESS) {
                 return (
                     <Button variant="default" onClick={handleFinishCleaning} disabled={!isChecklistComplete}>
                         <CheckCircle className="mr-2 h-4 w-4" />
@@ -246,7 +248,7 @@ export default function CleaningTaskDetailsPage() {
         } else if ([USER_ROLES.MANAGER, USER_ROLES.FRONT_DESK].includes(user.role)) {
             return (
                 <>
-                    {(taskDetails.status === CLEANING_STATUSES.WAITING_CHECK || taskDetails.status === CLEANING_STATUSES.COMPLETED) &&
+                    {(taskDetails.status === CLEANICNG_STATUSES.WAITING_CHECK || taskDetails.status === CLEANICNG_STATUSES.COMPLETED) &&
                         <Button variant="default" onClick={handleFinishInspection} disabled={!isChecklistComplete}>
                             <CheckCircle className="mr-2 h-4 w-4" />
                             Завершить проверку
