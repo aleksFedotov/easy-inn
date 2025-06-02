@@ -13,10 +13,8 @@ import {
     User as UserIcon,
     BookOpen,
     Clock,
-    Edit,
     ClipboardList,
     CheckCircle,
-    XCircle,
     Play,
     CircleDotDashed,
 } from 'lucide-react';
@@ -32,9 +30,6 @@ import ChecklistCardList from '@/components/cleaning/ChecklistCardList';
 import { Checklist, CleaningTask, ChecklistProgress } from '@/lib/types/housekeeping';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css'; //  Подключаем стили
-
-
-
 
 
 interface ChecklistsState {
@@ -58,9 +53,6 @@ export default function CleaningTaskDetailsPage() {
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     
-   
-
-
     const fetchTaskDetails = useCallback(async () => {
         if (!taskId) {
             setError('ID задачи не указан.');
@@ -201,33 +193,13 @@ export default function CleaningTaskDetailsPage() {
         }
     };
 
-    const handleCancelTask = async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            await api.patch(`/api/cleaningtasks/${taskId}/cancel/`);
-            fetchTaskDetails(); // Обновляем данные после изменения статуса
-        } catch (err) {
-            console.error('Error during start cleaning:', err);
-            if (axios.isAxiosError(err) && err.response) {
-                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при удалении бронирования.');
-            } else if (axios.isAxiosError(err) && err.request) {
-                setError('Нет ответа от сервера при завершении уборки.');
-            } else {
-                setError('Не удалось отменить задачу.');
-            }
-
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
     const totalProgress = useMemo(() => {
     if (checklistData.length === 0) return 0;
 
     const total = checklistData.reduce((sum, checklist) => {
         const checklistProgress = checklistsState[checklist.id];
-        if (!checklistProgress) return sum; //  Если нет данных о прогрессе, не учитываем
+        if (!checklistProgress) return sum; 
 
         const completed = checklistProgress.completed || 0;
         const totalItems = checklistProgress.total || 0;
@@ -267,14 +239,6 @@ export default function CleaningTaskDetailsPage() {
                             Завершить проверку
                         </Button>
                     }
-                    <Button variant="outline" onClick={() => router.push(`/housekeeping/${taskId}/edit`)}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Редактировать
-                    </Button>
-                    <Button variant="destructive" onClick={handleCancelTask}>
-                        <XCircle className="mr-2 h-4 w-4" />
-                        Отменить
-                    </Button>
                 </>
             )
         }
