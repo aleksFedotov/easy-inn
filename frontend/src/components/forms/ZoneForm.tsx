@@ -135,12 +135,12 @@ export default function ZoneForm({ zoneToEdit, onSuccess, onCancel }: ZoneFormPr
 
     return (
         
-        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md">
+        <form onSubmit={handleSubmit} className="p-6 rounded-lg shadow-md">
             <h2 className="text-xl font-bold mb-4">{zoneToEdit ? 'Редактировать зону' : 'Создать новую зону'}</h2>
 
             {/* Поле Название зоны */}
             <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="name">
+                <label className="block text-sm font-bold mb-2" htmlFor="name">
                     Название зоны:
                 </label>
                 <input
@@ -150,7 +150,7 @@ export default function ZoneForm({ zoneToEdit, onSuccess, onCancel }: ZoneFormPr
                     value={formData.name}
                     onChange={handleChange}
                     required 
-                    className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${fieldErrors.name ? 'border-red-500' : ''}`} 
+                    className={`shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline ${fieldErrors.name ? 'border-red-500' : ''}`} 
                 />
                 {/* Отображение ошибок для поля username */}
                 {fieldErrors.name && fieldErrors.name.map((msg, index) => (
@@ -160,7 +160,7 @@ export default function ZoneForm({ zoneToEdit, onSuccess, onCancel }: ZoneFormPr
 
             {/* Поле Этаж */}
             <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="floor">
+                <label className="block text-sm font-bold mb-2" htmlFor="floor">
                     Этаж (опционально):
                 </label>
                 <input
@@ -170,7 +170,7 @@ export default function ZoneForm({ zoneToEdit, onSuccess, onCancel }: ZoneFormPr
                     value={formData.floor}
                     onChange={handleChange}
                     min="1" 
-                    className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${fieldErrors.floor ? 'border-red-500' : ''}`}
+                    className={`shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline ${fieldErrors.floor ? 'border-red-500' : ''}`}
                 />
                  {/* Отображение ошибок для поля first_name */}
                 {fieldErrors.floor && fieldErrors.floor.map((msg, index) => (
@@ -180,7 +180,7 @@ export default function ZoneForm({ zoneToEdit, onSuccess, onCancel }: ZoneFormPr
 
              {/* Поле Описание */}
              <div className="mb-6">
-                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="description">
+                <label className="block text-sm font-bold mb-2" htmlFor="description">
                     Описание (опционально):
                 </label>
                 <textarea
@@ -189,7 +189,7 @@ export default function ZoneForm({ zoneToEdit, onSuccess, onCancel }: ZoneFormPr
                     value={formData.description}
                     onChange={handleChange}
                     rows={3}
-                    className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline resize-none ${fieldErrors.description ? 'border-red-500' : ''}`} 
+                    className={`shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline resize-none ${fieldErrors.description ? 'border-red-500' : ''}`} 
                 />
                  {/* Отображение ошибок для поля last_name */}
                 {fieldErrors.description && fieldErrors.description.map((msg, index) => (
@@ -214,7 +214,7 @@ export default function ZoneForm({ zoneToEdit, onSuccess, onCancel }: ZoneFormPr
                     type="button" // Важно: тип "button", чтобы не отправлять форму
                     onClick={onCancel}
                     disabled={isLoading}
-                    className="inline-block align-baseline font-bold text-sm text-gray-500 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-block align-baseline font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     Отмена
                 </button>

@@ -590,7 +590,7 @@ export default function FrontDeskPage() {
     if (!user || (user.role !== 'front-desk' && user.role !== 'manager')) {
         return (
             <div className="flex items-center justify-center min-h-screen">
-                <div className="p-8 rounded-lg shadow-lg bg-white max-w-md w-full text-center text-red-600 font-bold">
+                <div className="p-8 rounded-lg shadow-lg max-w-md w-full text-center text-red-600 font-bold">
                     У вас нет прав для просмотра этой страницы. Доступно персоналу службы приема и менеджерам.
                 </div>
             </div>

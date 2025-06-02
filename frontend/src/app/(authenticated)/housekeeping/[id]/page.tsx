@@ -293,7 +293,7 @@ export default function CleaningTaskDetailsPage() {
                         <CardTitle className="text-2xl font-bold">
                             Задача уборки: {taskDetails.room_number || taskDetails.zone_name || "Общая"}
                         </CardTitle>
-                        <CardDescription className="text-gray-500">
+                        <CardDescription >
                             Подробная информация о задаче.
                         </CardDescription>
                     </CardHeader>
@@ -354,7 +354,7 @@ export default function CleaningTaskDetailsPage() {
                                     trailColor: '#d6d6d6',
                                 })}
                             />
-                            <p className="text-center mt-2 text-sm text-gray-500">
+                            <p className="text-center mt-2 text-sm">
                                 Общий прогресс
                             </p>
                         </div>

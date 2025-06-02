@@ -36,7 +36,7 @@ const TaskCard: React.FC<{ task: CleaningTask; }> = ({ task }) => {
     }
 
     return (
-        <div className="flex items-center space-x-2 p-2 rounded-md border border-gray-200 bg-white text-gray-800">
+        <div className="flex items-center space-x-2 p-2 rounded-md border border-gray-200">
             {icon}
             <span className="text-sm font-medium">
                 {task.room_number || task.zone_name || 'Не указано'}
@@ -90,14 +90,14 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
                             {housekeeper.first_name} {housekeeper.last_name}
                         </p>
                         {/* Можно добавить общую статистику здесь, если нужно */}
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm">
                             Всего задач: {cleaningTasks.length}
                         </p>
                     </div>
                 </div>
                 <ChevronDown
                     size={24}
-                    className={`text-gray-500 transition-transform duration-300 ${
+                    className={`transition-transform duration-300 ${
                         isCardExpanded ? 'rotate-180' : ''
                     }`}
                 />
@@ -117,7 +117,7 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
                             </h3>
                             <ChevronDown
                                 size={20}
-                                className={`text-gray-500 transition-transform duration-300 ${
+                                className={`transition-transform duration-300 ${
                                     activeTaskSection === 'checkout' ? 'rotate-180' : ''
                                 }`}
                             />
@@ -129,7 +129,7 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
                                         <TaskCard key={task.id} task={task} />
                                     ))
                                 ) : (
-                                    <p className="text-sm text-gray-500 col-span-full px-3 py-1">
+                                    <p className="text-sm col-span-full px-3 py-1">
                                         Нет задач на выезд.
                                     </p>
                                 )}
@@ -148,7 +148,7 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
                             </h3>
                             <ChevronDown
                                 size={20}
-                                className={`text-gray-500 transition-transform duration-300 ${
+                                className={`transition-transform duration-300 ${
                                     activeTaskSection === 'current' ? 'rotate-180' : ''
                                 }`}
                             />
@@ -160,7 +160,7 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
                                         <TaskCard key={task.id} task={task} />
                                     ))
                                 ) : (
-                                    <p className="text-sm text-gray-500 col-span-full px-3 py-1">
+                                    <p className="text-sm col-span-full px-3 py-1">
                                         Нет текущих задач.
                                     </p>
                                 )}
@@ -179,7 +179,7 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
                             </h3>
                             <ChevronDown
                                 size={20}
-                                className={`text-gray-500 transition-transform duration-300 ${
+                                className={`transition-transform duration-300 ${
                                     activeTaskSection === 'zones' ? 'rotate-180' : ''
                                 }`}
                             />
@@ -191,7 +191,7 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
                                         <TaskCard key={task.id} task={task} />
                                     ))
                                 ) : (
-                                    <p className="text-sm text-gray-500 col-span-full px-3 py-1">
+                                    <p className="text-sm col-span-full px-3 py-1">
                                         Нет задач по зонам.
                                     </p>
                                 )}

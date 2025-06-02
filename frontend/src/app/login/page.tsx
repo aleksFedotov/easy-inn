@@ -94,7 +94,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Вход в EasyInn</CardTitle>
-          <CardDescription className="text-sm text-gray-500">
+          <CardDescription className="text-sm">
             Введите свои учетные данные для входа в систему
           </CardDescription>
         </CardHeader>

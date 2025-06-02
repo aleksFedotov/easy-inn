@@ -194,7 +194,7 @@ const DashboardPage: React.FC = () => {
             {checkoutTasks.map(task => (
               <CleaningTaskCard key={task.id} task={task} cardColor={task.is_guest_checked_out ? 'bg-red-100' : 'bg-gray-100'} />
             ))}
-            {checkoutTasks.length === 0 && <p className="text-gray-500">Нет задач уборки после выезда.</p>}
+            {checkoutTasks.length === 0 && <p>Нет задач уборки после выезда.</p>}
           </div>
         </TabsContent>
 
@@ -203,7 +203,7 @@ const DashboardPage: React.FC = () => {
             {currentTasks.map(task => (
               <CleaningTaskCard key={task.id} task={task} cardColor="bg-yellow-100" />
             ))}
-            {currentTasks.length === 0 && <p className="text-gray-500">Нет текущих задач уборки.</p>}
+            {currentTasks.length === 0 && <p>Нет текущих задач уборки.</p>}
           </div>
         </TabsContent>
 
@@ -212,7 +212,7 @@ const DashboardPage: React.FC = () => {
             {zoneTasks.map(task => (
               <CleaningTaskCard key={task.id} task={task} cardColor="bg-yellow-100" />
             ))}
-            {zoneTasks.length === 0 && <p className="text-gray-500">Нет задач уборки зон.</p>}
+            {zoneTasks.length === 0 && <p>Нет задач уборки зон.</p>}
           </div>
         </TabsContent>
       </Tabs>

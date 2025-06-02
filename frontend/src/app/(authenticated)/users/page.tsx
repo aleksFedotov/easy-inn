@@ -446,7 +446,7 @@ export default function ManageUsersPage() {
             <SheetTrigger asChild onClick={handleCreateUser}>
                 <Button
                     disabled={isDeleteConfirmDialogOpen || isErrorDialogOpen || !!deletingUserId}
-                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold transition duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+                  
                 >
                     <Plus size={18} className="inline mr-1"/> Создать пользователя
                 </Button>

@@ -384,7 +384,7 @@ export default function HousekeepingPage() {
 
     if (!user || !['front-desk', 'manager', 'housekeeper'].includes(user.role)) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+            <div className="flex items-center justify-center min-h-screen">
                 <div className="p-8 rounded-lg shadow-lg bg-white max-w-md w-full text-center text-red-600 font-bold">
                     У вас нет прав для просмотра этой страницы.
                 </div>
@@ -394,7 +394,7 @@ export default function HousekeepingPage() {
 
     if (isLoadingData && !isCreateEditTaskModalOpen && !isCreateEditTaskModalOpen && !isDeleteModalOpen && !isHousekeeperSelectionModalOpen) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+            <div className="flex items-center justify-center min-h-screen">
                 <Spinner />
             </div>
         );
@@ -486,7 +486,7 @@ export default function HousekeepingPage() {
 
               
                 <div className="md:col-span-2 shadow-md rounded-lg p-4 ">
-                    <h2 className="text-xl font-semibold text-gray-700 mb-4">
+                    <h2 className="text-xl font-semibold mb-4">
                         Задачи уборки ({selectedDate ? format(selectedDate, 'dd.MM.yyyy', { locale: ru }) : 'Выберите дату'})
                     </h2>
                     <div className="flex space-x-2 py-2 w-full">
@@ -561,7 +561,7 @@ export default function HousekeepingPage() {
                                             ))
                                         ) : (
                                             <TableRow>
-                                                <TableCell colSpan={columns.length} className="h-24 text-center text-gray-500">
+                                                <TableCell colSpan={columns.length} className="h-24 text-center">
                                                     Задачи по уборке на выбранную дату не найдены.
                                                 </TableCell>
                                             </TableRow>
@@ -606,7 +606,7 @@ export default function HousekeepingPage() {
                                             ))
                                         ) : (
                                             <TableRow>
-                                                <TableCell colSpan={columns.length} className="h-24 text-center text-gray-500">
+                                                <TableCell colSpan={columns.length} className="h-24 text-center">
                                                     Назначенные задачи по уборке не найдены.
                                                 </TableCell>
                                             </TableRow>
@@ -652,7 +652,7 @@ export default function HousekeepingPage() {
                                             ))
                                         ) : (
                                             <TableRow>
-                                                <TableCell colSpan={columns.length} className="h-24 text-center text-gray-500">
+                                                <TableCell colSpan={columns.length} className="h-24 text-center">
                                                     Неназначенные задачи по уборке не найдены.
                                                 </TableCell>
                                             </TableRow>

@@ -136,7 +136,7 @@ export default function RoomTypeForm({ roomTypeToEdit, onSuccess, onCancel }: Ro
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="bg-white p-6 rounded-lg shadow-md">
+            <form onSubmit={form.handleSubmit(onSubmit)} className=" p-6 rounded-lg shadow-md">
                 <h2 className="text-xl font-bold mb-4">{roomTypeToEdit ? 'Редактировать тип номера' : 'Создать новый тип номера'}</h2>
 
                 {/* Поле Название типа номера */}

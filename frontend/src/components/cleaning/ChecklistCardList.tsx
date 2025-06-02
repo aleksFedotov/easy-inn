@@ -51,7 +51,7 @@ const ChecklistCardList: React.FC<ChecklistCardListProps> = ({
                     <CardTitle>{checklist.name}</CardTitle>
                     <ChevronDown
                         size={20}
-                        className={`text-gray-500 transition-transform duration-300 ${
+                        className={` transition-transform duration-300 ${
                             isCardExpanded ? 'rotate-180' : ''
                         }`}
                     />
@@ -59,7 +59,7 @@ const ChecklistCardList: React.FC<ChecklistCardListProps> = ({
             </CardHeader>
             <CardContent className={isCardExpanded ? "block" : "hidden"}>
                 {checklist.items.length === 0 ? (
-                    <p className="text-center text-gray-500">
+                    <p className="text-center ">
                         Нет пунктов в этом чек-листе.
                     </p>
                 ) : (
@@ -77,7 +77,7 @@ const ChecklistCardList: React.FC<ChecklistCardListProps> = ({
                                 />
                                 <span className={
                                     checkedItemIds.includes(item.id)
-                                        ? 'line-through text-gray-500'
+                                        ? 'line-through '
                                         : ''
                                 }>
                                     {item.text}
