@@ -287,7 +287,7 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
             logger.info(f"Task {task.pk} status is {task.get_status_display()}, allowing completion.")
             if  task.cleaning_type == None or task.cleaning_type == CleaningTypeChoices.STAYOVER or task.cleaning_type == CleaningTypeChoices.PUBLIC_AREA_CLEANING:
                 task.status = CleaningTask.Status.CHECKED 
-            elif task.cleaning_type == CleaningTypeChoices.DEPARTURE_CLEANING:
+            else:
                 task.status = CleaningTask.Status.WAITING_CHECK 
              
 
@@ -472,6 +472,35 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                 )
                 created_tasks_count += 1
                 created_tasks_details.append(f"Комната {booking.room.number} (Текущая)")
+        
+        # --- Подготовка номера к заезду ---
+        preparing_bookings = Booking.objects.filter(
+            check_in__date=scheduled_date,
+            guest_count__gt=2 
+        ).select_related("room")      
+
+        for booking in preparing_bookings:
+            if not booking.room:
+                continue
+            
+            exists = CleaningTask.objects.filter(
+                booking=booking,
+                room=booking.room,
+                scheduled_date=scheduled_date,
+                cleaning_type=CleaningTypeChoices.PRE_ARRIVAL
+            ).exists()
+
+            if not exists:
+                task = CleaningTask.objects.create(
+                    booking=booking,
+                    room=booking.room,
+                    scheduled_date=scheduled_date,
+                    cleaning_type=CleaningTypeChoices.PRE_ARRIVAL,
+                    status=CleaningTask.Status.UNASSIGNED,
+                    notes=f"Подготовить номер для {booking.guest_count} гостей."  
+                )
+                created_tasks_count += 1
+                created_tasks_details.append(f"Комната {booking.room.number} (Подготовка)") 
 
         # --- Зоны ---
         zones = Zone.objects.all()
