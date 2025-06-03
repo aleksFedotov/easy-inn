@@ -31,7 +31,7 @@ class ChecklistItemTemplateAdmin(admin.ModelAdmin):
 admin.site.register(ChecklistItemTemplate, ChecklistItemTemplateAdmin)
 
 class CleaningTaskAdmin(admin.ModelAdmin):
-    list_display = ('room', 'zone', 'cleaning_type', 'status', 'assigned_to', 'scheduled_date', 'due_time')
+    list_display = ('room', 'zone', 'cleaning_type', 'status', 'assigned_to', 'scheduled_date', 'due_time', 'is_rush')
     search_fields = ('room__number', 'zone__name', 'notes', 'assigned_to__username')
     list_filter = ('status', 'cleaning_type', 'assigned_to', 'scheduled_date')
     raw_id_fields = ('room', 'zone', 'assigned_to', 'assigned_by', 'checked_by', 'booking') 

@@ -1,7 +1,7 @@
 import api from '@/lib/api';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
-import { Fragment, useCallback, useMemo, useState } from 'react';
+import { Fragment, useState } from 'react';
 import { toast } from 'sonner';
 import {
     Eye,

@@ -127,7 +127,7 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         # Если пользователь аутентифицирован и является горничной, вернуть только задачи, назначенные ему
         if user.is_authenticated and user.role == User.Role.HOUSEKEEPER:
             logger.debug(f"User is Housekeeper, returning tasks assigned to {user}.")
-            return queryset.filter(assigned_to=user, status__in=['assigned', 'in_progress', 'waiting_inspection']).order_by('-is_rush', 'due_date')
+            return queryset.filter(assigned_to=user, status__in=['assigned', 'in_progress', 'waiting_inspection']).order_by('-is_rush', 'due_time')
         
         # For all other authenticated users or if the user is not authenticated,
         # return an empty queryset. Permission classes will further restrict access.

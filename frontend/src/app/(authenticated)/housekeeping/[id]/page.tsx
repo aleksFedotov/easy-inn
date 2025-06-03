@@ -17,6 +17,7 @@ import {
     CheckCircle,
     Play,
     CircleDotDashed,
+    Flame,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,7 @@ import ChecklistCardList from '@/components/cleaning/ChecklistCardList';
 import { Checklist, CleaningTask, ChecklistProgress } from '@/lib/types/housekeeping';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css'; //  Подключаем стили
+import { toast } from 'sonner';
 
 
 interface ChecklistsState {
@@ -193,6 +195,41 @@ export default function CleaningTaskDetailsPage() {
         }
     };
 
+    const handleToggleRush = async () => {
+        if (!taskDetails) {
+            setError('Детали задачи не загружены.');
+            return;
+        }
+        setIsLoading(true);
+        setError(null);
+        const newRushStatus = !taskDetails.is_rush; 
+        try {
+            
+            const response = await api.patch(`/api/cleaningtasks/${taskDetails.id}/set_rush/`, {
+                is_rush: newRushStatus
+            });
+
+            if (response.status === 200) {
+                toast.success(`Задача успешно ${newRushStatus ? 'помечена как срочная' : 'снята с срочных'}.`);
+                fetchTaskDetails()
+            } else {
+                // Обработка неуспешного ответа
+                toast.error(`Не удалось изменить статус срочности. Статус: ${response.status}`);
+            }
+        } catch (err) {
+            // Обработка ошибок сети или API
+            console.error('Error toggling rush status:', err);
+            let errorMessage = 'Произошла ошибка при изменении статуса срочности.';
+            if (axios.isAxiosError(err) && err.response) {
+                errorMessage = err.response.data.detail || JSON.stringify(err.response.data) || errorMessage;
+            }
+            toast.error(errorMessage);
+        } finally {
+            setIsLoading(false); // Снимаем флаг выполнения действия
+        }
+
+    }
+
 
     const totalProgress = useMemo(() => {
     if (checklistData.length === 0) return 0;
@@ -239,6 +276,11 @@ export default function CleaningTaskDetailsPage() {
                             Завершить проверку
                         </Button>
                     }
+
+                    <Button variant='secondary' onClick={handleToggleRush}> {/* Вызываем новую функцию */}
+                            <Flame className={`mr-2 h-4 w-4 ${taskDetails.is_rush ? 'text-red-600' : 'text-gray-500'}`} /> 
+                            {taskDetails.is_rush ? 'Снять срочность' : 'Пометить как срочную'} 
+                    </Button>
                 </>
             )
         }
@@ -290,8 +332,13 @@ export default function CleaningTaskDetailsPage() {
 
                 <Card className="shadow-md">
                     <CardHeader className="space-y-4">
-                        <CardTitle className="text-2xl font-bold">
-                            Задача уборки: {taskDetails.room_number || taskDetails.zone_name || "Общая"}
+                        <CardTitle className="text-2xl font-bold flex items-center ">
+                            <span>Задача уборки: {taskDetails.room_number || taskDetails.zone_name || "Общая"}</span>
+                             {taskDetails.is_rush && ( // Conditional rendering for the rush badge
+                                <Badge className="ml-4 bg-red-500 text-white flex items-center"> {/* Added ml-4 for margin */}
+                                    <Flame className="mr-1 h-4 w-4" /> СРОЧНО
+                                </Badge>
+                            )}
                         </CardTitle>
                         <CardDescription >
                             Подробная информация о задаче.
