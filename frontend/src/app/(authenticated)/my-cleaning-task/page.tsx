@@ -9,8 +9,8 @@ import { Spinner } from '@/components/spinner';
 import ErrorMessage from '@/components/ErrorMessage';
 import api from '@/lib/api';
 import axios from 'axios';
-import { LogOut, House, BedDouble, ChevronDown, ChevronUp } from 'lucide-react'; // Добавляем иконки для аккордеона
-import { CLEANING_TYPES } from '@/lib/constants'; // Используем для фильтрации и отображения
+import { LogOut, House, BedDouble, ChevronDown, ChevronUp, Flame, Tag } from 'lucide-react'; // Добавляем иконки для аккордеона
+import { CLEANING_TYPES} from '@/lib/constants'; // Используем для фильтрации и отображения
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"; // Предполагается, что у вас есть Collapsible компонент из shadcn/ui
 
 const MyCleaningTasksPage: React.FC = () => {
@@ -18,8 +18,8 @@ const MyCleaningTasksPage: React.FC = () => {
     const [allTasks, setAllTasks] = useState<CleaningTask[]>([]); // Храним все полученные задачи
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-    // Состояние для управления открытием/закрытием секций аккордеона
-    const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+    // Состояние для управления открытием/закрытием секции сводки по чек-листам
+    const [isSummaryOpen, setIsSummaryOpen] = useState<boolean>(false);
 
     useEffect(() => {
         if (!user) return; // Не загружаем, пока нет user
@@ -70,46 +70,43 @@ const MyCleaningTasksPage: React.FC = () => {
         });
     }, []);
 
-    // Группировка задач по типу уборки и названиям чек-листов
-    const groupTasks = useCallback((tasks: CleaningTask[]) => {
-        const grouped: Record<string, Record<string, CleaningTask[]>> = {};
+    // Группировка задач по типу уборки и названиям чек-листов для ОБЩЕГО СВОДНОГО ОТЧЕТА
+    const checklistSummary = useMemo(() => {
+        const summary: Record<string, Record<string, { total: number }>> = {}; // Изменено: убрано 'completed' здесь
 
-        tasks.forEach(task => {
+        allTasks.forEach(task => {
             const cleaningTypeDisplay = task.cleaning_type_display || 'Неизвестный тип';
-            // Если есть несколько чек-листов, объединяем их названия
             const checklistNames = task.associated_checklist_names && task.associated_checklist_names.length > 0
                 ? task.associated_checklist_names.join(', ')
                 : 'Без чек-листа';
 
-            if (!grouped[cleaningTypeDisplay]) {
-                grouped[cleaningTypeDisplay] = {};
+            if (!summary[cleaningTypeDisplay]) {
+                summary[cleaningTypeDisplay] = {};
             }
-            if (!grouped[cleaningTypeDisplay][checklistNames]) {
-                grouped[cleaningTypeDisplay][checklistNames] = [];
+            if (!summary[cleaningTypeDisplay][checklistNames]) {
+                summary[cleaningTypeDisplay][checklistNames] = { total: 0 };
             }
-            grouped[cleaningTypeDisplay][checklistNames].push(task);
+            summary[cleaningTypeDisplay][checklistNames].total++;
         });
-        return grouped;
-    }, []);
+        return summary;
+    }, [allTasks]);
 
-    // Мемоизированные и отсортированные списки задач
-    const sortedAndGroupedCheckoutTasks = useMemo(() => {
+
+    // Мемоизированные и отсортированные плоские списки задач для каждой вкладки
+    const sortedCheckoutTasks = useMemo(() => {
         const filtered = allTasks.filter(task => task.cleaning_type === CLEANING_TYPES.DEPARTURE);
-        const sorted = sortTasksByPriority(filtered);
-        return groupTasks(sorted);
-    }, [allTasks, sortTasksByPriority, groupTasks]);
+        return sortTasksByPriority(filtered);
+    }, [allTasks, sortTasksByPriority]);
 
-    const sortedAndGroupedCurrentTasks = useMemo(() => {
+    const sortedCurrentTasks = useMemo(() => {
         const filtered = allTasks.filter(task => task.cleaning_type !== CLEANING_TYPES.DEPARTURE && task.zone_name === null);
-        const sorted = sortTasksByPriority(filtered);
-        return groupTasks(sorted);
-    }, [allTasks, sortTasksByPriority, groupTasks]);
+        return sortTasksByPriority(filtered);
+    }, [allTasks, sortTasksByPriority]);
 
-    const sortedAndGroupedZoneTasks = useMemo(() => {
+    const sortedZoneTasks = useMemo(() => {
         const filtered = allTasks.filter(task => task.zone_name !== null);
-        const sorted = sortTasksByPriority(filtered);
-        return groupTasks(sorted);
-    }, [allTasks, sortTasksByPriority, groupTasks]);
+        return sortTasksByPriority(filtered);
+    }, [allTasks, sortTasksByPriority]);
 
 
     // Функция для определения цвета карточки для задач выезда
@@ -117,14 +114,40 @@ const MyCleaningTasksPage: React.FC = () => {
         return task.is_guest_checked_out ? 'bg-red-100' : 'bg-gray-100';
     };
 
-    // Переключение состояния аккордеона
-    const toggleSection = useCallback((key: string) => {
-        setOpenSections(prev => ({
-            ...prev,
-            [key]: !prev[key]
-        }));
-    }, []);
 
+    // Расчет общего количества задач и срочных задач
+    const totalTasks = useMemo(() => allTasks.length, [allTasks]);
+    const rushTasksCount = useMemo(() => allTasks.filter(task => task.is_rush).length, [allTasks]);
+    
+    // Сортировка ключей checklistSummary по заданному порядку
+    const sortedChecklistSummaryKeys = useMemo(() => {
+        // Определяем желаемый порядок типов уборок для сводки
+        const customCleaningTypeOrder = [
+            CLEANING_TYPES.DEPARTURE, // Выезд
+            CLEANING_TYPES.STAYOVER,  // Ежедневная уборка
+            CLEANING_TYPES.PUBLIC_AREA, // Текущая уборка общих зон
+            // Остальные типы будут добавлены автоматически
+        ];
+        const keys = Object.keys(checklistSummary);
+        return keys.sort((a, b) => {
+            const indexA = customCleaningTypeOrder.indexOf(a);
+            const indexB = customCleaningTypeOrder.indexOf(b);
+
+            // Если оба типа есть в customOrder, сортируем по их индексу
+            if (indexA !== -1 && indexB !== -1) {
+                return indexA - indexB;
+            }
+            // Если только один тип есть в customOrder, он идет раньше
+            if (indexA !== -1) {
+                return -1;
+            }
+            if (indexB !== -1) {
+                return 1;
+            }
+            // Если ни один из типов не в customOrder, сортируем по алфавиту
+            return a.localeCompare(b);
+        });
+    }, [checklistSummary]);   
 
     if (isAuthLoading || loading) {
         return <div className="flex items-center justify-center min-h-screen"><Spinner /></div>;
@@ -138,65 +161,59 @@ const MyCleaningTasksPage: React.FC = () => {
         return <div>Пользователь не найден.</div>; // Или перенаправление
     }
 
-    // Вспомогательный компонент для рендеринга групп задач
-    const renderGroupedTasks = (groupedTasks: Record<string, Record<string, CleaningTask[]>>) => {
-        const cleaningTypes = Object.keys(groupedTasks);
-
-        if (cleaningTypes.length === 0) {
-            return <p>Нет задач для этой категории.</p>;
-        }
-
-        return (
-            <>
-                {cleaningTypes.map(cleaningTypeDisplay => (
-                    <Collapsible
-                        key={cleaningTypeDisplay}
-                        open={openSections[cleaningTypeDisplay]}
-                        onOpenChange={() => toggleSection(cleaningTypeDisplay)}
-                        className="w-full mb-4"
-                    >
-                        <CollapsibleTrigger className="flex items-center justify-between w-full p-4 bg-blue-100 rounded-md shadow-sm cursor-pointer">
-                            <h3 className="text-lg font-semibold">{cleaningTypeDisplay}</h3>
-                            {openSections[cleaningTypeDisplay] ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="mt-2 p-2 border border-blue-200 rounded-md">
-                            {Object.keys(groupedTasks[cleaningTypeDisplay]).map(checklistNames => (
-                                <Collapsible
-                                    key={`${cleaningTypeDisplay}-${checklistNames}`}
-                                    open={openSections[`${cleaningTypeDisplay}-${checklistNames}`]}
-                                    onOpenChange={() => toggleSection(`${cleaningTypeDisplay}-${checklistNames}`)}
-                                    className="w-full mb-2"
-                                >
-                                    <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-gray-100 rounded-md shadow-sm cursor-pointer">
-                                        <p className="font-medium">
-                                            {checklistNames} ({groupedTasks[cleaningTypeDisplay][checklistNames].length} номеров)
-                                        </p>
-                                        {openSections[`${cleaningTypeDisplay}-${checklistNames}`] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                    </CollapsibleTrigger>
-                                    <CollapsibleContent className="mt-1 p-2 border border-gray-200 rounded-md">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                            {groupedTasks[cleaningTypeDisplay][checklistNames].map(task => (
-                                                <CleaningTaskCard
-                                                    key={task.id}
-                                                    task={task}
-                                                    cardColor={task.cleaning_type === CLEANING_TYPES.DEPARTURE ? getCheckoutCardColor(task) : "bg-yellow-100"}
-                                                />
-                                            ))}
-                                        </div>
-                                    </CollapsibleContent>
-                                </Collapsible>
-                            ))}
-                        </CollapsibleContent>
-                    </Collapsible>
-                ))}
-            </>
-        );
-    };
-
 
     return (
         <div className="container mx-auto p-4">
             <h1 className="text-3xl font-bold mb-4">Мои задачи</h1>
+
+            {/* Общий summary выше tabs */}
+            <div className="bg-blue-50 p-4 rounded-lg shadow-sm mb-6 flex items-center justify-between">
+                <p className="text-lg font-medium text-blue-800">
+                    Всего задач: <span className="font-bold">{totalTasks}</span>
+                </p>
+
+                {rushTasksCount > 0 && (
+                    <p className="text-lg font-medium text-red-600 flex items-center">
+                        <Flame size={20} className="mr-1" /> Срочных: <span className="font-bold">{rushTasksCount}</span>
+                    </p>
+                )}
+            </div>
+
+            {/* Информация о количестве уборок на каждую комбинацию списков */}
+            <Collapsible
+                open={isSummaryOpen}
+                onOpenChange={setIsSummaryOpen}
+                className="w-full mb-6"
+            >
+                <CollapsibleTrigger className="flex items-center justify-between w-full p-4 bg-gray-100 rounded-lg shadow-sm cursor-pointer">
+                    <h2 className="text-xl font-bold text-gray-800">Сводка по уборкам</h2>
+                    {isSummaryOpen ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2 p-4 border border-gray-200 rounded-lg bg-white">
+                    {Object.keys(checklistSummary).length > 0 ? (
+                        sortedChecklistSummaryKeys.map(cleaningTypeDisplay => (
+                            <div key={cleaningTypeDisplay} className="mb-3 last:mb-0">
+                                <h3 className="text-lg font-semibold text-gray-700 flex items-center mb-1">
+                                    <Tag size={18} className="mr-2" />
+                                    {cleaningTypeDisplay}
+                                </h3>
+                                <ul className="list-none space-y-1 ml-4"> 
+                                    {Object.keys(checklistSummary[cleaningTypeDisplay]).map(checklistNames => (
+                                        <li key={`${cleaningTypeDisplay}-${checklistNames}`} className="text-gray-600">
+                                            {checklistNames}: <span className="font-bold">{checklistSummary[cleaningTypeDisplay][checklistNames].total}</span> номеров
+                                          
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-gray-600">Нет задач с привязанными чек-листами.</p>
+                    )}
+                </CollapsibleContent>
+            </Collapsible>
+
+
             <div className="flex justify-center">
                 <Tabs defaultValue="checkout" className="w-full">
                     <TabsList className="grid w-full grid-cols-3">
@@ -214,13 +231,37 @@ const MyCleaningTasksPage: React.FC = () => {
                         </TabsTrigger>
                     </TabsList>
                     <TabsContent value="checkout" className="mt-4">
-                        {renderGroupedTasks(sortedAndGroupedCheckoutTasks)}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {sortedCheckoutTasks.length > 0 ? (
+                                sortedCheckoutTasks.map(task => (
+                                    <CleaningTaskCard key={task.id} task={task} cardColor={getCheckoutCardColor(task)} />
+                                ))
+                            ) : (
+                                <p>Нет задач уборки после выезда.</p>
+                            )}
+                        </div>
                     </TabsContent>
                     <TabsContent value="current" className="mt-4">
-                        {renderGroupedTasks(sortedAndGroupedCurrentTasks)}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {sortedCurrentTasks.length > 0 ? (
+                                sortedCurrentTasks.map(task => (
+                                    <CleaningTaskCard key={task.id} task={task} cardColor="bg-yellow-100" />
+                                ))
+                            ) : (
+                                <p>Нет текущих задач уборки.</p>
+                            )}
+                        </div>
                     </TabsContent>
                     <TabsContent value="zones" className="mt-4">
-                        {renderGroupedTasks(sortedAndGroupedZoneTasks)}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {sortedZoneTasks.length > 0 ? (
+                                sortedZoneTasks.map(task => (
+                                    <CleaningTaskCard key={task.id} task={task} cardColor="bg-yellow-100" />
+                                ))
+                            ) : (
+                                <p>Нет задач уборки зон.</p>
+                            )}
+                        </div>
                     </TabsContent>
                 </Tabs>
             </div>
