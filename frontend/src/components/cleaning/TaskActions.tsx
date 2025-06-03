@@ -4,18 +4,17 @@ import { useRouter } from 'next/navigation';
 import { Fragment, useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
-    Play,
-    XCircle,
-    CheckSquare,
     Eye,
     Loader,
     Trash2,
     MoreVertical,
     Edit,
+    Flame,
 } from 'lucide-react';
 import { CleaningTask, User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
+
 
 
 /**
@@ -36,106 +35,37 @@ const TaskActions = ({ task, user, fetchCleaningTasks, selectedDate, onDelete, o
     const router = useRouter();
     const [isPerformingAction, setIsPerformingAction] = useState(false);
 
-    // Handler for changing task status
-    const handleStatusChange = useCallback(async (action: 'start' | 'complete' | 'check' | 'cancel') => {
+    const handleToggleRush = async () => {
         setIsPerformingAction(true);
+        const newRushStatus = !task.is_rush; 
+
         try {
-            const response = await api.post(`/api/cleaningtasks/${task.id}/${action}/`);
+            
+            const response = await api.patch(`/api/cleaningtasks/${task.id}/set_rush/`, { // Убедитесь, что URL правильный
+                is_rush: newRushStatus
+            });
+
             if (response.status === 200) {
-                toast.success(`Статус задачи изменен на ${action}`); // Success toast notification
-                fetchCleaningTasks(selectedDate); // Refresh tasks after status change
+                toast.success(`Задача успешно ${newRushStatus ? 'помечена как срочная' : 'снята с срочных'}.`);
+                fetchCleaningTasks(selectedDate); // Обновляем список задач
             } else {
-                toast.error(`Не удалось изменить статус: ${response.status}`); // Error toast notification
+                // Обработка неуспешного ответа
+                toast.error(`Не удалось изменить статус срочности. Статус: ${response.status}`);
             }
-        } catch (error) {
-            if (axios.isAxiosError(error) && error.response) {
-                toast.error(error.response.data.detail || error.response.data.message || JSON.stringify(error.response.data));
-            } else {
-                toast.error('Произошла ошибка при изменении статуса задачи.');
+        } catch (err) {
+            // Обработка ошибок сети или API
+            console.error('Error toggling rush status:', err);
+            let errorMessage = 'Произошла ошибка при изменении статуса срочности.';
+            if (axios.isAxiosError(err) && err.response) {
+                errorMessage = err.response.data.detail || JSON.stringify(err.response.data) || errorMessage;
             }
+            toast.error(errorMessage);
         } finally {
-            setIsPerformingAction(false);
+            setIsPerformingAction(false); // Снимаем флаг выполнения действия
         }
-    },[fetchCleaningTasks, selectedDate,  task.id]);
 
-    // Memoized array of available actions based on task status and user role
-    // const actions = useMemo(() => {
-    //     const availableActions = [];
+    }
 
-    //     if (user) { // Check if user object exists
-    //         switch (task.status) {
-    //             case 'assigned': // Assigned status
-    //             case 'on_hold': // On hold status
-    //                 // "Start" button for housekeeper (if assigned) or manager/front-desk
-    //                 if ((user.role === 'housekeeper' && task.assigned_to === user.id) || user.role === 'manager' || user.role === 'front-desk') {
-    //                     availableActions.push({
-    //                         label: 'Начать',
-    //                         icon: <Play size={16} className="mr-2 h-4 w-4" />,
-    //                         onClick: () => handleStatusChange('start'),
-    //                     });
-    //                 }
-    //                 // "Cancel" button for manager/front-desk
-    //                 if (user.role === 'manager' || user.role === 'front-desk') {
-    //                     availableActions.push({
-    //                         label: 'Отменить',
-    //                         icon: <XCircle size={16} className="mr-2 h-4 w-4" />,
-    //                         onClick: () => handleStatusChange('cancel'),
-    //                     });
-    //                 }
-    //                 break;
-    //             case 'in_progress': // In progress status
-    //                 // "Complete" button for housekeeper (if assigned) or manager/front-desk
-    //                 if ((user.role === 'housekeeper' && task.assigned_to === user.id) || user.role === 'manager' || user.role === 'front-desk') {
-    //                     availableActions.push({
-    //                         label: 'Завершить',
-    //                         icon: <CheckSquare size={16} className="mr-2 h-4 w-4" />,
-    //                         onClick: () => handleStatusChange('complete'),
-    //                     });
-    //                 }
-    //                 // "Cancel" button for manager/front-desk
-    //                 if (user.role === 'manager' || user.role === 'front-desk') {
-    //                     availableActions.push({
-    //                         label: 'Отменить',
-    //                         icon: <XCircle size={16} className="mr-2 h-4 w-4" />,
-    //                         onClick: () => handleStatusChange('cancel'),
-    //                     });
-    //                 }
-
-    //                 break;
-    //             case 'completed': // Completed status
-    //             case 'waiting_check': // Waiting inspection status
-    //                 // "Check" button for manager/front-desk
-    //                 if (user.role === 'manager' || user.role === 'front-desk') {
-    //                     availableActions.push({
-    //                         label: 'Проверить',
-    //                         icon: <Eye size={16} className="mr-2 h-4 w-4" />,
-    //                         onClick: () => handleStatusChange('check'),
-    //                     });
-    //                     // "Cancel" button for manager/front-desk
-    //                     availableActions.push({
-    //                         label: 'Отменить',
-    //                         icon: <XCircle size={16} className="mr-2 h-4 w-4" />,
-    //                         onClick: () => handleStatusChange('cancel'),
-    //                     });
-    //                 }
-    //                 break;
-    //             case 'checked': // Checked status
-    //                 // "Cancel" button for manager/front-desk
-    //                 if (user.role === 'manager' || user.role === 'front-desk') {
-    //                     availableActions.push({
-    //                         label: 'Отменить',
-    //                         icon: <XCircle size={16} className="mr-2 h-4 w-4" />,
-    //                         onClick: () => handleStatusChange('cancel'),
-    //                     });
-    //                 }
-    //                 break;
-    //             case 'canceled': // Canceled status
-    //                 break;
-    //         }
-    //     }
-
-    //     return availableActions;
-    // }, [task, user, handleStatusChange]);
 
     // Show spinner if an action is in progress
     if (isPerformingAction) {
@@ -157,6 +87,10 @@ const TaskActions = ({ task, user, fetchCleaningTasks, selectedDate, onDelete, o
                 </DropdownMenuItem>
                 {(user?.role === 'manager' || user?.role === 'front-desk') && (
                     <Fragment>
+                        <DropdownMenuItem onClick={handleToggleRush}> {/* Вызываем новую функцию */}
+                            <Flame className={`mr-2 h-4 w-4 ${task.is_rush ? 'text-red-600' : 'text-gray-500'}`} /> {/* Меняем цвет иконки */}
+                            {task.is_rush ? 'Снять срочность' : 'Пометить как срочную'} {/* Динамический текст */}
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => onEdit(task)}>
                             <Edit className="mr-2 h-4 w-4" />
                             Редактировать

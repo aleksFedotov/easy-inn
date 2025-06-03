@@ -44,7 +44,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, cardColor }) => {
     return (
         <div
             onClick={() => router.push(`/housekeeping/${task.id}`)}
-            className={`cursor-pointer ${cardColor} shadow-md hover:shadow-lg transition-shadow duration-300 w-full rounded-md`}
+            className={`cursor-pointer ${cardColor} shadow-md hover:shadow-lg transition-shadow duration-300 w-full rounded-md min-w-64`}
         >
             <Card className="w-full bg-transparent border-none shadow-none">
                 <CardHeader>
