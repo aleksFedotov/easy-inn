@@ -32,7 +32,6 @@ import {
     Plus,
     Search,
     User as UserIcon,
-    Loader,
     RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -418,14 +417,14 @@ export default function HousekeepingPage() {
                     <DatePicker date={selectedDate} setDate={setSelectedDate} />
                 </div>
                 <div className="flex space-x-2">
-                    <Button
+                    {/* <Button
                         variant="outline"
                         onClick={() =>{}}
                         disabled={isLoadingData || isGenerating || isCreateEditTaskModalOpen || isCreateEditTaskModalOpen || isDeleteModalOpen || isHousekeeperSelectionModalOpen}
                     >
                         {isGenerating ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : null}
                         Автоназначение
-                    </Button>
+                    </Button> */}
                     <Button
                         variant="outline"
                         onClick={() => {setIsAssignTasksModalOpened(true)}} 

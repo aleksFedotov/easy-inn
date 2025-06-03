@@ -167,6 +167,8 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
     checked_by_name = serializers.SerializerMethodField()
     checklist_data = serializers.SerializerMethodField()
     is_guest_checked_out = serializers.SerializerMethodField()
+    associated_checklist_names = serializers.SerializerMethodField()
+
 
     def get_cleaning_type_display(self, obj):
         return obj.get_cleaning_type_display()
@@ -301,14 +303,38 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
         # Return the original validated data dictionary
         # Возвращаем оригинальный словарь валидированных данных
         return attrs
+    
+    # Метод для получения списка названий чек-листов
+    def get_associated_checklist_names(self, obj: CleaningTask):
+        if not obj.cleaning_type or not obj.scheduled_date:
+            return []
+        
+        checklist_templates = ChecklistTemplate.objects.filter(
+            cleaning_type=obj.cleaning_type
+        )
+        
+        applicable_checklists = []
+        days_since_start = 0
+        
+        if obj.booking:
+            days_since_start = (obj.scheduled_date - obj.booking.check_in.date()).days
+        else:
+            days_since_start = (obj.scheduled_date - obj.scheduled_date).days # Which is 0
+        
+        for template in checklist_templates:
+            if (days_since_start - template.offset_days) >= 0 and \
+               (days_since_start - template.offset_days) % template.periodicity == 0:
+                applicable_checklists.append(template)
+        
+        # Возвращаем только названия применимых чек-листов
+        return [template.name for template in applicable_checklists]
 
     def get_checklist_data(self, obj: CleaningTask):
         """
         Получает данные шаблонов чек-листов, применимых к данной задаче с учетом периодичности.
         """
         if not obj.cleaning_type or not obj.scheduled_date:
-            return []  # Возвращаем пустой список, если нет типа уборки или даты
-        
+            return [] 
 
         checklist_templates = ChecklistTemplate.objects.filter(
         cleaning_type=obj.cleaning_type
@@ -316,15 +342,14 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
         
 
         applicable_checklists = []
-        days_since_start = 0  # Default to 0 if we don't have a booking to calculate from
+        days_since_start = 0  
         
 
         if obj.booking:
             days_since_start = (obj.scheduled_date - obj.booking.check_in.date()).days
         else:
-        # If there is no booking, calculate from the scheduled date
-        # This might need to be adjusted based on your application's logic
-            days_since_start = (obj.scheduled_date - obj.scheduled_date).days # Which is 0
+
+            days_since_start = (obj.scheduled_date - obj.scheduled_date).days 
         
         
 
@@ -369,7 +394,8 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
             'notes', # Allows setting notes / Позволяет устанавливать заметки
             'checklist_data',
             'is_guest_checked_out',
-            'is_rush'
+            'is_rush',
+            'associated_checklist_names',
         ]
         # Define all fields that should only be included in the output, not accepted as input
         # Определяем все поля, которые должны быть включены только в вывод, но не приниматься в качестве ввода
