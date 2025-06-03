@@ -9,16 +9,16 @@ import { Spinner } from '@/components/spinner';
 import ErrorMessage from '@/components/ErrorMessage';
 import api from '@/lib/api';
 import axios from 'axios';
-import { LogOut, House, BedDouble, ChevronDown, ChevronUp, Flame, Tag } from 'lucide-react'; // Добавляем иконки для аккордеона
-import { CLEANING_TYPES} from '@/lib/constants'; // Используем для фильтрации и отображения
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"; // Предполагается, что у вас есть Collapsible компонент из shadcn/ui
+import { LogOut, House, BedDouble, ChevronDown, ChevronUp, Flame, Tag } from 'lucide-react'; 
+import { CLEANING_TYPES} from '@/lib/constants'; 
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"; 
 
 const MyCleaningTasksPage: React.FC = () => {
     const { user, isLoading: isAuthLoading } = useAuth();
-    const [allTasks, setAllTasks] = useState<CleaningTask[]>([]); // Храним все полученные задачи
+    const [allTasks, setAllTasks] = useState<CleaningTask[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-    // Состояние для управления открытием/закрытием секции сводки по чек-листам
+
     const [isSummaryOpen, setIsSummaryOpen] = useState<boolean>(false);
 
     useEffect(() => {
@@ -72,7 +72,7 @@ const MyCleaningTasksPage: React.FC = () => {
 
     // Группировка задач по типу уборки и названиям чек-листов для ОБЩЕГО СВОДНОГО ОТЧЕТА
     const checklistSummary = useMemo(() => {
-        const summary: Record<string, Record<string, { total: number }>> = {}; // Изменено: убрано 'completed' здесь
+        const summary: Record<string, Record<string, { total: number }>> = {}; 
 
         allTasks.forEach(task => {
             const cleaningTypeDisplay = task.cleaning_type_display || 'Неизвестный тип';
@@ -123,9 +123,9 @@ const MyCleaningTasksPage: React.FC = () => {
     const sortedChecklistSummaryKeys = useMemo(() => {
         // Определяем желаемый порядок типов уборок для сводки
         const customCleaningTypeOrder = [
-            CLEANING_TYPES.DEPARTURE, // Выезд
-            CLEANING_TYPES.STAYOVER,  // Ежедневная уборка
-            CLEANING_TYPES.PUBLIC_AREA, // Текущая уборка общих зон
+            CLEANING_TYPES.DEPARTURE, 
+            CLEANING_TYPES.STAYOVER,  
+            CLEANING_TYPES.PUBLIC_AREA, 
             // Остальные типы будут добавлены автоматически
         ];
         const keys = Object.keys(checklistSummary);

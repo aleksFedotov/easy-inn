@@ -5,6 +5,7 @@ import {  ChevronDown, LogOut, Bed, House } from 'lucide-react'; // Импорт
 import { CleaningTask, User } from '@/lib/types'; // Импорт типов User и CleaningTask
 import { Avatar, AvatarFallback,  } from '@/components/ui/avatar';
 import { CLEANING_TYPES } from '@/lib/constants';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'; // Импорт компонентов Collapsible из shadcn/ui
 
 // Интерфейс для пропсов компонента HousekeeperExpandableCard
 interface HousekeeperExpandableCardProps {
@@ -55,14 +56,6 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
     // Состояние для контроля, какой раздел задач развернут ('checkout', 'current', 'zones', или null)
     const [activeTaskSection, setActiveTaskSection] = useState<string | null>(null);
 
-    // Функция для переключения состояния развернутости основной карточки
-    const toggleCardExpansion = () => setIsCardExpanded(!isCardExpanded);
-
-    // Функция для переключения состояния развернутости раздела задач
-    const toggleTaskSection = (section: string) => {
-        setActiveTaskSection(activeTaskSection === section ? null : section);
-    };
-
     // Фильтрация задач по типу уборки
     const checkoutTasks = cleaningTasks.filter(
         (task) => task.cleaning_type === CLEANING_TYPES.DEPARTURE
@@ -73,45 +66,49 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
     const zoneTasks = cleaningTasks.filter((task) => task.zone_name);
 
     return (
-        <div className="rounded-lg border border-gray-200 shadow-sm overflow-hidden bg-white">
+        <Collapsible
+            open={isCardExpanded}
+            onOpenChange={setIsCardExpanded}
+            className="rounded-lg border border-gray-200 shadow-sm overflow-hidden"
+        >
             {/* Заголовок карточки (Имя горничной и иконка развертывания) */}
-            <div
-                className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors duration-200"
-                onClick={toggleCardExpansion}
-            >
-                <div className="flex items-center space-x-4">
-                    <Avatar className="h-12 w-12">
-                        {/* Если у горничной есть URL изображения, используйте AvatarImage */}
-                        {/* <AvatarImage src={housekeeper.profile_picture_url} alt={`${housekeeper.first_name} ${housekeeper.last_name}`} /> */}
-                        <AvatarFallback>{getInitials(housekeeper.first_name, housekeeper.last_name)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                        <p className="font-semibold text-lg">
-                            {housekeeper.first_name} {housekeeper.last_name}
-                        </p>
-                        {/* Можно добавить общую статистику здесь, если нужно */}
-                        <p className="text-sm">
-                            Всего задач: {cleaningTasks.length}
-                        </p>
+            <CollapsibleTrigger asChild>
+                <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors duration-200">
+                    <div className="flex items-center space-x-4">
+                        <Avatar className="h-12 w-12">
+                            {/* Если у горничной есть URL изображения, используйте AvatarImage */}
+                            {/* <AvatarImage src={housekeeper.profile_picture_url} alt={`${housekeeper.first_name} ${housekeeper.last_name}`} /> */}
+                            <AvatarFallback>{getInitials(housekeeper.first_name, housekeeper.last_name)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                            <p className="font-semibold text-lg">
+                                {housekeeper.first_name} {housekeeper.last_name}
+                            </p>
+                            {/* Можно добавить общую статистику здесь, если нужно */}
+                            <p className="text-sm">
+                                Всего задач: {cleaningTasks.length}
+                            </p>
+                        </div>
                     </div>
+                    <ChevronDown
+                        size={24}
+                        className={`transition-transform duration-300 ${
+                            isCardExpanded ? 'rotate-180' : ''
+                        }`}
+                    />
                 </div>
-                <ChevronDown
-                    size={24}
-                    className={`transition-transform duration-300 ${
-                        isCardExpanded ? 'rotate-180' : ''
-                    }`}
-                />
-            </div>
+            </CollapsibleTrigger>
 
             {/* Разворачиваемая область с разделами задач */}
-            {isCardExpanded && (
-                <div className="p-4 border-t border-gray-100">
-                    {/* Раздел "Заезд" */}
-                    <div className="mb-4 last:mb-0">
-                        <div
-                            className="flex items-center justify-between py-2 px-3 rounded-md cursor-pointer bg-white hover:bg-gray-100 transition-colors duration-200"
-                            onClick={() => toggleTaskSection('checkout')}
-                        >
+            <CollapsibleContent className="p-4 border-t border-gray-100">
+                {/* Раздел "Заезд" */}
+                <Collapsible
+                    open={activeTaskSection === 'checkout'}
+                    onOpenChange={() => setActiveTaskSection(activeTaskSection === 'checkout' ? null : 'checkout')}
+                    className="mb-4 last:mb-0"
+                >
+                    <CollapsibleTrigger asChild>
+                        <div className="flex items-center justify-between py-2 px-3 rounded-md cursor-pointer bg-white hover:bg-gray-100 transition-colors duration-200">
                             <h3 className="font-semibold text-md">
                                 Заезд ({checkoutTasks.length})
                             </h3>
@@ -122,27 +119,28 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
                                 }`}
                             />
                         </div>
-                        {activeTaskSection === 'checkout' && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                                {checkoutTasks.length > 0 ? (
-                                    checkoutTasks.map((task) => (
-                                        <TaskCard key={task.id} task={task} />
-                                    ))
-                                ) : (
-                                    <p className="text-sm col-span-full px-3 py-1">
-                                        Нет задач на выезд.
-                                    </p>
-                                )}
-                            </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                        {checkoutTasks.length > 0 ? (
+                            checkoutTasks.map((task) => (
+                                <TaskCard key={task.id} task={task} />
+                            ))
+                        ) : (
+                            <p className="text-sm col-span-full px-3 py-1 text-gray-600">
+                                Нет задач на выезд.
+                            </p>
                         )}
-                    </div>
+                    </CollapsibleContent>
+                </Collapsible>
 
-                    {/* Раздел "Текущая" */}
-                    <div className="mb-4 last:mb-0">
-                        <div
-                            className="flex items-center justify-between py-2 px-3 rounded-md cursor-pointer bg-white hover:bg-gray-100 transition-colors duration-200"
-                            onClick={() => toggleTaskSection('current')}
-                        >
+                {/* Раздел "Текущая" */}
+                <Collapsible
+                    open={activeTaskSection === 'current'}
+                    onOpenChange={() => setActiveTaskSection(activeTaskSection === 'current' ? null : 'current')}
+                    className="mb-4 last:mb-0"
+                >
+                    <CollapsibleTrigger asChild>
+                        <div className="flex items-center justify-between py-2 px-3 rounded-md cursor-pointer bg-white hover:bg-gray-100 transition-colors duration-200">
                             <h3 className="font-semibold text-md">
                                 Текущая ({currentTasks.length})
                             </h3>
@@ -153,27 +151,28 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
                                 }`}
                             />
                         </div>
-                        {activeTaskSection === 'current' && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                                {currentTasks.length > 0 ? (
-                                    currentTasks.map((task) => (
-                                        <TaskCard key={task.id} task={task} />
-                                    ))
-                                ) : (
-                                    <p className="text-sm col-span-full px-3 py-1">
-                                        Нет текущих задач.
-                                    </p>
-                                )}
-                            </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                        {currentTasks.length > 0 ? (
+                            currentTasks.map((task) => (
+                                <TaskCard key={task.id} task={task} />
+                            ))
+                        ) : (
+                            <p className="text-sm col-span-full px-3 py-1 text-gray-600">
+                                Нет текущих задач.
+                            </p>
                         )}
-                    </div>
+                    </CollapsibleContent>
+                </Collapsible>
 
-                    {/* Раздел "Зоны" */}
-                    <div className="mb-4 last:mb-0">
-                        <div
-                            className="flex items-center justify-between py-2 px-3 rounded-md cursor-pointer bg-white hover:bg-gray-100 transition-colors duration-200"
-                            onClick={() => toggleTaskSection('zones')}
-                        >
+                {/* Раздел "Зоны" */}
+                <Collapsible
+                    open={activeTaskSection === 'zones'}
+                    onOpenChange={() => setActiveTaskSection(activeTaskSection === 'zones' ? null : 'zones')}
+                    className="mb-4 last:mb-0"
+                >
+                    <CollapsibleTrigger asChild>
+                        <div className="flex items-center justify-between py-2 px-3 rounded-md cursor-pointer bg-white hover:bg-gray-100 transition-colors duration-200">
                             <h3 className="font-semibold text-md">
                                 Зоны ({zoneTasks.length})
                             </h3>
@@ -184,23 +183,21 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
                                 }`}
                             />
                         </div>
-                        {activeTaskSection === 'zones' && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                                {zoneTasks.length > 0 ? (
-                                    zoneTasks.map((task) => (
-                                        <TaskCard key={task.id} task={task} />
-                                    ))
-                                ) : (
-                                    <p className="text-sm col-span-full px-3 py-1">
-                                        Нет задач по зонам.
-                                    </p>
-                                )}
-                            </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                        {zoneTasks.length > 0 ? (
+                            zoneTasks.map((task) => (
+                                <TaskCard key={task.id} task={task} />
+                            ))
+                        ) : (
+                            <p className="text-sm col-span-full px-3 py-1 text-gray-600">
+                                Нет задач по зонам.
+                            </p>
                         )}
-                    </div>
-                </div>
-            )}
-        </div>
+                    </CollapsibleContent>
+                </Collapsible>
+            </CollapsibleContent>
+        </Collapsible>
     );
 };
 
