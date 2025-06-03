@@ -39,6 +39,7 @@ export const cleaningTypeOptions = [
   { value: 'on_demand', label: 'Уборка по запросу' },
   { value: 'post_renovation_cleaning', label: 'Уборка после ремонта' },
   { value: 'public_area_cleaning', label: 'Текущая уборка общих зон' },
+  { value: 'pre_arrival', label: 'Подготовка к заезду' },
 ];
 
 export const CLEANING_TYPE_VALUES = [
@@ -48,6 +49,7 @@ export const CLEANING_TYPE_VALUES = [
   'on_demand',
   'post_renovation_cleaning',
   'public_area_cleaning',
+  'pre_arrival'
 ] as const;
 
 

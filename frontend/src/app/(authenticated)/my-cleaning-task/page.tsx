@@ -9,9 +9,10 @@ import { Spinner } from '@/components/spinner';
 import ErrorMessage from '@/components/ErrorMessage';
 import api from '@/lib/api';
 import axios from 'axios';
-import { LogOut, House, BedDouble, ChevronDown, ChevronUp, Flame, Tag } from 'lucide-react'; 
+import { LogOut, House, BedDouble, ChevronDown, ChevronUp, Flame, Tag, Boxes } from 'lucide-react'; 
 import { CLEANING_TYPES} from '@/lib/constants'; 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"; 
+import { Card } from '@/components/ui/card';
 
 const MyCleaningTasksPage: React.FC = () => {
     const { user, isLoading: isAuthLoading } = useAuth();
@@ -99,15 +100,24 @@ const MyCleaningTasksPage: React.FC = () => {
     }, [allTasks, sortTasksByPriority]);
 
     const sortedCurrentTasks = useMemo(() => {
-        const filtered = allTasks.filter(task => task.cleaning_type !== CLEANING_TYPES.DEPARTURE && task.zone_name === null);
+        const filtered = allTasks.filter(task => task.cleaning_type == CLEANING_TYPES.STAYOVER);
         return sortTasksByPriority(filtered);
     }, [allTasks, sortTasksByPriority]);
 
+    
     const sortedZoneTasks = useMemo(() => {
-        const filtered = allTasks.filter(task => task.zone_name !== null);
+        const filtered = allTasks.filter(task => task.cleaning_type == CLEANING_TYPES.PUBLIC_AREA);
         return sortTasksByPriority(filtered);
     }, [allTasks, sortTasksByPriority]);
-
+    
+    const sortedOtherTasks = useMemo(() => {
+        const filtered = allTasks.filter(task => ![
+            CLEANING_TYPES.DEPARTURE, 
+            CLEANING_TYPES.STAYOVER, 
+            CLEANING_TYPES.PUBLIC_AREA
+        ].includes(task.cleaning_type ));
+        return sortTasksByPriority(filtered);
+    }, [allTasks, sortTasksByPriority]);
 
     // Функция для определения цвета карточки для задач выезда
     const getCheckoutCardColor = (task: CleaningTask) => {
@@ -126,7 +136,7 @@ const MyCleaningTasksPage: React.FC = () => {
             CLEANING_TYPES.DEPARTURE, 
             CLEANING_TYPES.STAYOVER,  
             CLEANING_TYPES.PUBLIC_AREA, 
-            // Остальные типы будут добавлены автоматически
+           
         ];
         const keys = Object.keys(checklistSummary);
         return keys.sort((a, b) => {
@@ -167,8 +177,8 @@ const MyCleaningTasksPage: React.FC = () => {
             <h1 className="text-3xl font-bold mb-4">Мои задачи</h1>
 
             {/* Общий summary выше tabs */}
-            <div className="bg-blue-50 p-4 rounded-lg shadow-sm mb-6 flex items-center justify-between">
-                <p className="text-lg font-medium text-blue-800">
+            <Card className="bg-blue-50 p-4 rounded-lg shadow-sm mb-6 flex items-center justify-between">
+                <p className="text-lg font-medium">
                     Всего задач: <span className="font-bold">{totalTasks}</span>
                 </p>
 
@@ -177,7 +187,7 @@ const MyCleaningTasksPage: React.FC = () => {
                         <Flame size={20} className="mr-1" /> Срочных: <span className="font-bold">{rushTasksCount}</span>
                     </p>
                 )}
-            </div>
+            </Card>
 
             {/* Информация о количестве уборок на каждую комбинацию списков */}
             <Collapsible
@@ -216,7 +226,7 @@ const MyCleaningTasksPage: React.FC = () => {
 
             <div className="flex justify-center">
                 <Tabs defaultValue="checkout" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className="grid w-full grid-cols-4">
                         <TabsTrigger value="checkout">
                             <LogOut size={16} className="mr-2" />
                             <span>Выезд</span>
@@ -229,9 +239,13 @@ const MyCleaningTasksPage: React.FC = () => {
                             <House size={16} className="mr-2" />
                             <span>Зоны</span>
                         </TabsTrigger>
+                        <TabsTrigger value="other">
+                            <Boxes size={16} className="mr-2" />
+                            <span>Другое</span>
+                        </TabsTrigger>
                     </TabsList>
                     <TabsContent value="checkout" className="mt-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                             {sortedCheckoutTasks.length > 0 ? (
                                 sortedCheckoutTasks.map(task => (
                                     <CleaningTaskCard key={task.id} task={task} cardColor={getCheckoutCardColor(task)} />
@@ -242,7 +256,7 @@ const MyCleaningTasksPage: React.FC = () => {
                         </div>
                     </TabsContent>
                     <TabsContent value="current" className="mt-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                             {sortedCurrentTasks.length > 0 ? (
                                 sortedCurrentTasks.map(task => (
                                     <CleaningTaskCard key={task.id} task={task} cardColor="bg-yellow-100" />
@@ -253,13 +267,24 @@ const MyCleaningTasksPage: React.FC = () => {
                         </div>
                     </TabsContent>
                     <TabsContent value="zones" className="mt-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                             {sortedZoneTasks.length > 0 ? (
                                 sortedZoneTasks.map(task => (
                                     <CleaningTaskCard key={task.id} task={task} cardColor="bg-yellow-100" />
                                 ))
                             ) : (
                                 <p>Нет задач уборки зон.</p>
+                            )}
+                        </div>
+                    </TabsContent>
+                    <TabsContent value="other" className="mt-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                            {sortedOtherTasks.length > 0 ? (
+                                sortedOtherTasks.map(task => (
+                                    <CleaningTaskCard key={task.id} task={task} cardColor="bg-yellow-100" />
+                                ))
+                            ) : (
+                                <p>Нет задач других задач.</p>
                             )}
                         </div>
                     </TabsContent>

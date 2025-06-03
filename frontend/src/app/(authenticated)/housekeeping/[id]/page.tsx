@@ -276,11 +276,15 @@ export default function CleaningTaskDetailsPage() {
                             Завершить проверку
                         </Button>
                     }
-
-                    <Button variant='secondary' onClick={handleToggleRush}> {/* Вызываем новую функцию */}
+                    {(
+                       ![CLEANICNG_STATUSES.COMPLETED, CLEANICNG_STATUSES.WAITING_CHECK,CLEANICNG_STATUSES.CHECKED].includes(taskDetails.status)
+                    ) && (
+                        <Button variant='secondary' onClick={handleToggleRush}> {/* Вызываем новую функцию */}
                             <Flame className={`mr-2 h-4 w-4 ${taskDetails.is_rush ? 'text-red-600' : 'text-gray-500'}`} /> 
                             {taskDetails.is_rush ? 'Снять срочность' : 'Пометить как срочную'} 
-                    </Button>
+                        </Button>
+                    )
+                    }
                 </>
             )
         }

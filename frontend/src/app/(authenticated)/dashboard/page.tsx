@@ -9,7 +9,7 @@ import { Spinner } from '@/components/spinner';
 import ErrorMessage from '@/components/ErrorMessage';
 import api from '@/lib/api';
 import axios from 'axios';
-import { LogOut, Bed, House } from 'lucide-react';
+import { LogOut, Bed, House, Boxes } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { CleaningStats, RoomStatuses } from '@/lib/types';
@@ -45,6 +45,7 @@ const DashboardPage: React.FC = () => {
   const [checkoutTasks, setCheckoutTasks] = useState<CleaningTask[]>([]);
   const [currentTasks, setCurrentTasks] = useState<CleaningTask[]>([]);
   const [zoneTasks, setZoneTasks] = useState<CleaningTask[]>([]);
+  const [otherTasks, setOtherTasks] = useState<CleaningTask[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -56,8 +57,13 @@ const DashboardPage: React.FC = () => {
         const tasksResponse = await api.get(`/api/cleaningtasks/`, { params: { all: true , scheduled_date:format(new Date(), 'yyyy-MM-dd')} });
         const tasks: CleaningTask[] = tasksResponse.data;
         setCheckoutTasks(tasks.filter(task => task.cleaning_type === CLEANING_TYPES.DEPARTURE));
-        setCurrentTasks(tasks.filter(task => task.cleaning_type !== CLEANING_TYPES.DEPARTURE && task.zone_name === null));
-        setZoneTasks(tasks.filter(task => task.zone_name !== null));
+        setCurrentTasks(tasks.filter(task => task.cleaning_type == CLEANING_TYPES.STAYOVER));
+        setZoneTasks(tasks.filter(task => task.cleaning_type === CLEANING_TYPES.PUBLIC_AREA));
+        setOtherTasks(tasks.filter(task => ![
+                    CLEANING_TYPES.DEPARTURE, 
+                    CLEANING_TYPES.STAYOVER, 
+                    CLEANING_TYPES.PUBLIC_AREA
+                ].includes(task.cleaning_type )));
 
         const statsResponse = await api.get('/api/cleaning/stats/', { params: { all: true } });
         setCleaningStats(statsResponse.data);
@@ -182,40 +188,52 @@ const DashboardPage: React.FC = () => {
       </div>
 
       <h2 className="text-2xl font-bold mt-8 mb-4">Последние задачи по уборке</h2>
-      <Tabs defaultValue="checkout">
-        <TabsList className="flex justify-center space-x-4 mb-4">
-          <TabsTrigger value="checkout" className="flex items-center space-x-2"><LogOut size={16} /><span>Выезд</span></TabsTrigger>
-          <TabsTrigger value="current" className="flex items-center space-x-2"><Bed size={16} /><span>Текущая</span></TabsTrigger>
-          <TabsTrigger value="zones" className="flex items-center space-x-2"><House size={16} /><span>Зоны</span></TabsTrigger>
-        </TabsList>
+      <div className="flex justify-center">
+        <Tabs defaultValue="checkout" className='w-full'>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="checkout" className="flex items-center space-x-2"><LogOut size={16} /><span>Выезд</span></TabsTrigger>
+            <TabsTrigger value="current" className="flex items-center space-x-2"><Bed size={16} /><span>Текущая</span></TabsTrigger>
+            <TabsTrigger value="zones" className="flex items-center space-x-2"><House size={16} /><span>Зоны</span></TabsTrigger>
+            <TabsTrigger value="other" className="flex items-center space-x-2"><Boxes size={16} /><span>Другое</span></TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="checkout">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {checkoutTasks.map(task => (
-              <CleaningTaskCard key={task.id} task={task} cardColor={task.is_guest_checked_out ? 'bg-red-100' : 'bg-gray-100'} />
-            ))}
-            {checkoutTasks.length === 0 && <p>Нет задач уборки после выезда.</p>}
-          </div>
-        </TabsContent>
+          <TabsContent value="checkout">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+              {checkoutTasks.map(task => (
+                <CleaningTaskCard key={task.id} task={task} cardColor={task.is_guest_checked_out ? 'bg-red-100' : 'bg-gray-100'} />
+              ))}
+              {checkoutTasks.length === 0 && <p>Нет задач уборки после выезда.</p>}
+            </div>
+          </TabsContent>
 
-        <TabsContent value="current">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {currentTasks.map(task => (
-              <CleaningTaskCard key={task.id} task={task} cardColor="bg-yellow-100" />
-            ))}
-            {currentTasks.length === 0 && <p>Нет текущих задач уборки.</p>}
-          </div>
-        </TabsContent>
+          <TabsContent value="current">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+              {currentTasks.map(task => (
+                <CleaningTaskCard key={task.id} task={task} cardColor="bg-yellow-100" />
+              ))}
+              {currentTasks.length === 0 && <p>Нет текущих задач уборки.</p>}
+            </div>
+          </TabsContent>
 
-        <TabsContent value="zones">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {zoneTasks.map(task => (
-              <CleaningTaskCard key={task.id} task={task} cardColor="bg-yellow-100" />
-            ))}
-            {zoneTasks.length === 0 && <p>Нет задач уборки зон.</p>}
-          </div>
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="zones">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+              {zoneTasks.map(task => (
+                <CleaningTaskCard key={task.id} task={task} cardColor="bg-yellow-100" />
+              ))}
+              {zoneTasks.length === 0 && <p>Нет задач уборки зон.</p>}
+            </div>
+          </TabsContent>
+          <TabsContent value="other">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+              {otherTasks.map(task => (
+                <CleaningTaskCard key={task.id} task={task} cardColor="bg-yellow-100" />
+              ))}
+              {otherTasks.length === 0 && <p>Нет задач других задач.</p>}
+            </div>
+          </TabsContent>
+        </Tabs>
+
+      </div>
     </div>
   );
 };
