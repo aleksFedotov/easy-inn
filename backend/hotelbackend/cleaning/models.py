@@ -282,6 +282,10 @@ class CleaningTask(models.Model):
         verbose_name="Заметки" # Человекочитаемое имя поля / Human-readable field name
     )
 
+    # Флаг, указывающий, что задача является срочной
+    # Flag indicating that the task is urgent
+    is_rush = models.BooleanField(default=False)
+
     # Метод для пользовательской валидации данных модели
     # Method for custom model data validation
     def clean(self):

@@ -369,6 +369,7 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
             'notes', # Allows setting notes / Позволяет устанавливать заметки
             'checklist_data',
             'is_guest_checked_out',
+            'is_rush'
         ]
         # Define all fields that should only be included in the output, not accepted as input
         # Определяем все поля, которые должны быть включены только в вывод, но не приниматься в качестве ввода
