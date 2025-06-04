@@ -21,6 +21,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
+import { USER_ROLES } from '@/lib/constants';
 
 
 
@@ -31,28 +32,35 @@ const menuItems = [
     name: 'Главная',
     href: '/dashboard',
     icon: Home,
-    roles: ['frontDesk', 'manager',], 
+    roles: [USER_ROLES.FRONT_DESK, USER_ROLES.MANAGER], 
   },
   {
     id: 'front-desk', 
     name: 'Служба приема',
     href: '/front-desk', 
     icon: ConciergeBell,
-    roles: ['frontDesk', 'manager'], 
+    roles: [USER_ROLES.FRONT_DESK, USER_ROLES.MANAGER], 
   },
   {
     id: 'housekeeping', 
     name: 'Уборка',
     href: '/housekeeping', 
     icon: BrushCleaning, 
-    roles: ['frontDesk', 'manager'], 
+    roles: [USER_ROLES.FRONT_DESK, USER_ROLES.MANAGER], 
+  },
+   {
+    id: 'ready-for-check',
+    name: 'Готовы к проверке',
+    href: '/ready-for-check',
+    icon: ClipboardList, 
+    roles: [USER_ROLES.FRONT_DESK, USER_ROLES.MANAGER], 
   },
   {
     id: 'my-cleaning-task', 
     name: 'Мои задачи',
     href: '/my-cleaning-task', 
     icon: ClipboardList,
-    roles: ['housekeeper']
+    roles: [USER_ROLES.HOUSEKEEPER,]
   },
   
 ];
@@ -62,21 +70,21 @@ const settingsItems = [
       name: 'Пользователи',
       href: '/users',
       icon: Users,
-      roles: [ 'manager'], 
+      roles: [USER_ROLES.MANAGER], 
     },
     {
       id: 'settings-rooms',  
       name: 'Настройка комнат',
       href: '/room-setup', 
       icon: BedDouble,
-      roles: [ 'manager'], 
+      roles: [USER_ROLES.MANAGER], 
     },
     {
       id: 'settings-cleaning',  
       name: 'Настройка уборки',
       href: '/cleaning-setup', 
       icon: Bubbles, 
-      roles: [ 'manager'],
+      roles: [USER_ROLES.MANAGER],
     },
  
 ];
