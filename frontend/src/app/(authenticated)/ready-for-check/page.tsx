@@ -34,15 +34,10 @@ const ReadyForCheckPage: React.FC = () => {
         setError(null);
         try {
             
-            const response = await api.get<CleaningTask[]>(`/api/cleaningtasks/`, {params: { all: true } });
-            const allFetchedTasks: CleaningTask[] = response.data;
-            if(response.status == 200) {
-        
+            const response = await api.get<CleaningTask[]>(`/api/cleaningtasks/ready_for_check/`, {params: { all: true }}); 
             
-            const filteredTasks = allFetchedTasks.filter(task =>
-                task.status === CLEANICNG_STATUSES.COMPLETED || task.status === CLEANICNG_STATUSES.WAITING_CHECK
-            );
-            setTasks(filteredTasks);
+            if(response.status === 200) {
+            setTasks(response.data);
             } else {
                 setError('Не удалось загрузить задачи. Попробуйте позже.');
             }
@@ -112,7 +107,7 @@ const ReadyForCheckPage: React.FC = () => {
                 </div>
             ) : (
                 <div className="flex flex-col items-center justify-center p-8 rounded-lg shadow-sm">
-                    <XCircle size={48} className="text-gray-400 mb-4" />
+                    <XCircle size={48} className="mb-4" />
                     <p className="text-xl font-medium">Нет задач, готовых к проверке.</p>
                     <p className="text-sm mt-2">Подождите, пока горничные завершат уборку.</p>
                 </div>

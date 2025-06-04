@@ -14,6 +14,7 @@ from django.db import transaction
 from django.utils import timezone
 from utills.calculateAverageDuration import calculate_average_duration
 from .cleaningTypeChoices import CleaningTypeChoices 
+from django.db.models import Q
 
 from hotel.models import Zone, Room
 
@@ -563,6 +564,24 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         task.save()
         serializer = self.get_serializer(task)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'],permission_classes=[IsAuthenticated, IsManagerOrFrontDesk])
+    def ready_for_check(self, request):
+        """
+        Получает список задач, готовых к проверке (COMPLETED или WAITING_CHECK).
+        Доступно только для менеджеров и сотрудников службы приема.
+        """
+        # Удаляем фильтрацию по scheduled_date, если фронтенд должен получать все даты
+        # Если нужна фильтрация по дате, фронтенд должен передавать scheduled_date
+        
+        tasks = CleaningTask.objects.filter(
+            Q(status=CleaningTask.Status.WAITING_CHECK) | Q(status=CleaningTask.Status.COMPLETED)
+        ).select_related('room', 'booking') # Добавьте select_related для оптимизации запросов к связанным объектам
+
+        tasks = tasks.order_by('-is_rush', 'due_time') 
+
+        serializer = self.get_serializer(tasks, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 def get_cleaning_stats(request):
