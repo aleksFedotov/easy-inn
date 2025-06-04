@@ -9,10 +9,15 @@ import { Spinner } from '@/components/spinner';
 import ErrorMessage from '@/components/ErrorMessage';
 import api from '@/lib/api';
 import axios from 'axios';
-import { LogOut, House, BedDouble, ChevronDown, ChevronUp, Flame, Tag, Boxes } from 'lucide-react'; 
+import { LogOut, House, BedDouble, ChevronDown, ChevronUp, Flame, Tag, Boxes,CalendarDays } from 'lucide-react'; 
 import { CLEANING_TYPES} from '@/lib/constants'; 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"; 
 import { Card } from '@/components/ui/card';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'; // Импорт Popover
+import { Calendar } from '@/components/ui/calendar'; // Импорт Calendar
+import { Button } from '@/components/ui/button'; // Импорт Button
+import { format } from 'date-fns'; // Импорт format для форматирования даты
+import { ru } from 'date-fns/locale'; // Импорт русской локали для date-fns
 
 const MyCleaningTasksPage: React.FC = () => {
     const { user, isLoading: isAuthLoading } = useAuth();
@@ -21,6 +26,12 @@ const MyCleaningTasksPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     const [isSummaryOpen, setIsSummaryOpen] = useState<boolean>(false);
+    const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date()); 
+
+    const formatDateForApi = (date: Date | undefined): string | undefined => {
+        if (!date) return undefined;
+    return format(date, 'yyyy-MM-dd');
+    };
 
     useEffect(() => {
         if (!user) return; // Не загружаем, пока нет user
@@ -28,9 +39,11 @@ const MyCleaningTasksPage: React.FC = () => {
             setLoading(true);
             setError(null);
             try {
+                const dateString = formatDateForApi(selectedDate);
                 const response = await api.get(`/api/cleaningtasks/`, {
                     params: {
-                        assigned_to: user.id, // Фильтруем по ID текущей горничной
+                        assigned_to: user.id, 
+                        scheduled_date: dateString,
                         all: true
                     },
                 });
@@ -49,7 +62,7 @@ const MyCleaningTasksPage: React.FC = () => {
         };
 
         fetchTasks();
-    }, [user]);
+    }, [user, selectedDate]);
 
     // Функция для сортировки задач по приоритету
     const sortTasksByPriority = useCallback((tasks: CleaningTask[]) => {
@@ -175,6 +188,29 @@ const MyCleaningTasksPage: React.FC = () => {
     return (
         <div className="container mx-auto p-4">
             <h1 className="text-3xl font-bold mb-4">Мои задачи</h1>
+            
+              <div className="mb-6 flex justify-end">
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                            variant={"outline"}
+                            className={`w-[240px] justify-start text-left font-normal ${!selectedDate && "text-muted-foreground"}`}
+                        >
+                            <CalendarDays size={20} className="mr-2" />
+                            {selectedDate ? format(selectedDate, "PPP", { locale: ru }) : <span>Выберите дату</span>}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                        <Calendar
+                            mode="single"
+                            selected={selectedDate}
+                            onSelect={setSelectedDate}
+                            initialFocus
+                            locale={ru}
+                        />
+                    </PopoverContent>
+                </Popover>
+            </div>
 
             {/* Общий summary выше tabs */}
             <Card className="bg-blue-50 p-4 rounded-lg shadow-sm mb-6 flex items-center justify-between">
