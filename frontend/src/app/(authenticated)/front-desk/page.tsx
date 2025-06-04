@@ -8,6 +8,7 @@ import ErrorMessage from '@/components/ErrorMessage';
 import api from '@/lib/api';
 import axios from 'axios';
 import { Booking } from '@/lib/types';
+import { CleaningTask } from '@/lib/types/housekeeping';
 import BookingForm from '@/components/forms/BookingForm';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'; 
@@ -39,6 +40,14 @@ import {
     useReactTable,
     ColumnDef,
 } from '@tanstack/react-table';
+import {
+    Dialog, 
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
 
 import {
     Plus,
@@ -67,6 +76,8 @@ import {
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale'; 
 import ConfirmationDialog from '@/components/ConfirmationDialog';
+import CleaningTaskCard from '@/components/cleaning/CleaningTaskCard'; // Импорт CleaningTaskCard
+
 
 interface BookingListParams {
     date?: string;
@@ -143,6 +154,8 @@ export default function FrontDeskPage() {
 
     const [bookingToEdit, setBookingToEdit] = useState<Booking | undefined>(undefined)
 
+    const [readyForCheckTasks, setReadyForCheckTasks] = useState<CleaningTask[]>([]);
+    const [isReadyForCheckDialogOpen, setIsReadyForCheckDialogOpen] = useState<boolean>(false);
 
    
 
@@ -251,16 +264,36 @@ export default function FrontDeskPage() {
         }
     }, [isPerformingAction, isCreateSheetOpen, isConfirmDeleteModalOpen]);
 
+    const fetchReadyForCheckTasks = useCallback(async () => {
+            if (isPerformingAction || isCreateSheetOpen || isConfirmDeleteModalOpen) return;
 
+            try {
+                // Используем новый эндпоинт, который фильтрует на бэкенде
+                const response = await api.get<CleaningTask[]>(`/api/cleaningtasks/ready_for_check/`);
+                // Сортируем на фронтенде, как в MyCleaningTasksPage
+                const sorted = [...response.data].sort((a, b) => {
+                    if (a.is_rush && !b.is_rush) return -1;
+                    if (!a.is_rush && b.is_rush) return 1;
+                    const dateA = a.due_time ? new Date(a.due_time).getTime() : Infinity;
+                    const dateB = b.due_time ? new Date(b.due_time).getTime() : Infinity;
+                    return dateA - dateB;
+                });
+                setReadyForCheckTasks(sorted);
+            } catch (err) {
+                console.error("Error fetching ready for check tasks:", err);
+                // Можно установить отдельное состояние ошибки для этого запроса, если нужно
+            }
+    }, [isPerformingAction, isCreateSheetOpen, isConfirmDeleteModalOpen]);
     // Эффект для загрузки данных при изменении выбранной даты или вкладки
     useEffect(() => {
         if (!isAuthLoading && user && (user.role === 'front-desk' || user.role === 'manager')) {
             const currentPageSize = selectedTab === 'departures' ? departuresPagination.pageSize : selectedTab === 'arrivals' ? arrivalsPagination.pageSize : staysPagination.pageSize;
             fetchBookings(selectedDate, selectedTab, 1, currentPageSize);
             fetchSummaryData();
+            fetchReadyForCheckTasks()
         }
 
-    }, [user, isAuthLoading, selectedDate, selectedTab, departuresPagination.pageSize, arrivalsPagination.pageSize, staysPagination.pageSize, fetchBookings, fetchSummaryData]);
+    }, [user, isAuthLoading, selectedDate, selectedTab, departuresPagination.pageSize, arrivalsPagination.pageSize, staysPagination.pageSize, fetchBookings, fetchSummaryData, fetchReadyForCheckTasks]);
 
 
     // Функции для обработки кликов по кнопкам пагинации
@@ -297,6 +330,7 @@ export default function FrontDeskPage() {
         const currentPaginationState = selectedTab === 'departures' ? departuresPagination : selectedTab === 'arrivals' ? arrivalsPagination : staysPagination;
         fetchBookings(selectedDate, selectedTab, currentPaginationState.currentPage, currentPaginationState.pageSize);
         fetchSummaryData();
+        fetchReadyForCheckTasks();
     };
     
     const handleCreateCancel = () => {
@@ -328,6 +362,7 @@ export default function FrontDeskPage() {
                 const currentPaginationState = selectedTab === 'departures' ? departuresPagination : selectedTab === 'arrivals' ? arrivalsPagination : staysPagination;
                 fetchBookings(selectedDate, selectedTab, currentPaginationState.currentPage, currentPaginationState.pageSize);
                 fetchSummaryData();
+                fetchReadyForCheckTasks();
             } else {
                 toast.error(`Не удалось отметить выезд номера ${room}. Пожалуйста, попробуйте ещё раз. (Status: ${bookingResponse.status})`);
                 console.error("Booking status change failed during check-out. Status:", bookingResponse.status);
@@ -368,6 +403,7 @@ export default function FrontDeskPage() {
                 const currentPaginationState = selectedTab === 'departures' ? departuresPagination : selectedTab === 'arrivals' ? arrivalsPagination : staysPagination;
                 fetchBookings(selectedDate, selectedTab, currentPaginationState.currentPage, currentPaginationState.pageSize);
                 fetchSummaryData();
+                fetchReadyForCheckTasks();
             } else {
                 toast.error(`Не удалось отметить заезд номера ${room}. Пожалуйста, попробуйте ещё раз. (Status: ${bookingResponse.status})`);
                 console.error("Booking status change failed during check-out. Status:", bookingResponse.status);
@@ -431,6 +467,7 @@ export default function FrontDeskPage() {
                 const currentPaginationState = selectedTab === 'departures' ? departuresPagination : selectedTab === 'arrivals' ? arrivalsPagination : staysPagination;
                 fetchBookings(selectedDate, selectedTab, currentPaginationState.currentPage, currentPaginationState.pageSize);
                 fetchSummaryData();
+                fetchReadyForCheckTasks();
                 handleCancelDelete();
             } else {
                 setError('Не удалось удалить бронирование. Статус: ' + response.status);
@@ -604,6 +641,7 @@ export default function FrontDeskPage() {
             const currentPageSize = selectedTab === 'departures' ? departuresPagination.pageSize : selectedTab === 'arrivals' ? arrivalsPagination.pageSize : staysPagination.pageSize;
             fetchBookings(selectedDate, selectedTab, 1, currentPageSize);
             fetchSummaryData();
+            fetchReadyForCheckTasks();
         };
 
         return (
@@ -701,15 +739,43 @@ export default function FrontDeskPage() {
                                 <div className="text-2xl font-bold text-blue-800">{summaryData.in_progress}</div>
                             </CardContent>
                         </Card>
-                        <Card className="bg-green-100 text-green-600">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-green-700">Готов к проверке</CardTitle>
-                                <CheckCircle size={20} className="text-green-600" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-green-800">{summaryData.waiting_inspection}</div>
-                            </CardContent>
-                        </Card>
+                        <Dialog open={isReadyForCheckDialogOpen} onOpenChange={setIsReadyForCheckDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Card className="bg-green-100 text-green-600 cursor-pointer hover:shadow-lg transition-shadow duration-200">
+                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                        <CardTitle className="text-sm font-medium text-green-700">Готов к проверке</CardTitle>
+                                        <CheckCircle size={20} className="text-green-600" />
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-2xl font-bold text-green-800">{summaryData.waiting_inspection}</div>
+                                    </CardContent>
+                                </Card>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+                                <DialogHeader>
+                                    <DialogTitle>Задачи, готовые к проверке ({readyForCheckTasks.length})</DialogTitle>
+                                    <DialogDescription>
+                                        Список задач по уборке, которые ожидают вашей инспекции.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                {readyForCheckTasks.length > 0 ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 py-4">
+                                        {readyForCheckTasks.map(task => (
+                                            <CleaningTaskCard
+                                                key={task.id}
+                                                task={task}
+                                                cardColor={task.status === 'completed' ? 'bg-green-100' : 'bg-orange-100'} // Или другой цвет
+                                            />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center p-8 text-gray-700">
+                                        <XCircle size={48} className="text-gray-400 mb-4" />
+                                        <p className="text-lg font-medium">Нет задач, готовых к проверке.</p>
+                                    </div>
+                                )}
+                            </DialogContent>
+                        </Dialog>
                     </div>
                 )
             )}
