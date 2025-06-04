@@ -102,7 +102,7 @@ const HousekeeperSelectionModal: React.FC<HousekeeperSelectionModalProps> = ({
                         </div>
                     ))
                 ) : (
-                    <p className="text-center text-gray-500">Горничные не найдены.</p>
+                    <p className="text-center">Горничные не найдены.</p>
                 )}
             </div>
             <DialogFooter className="mt-4">

@@ -54,6 +54,8 @@ export interface CleaningTask {
     notes: string | null; 
     checklist_data: Checklist;
     is_guest_checked_out: boolean;
+    is_rush: boolean;
+    associated_checklist_names: string[];
 }
 
 
@@ -64,4 +66,10 @@ export interface CleaningStats {
     currentTotal: number;          
     currentCompleted: number;      
     currentAvgTime: number | null;  
+}
+
+
+export interface ChecklistProgress {
+  total: number;
+  completed: number;
 }

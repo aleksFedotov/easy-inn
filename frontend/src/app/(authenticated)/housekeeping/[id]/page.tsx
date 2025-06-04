@@ -1,25 +1,23 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 import { Spinner } from '@/components/spinner';
 import ErrorMessage from '@/components/ErrorMessage';
 import api from '@/lib/api';
 import axios from 'axios';
-import { ChecklistItem, CleaningTask } from '@/lib/types';
 import {
     Building,
     FileText,
     User as UserIcon,
     BookOpen,
     Clock,
-    Edit,
     ClipboardList,
     CheckCircle,
-    XCircle,
     Play,
     CircleDotDashed,
+    Flame,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +26,17 @@ import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import AuthRequiredMessage from '@/components/AuthRequiredMessage';
 import getCleaningStatusColor from '@/lib/cleaning/GetCLeaningStatusColor';
+import { CLEANICNG_STATUSES, USER_ROLES } from '@/lib/constants';
+import ChecklistCardList from '@/components/cleaning/ChecklistCardList';
+import { Checklist, CleaningTask, ChecklistProgress } from '@/lib/types/housekeeping';
+import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
+import 'react-circular-progressbar/dist/styles.css'; //  Подключаем стили
+import { toast } from 'sonner';
+
+
+interface ChecklistsState {
+  [checklistId: number]: ChecklistProgress;
+}
 
 export default function CleaningTaskDetailsPage() {
     const params = useParams<{ id: string }>();
@@ -38,14 +47,14 @@ export default function CleaningTaskDetailsPage() {
     const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth();
 
     const [taskDetails, setTaskDetails] = useState<CleaningTask | null>(null);
-    const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+    const [checklistData, setChecklistData] = useState<Checklist[]>([]);
     const [checkedItemIds, setCheckedItemIds] = useState<number[]>([]);
+    const [checklistsState, setChecklistsState] = useState<ChecklistsState>({}); 
     const [isChecklistComplete, setIsChecklistComplete] = useState<boolean>(false);
 
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-
-
+    
     const fetchTaskDetails = useCallback(async () => {
         if (!taskId) {
             setError('ID задачи не указан.');
@@ -60,10 +69,16 @@ export default function CleaningTaskDetailsPage() {
             const response = await api.get(`/api/cleaningtasks/${taskId}/`);
             if (response.status === 200) {
                 setTaskDetails(response.data);
-                setChecklistItems(response.data.checklist_data?.items || []);
-                if(response.data.checklist_data?.items.length === 0) {
-                    setIsChecklistComplete(true)
+                // console.log('Fetched task details:', response.data);
+                if (response.data.checklist_data && response.data.checklist_data.length > 0) {
+                    setChecklistData(response.data.checklist_data); 
+        
+                    setCheckedItemIds([]); 
+                } else {
+                    setChecklistData([]);  
+                    setIsChecklistComplete(true); 
                 }
+
             } else if (response.status === 404) {
                 setError(`Задача с ID ${taskId} не найдена.`);
             } else {
@@ -85,21 +100,25 @@ export default function CleaningTaskDetailsPage() {
     }, [fetchTaskDetails]);
 
     useEffect(() => {
-        // Проверяем, все ли пункты чек-листа отмечены
-        if (checklistItems.length > 0) {
-            const allChecked = checklistItems.every(item => checkedItemIds.includes(item.id));
-            setIsChecklistComplete(allChecked);
-        } else {
-            setIsChecklistComplete(true); 
-        }
-    }, [checklistItems, checkedItemIds]);
+        const canFinishCleaning = Object.values(checklistsState).every(
+        ({ total, completed }) => completed === total
+        );
+        setIsChecklistComplete(canFinishCleaning);
+    }, [checklistsState]);
+
+    const handleChecklistChange = useCallback((checklistId: number, progress: ChecklistProgress) => {
+        setChecklistsState((prev) => ({
+            ...prev,
+            [checklistId]: progress
+        }));
+    }, []);
 
     const handleStartCleaning = async () => {
         setIsLoading(true);
         setError(null);
         try {
-            await api.patch(`/api/cleaningtasks/${taskId}/start/` );
-            fetchTaskDetails();
+            await api.patch(`/api/cleaningtasks/${taskId}/start/`);
+            await fetchTaskDetails();
         } catch (err) {
             console.error('Error during start cleaning:', err);
             if (axios.isAxiosError(err) && err.response) {
@@ -122,10 +141,14 @@ export default function CleaningTaskDetailsPage() {
             return;
         }
 
+
         setIsLoading(true);
         setError(null);
         try {
-            await api.patch(`/api/cleaningtasks/${taskId}/complete/`,);
+            console.log("trying to finish inspection with checked items:", checkedItemIds);
+            // Отправляем список отмеченных пунктов при завершении уборки
+            const response = await api.patch(`/api/cleaningtasks/${taskId}/complete/`);
+            console.log('Finish inspection response:', response.data);
             fetchTaskDetails();
         } catch (err) {
             console.error('Error during start cleaning:', err);
@@ -143,6 +166,7 @@ export default function CleaningTaskDetailsPage() {
     };
 
     const handleFinishInspection = async () => {
+        
         if (!isChecklistComplete) {
             setError("Пожалуйста, проверьте все пункты чек-листа.");
             return;
@@ -151,7 +175,10 @@ export default function CleaningTaskDetailsPage() {
         setIsLoading(true);
         setError(null);
         try {
+         
+            // Отправляем список отмеченных пунктов при завершении проверки
             await api.patch(`/api/cleaningtasks/${taskId}/check/`);
+           
             fetchTaskDetails(); // Обновляем данные после изменения статуса
         } catch (err) {
             console.error('Error during start cleaning:', err);
@@ -168,50 +195,71 @@ export default function CleaningTaskDetailsPage() {
         }
     };
 
-    const handleCancelTask = async () => {
+    const handleToggleRush = async () => {
+        if (!taskDetails) {
+            setError('Детали задачи не загружены.');
+            return;
+        }
         setIsLoading(true);
         setError(null);
+        const newRushStatus = !taskDetails.is_rush; 
         try {
-            await api.patch(`/api/cleaningtasks/${taskId}/cancel/`);
-            fetchTaskDetails(); // Обновляем данные после изменения статуса
+            
+            const response = await api.patch(`/api/cleaningtasks/${taskDetails.id}/set_rush/`, {
+                is_rush: newRushStatus
+            });
+
+            if (response.status === 200) {
+                toast.success(`Задача успешно ${newRushStatus ? 'помечена как срочная' : 'снята с срочных'}.`);
+                fetchTaskDetails()
+            } else {
+                // Обработка неуспешного ответа
+                toast.error(`Не удалось изменить статус срочности. Статус: ${response.status}`);
+            }
         } catch (err) {
-            console.error('Error during start cleaning:', err);
+            // Обработка ошибок сети или API
+            console.error('Error toggling rush status:', err);
+            let errorMessage = 'Произошла ошибка при изменении статуса срочности.';
             if (axios.isAxiosError(err) && err.response) {
-                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при удалении бронирования.');
-            } else if (axios.isAxiosError(err) && err.request) {
-                setError('Нет ответа от сервера при завершении уборки.');
-            } else {
-                setError('Не удалось отменить задачу.');
+                errorMessage = err.response.data.detail || JSON.stringify(err.response.data) || errorMessage;
             }
-
+            toast.error(errorMessage);
         } finally {
-            setIsLoading(false);
+            setIsLoading(false); // Снимаем флаг выполнения действия
         }
-    };
 
-    const handleChecklistItemChange = (itemId: number) => {
-        setCheckedItemIds(prevIds => {
-            if (prevIds.includes(itemId)) {
-                return prevIds.filter(id => id !== itemId);
-            } else {
-                return [...prevIds, itemId];
-            }
-        });
-    };
+    }
 
+
+    const totalProgress = useMemo(() => {
+    if (checklistData.length === 0) return 0;
+
+    const total = checklistData.reduce((sum, checklist) => {
+        const checklistProgress = checklistsState[checklist.id];
+        if (!checklistProgress) return sum; 
+
+        const completed = checklistProgress.completed || 0;
+        const totalItems = checklistProgress.total || 0;
+        return sum + (totalItems === 0 ? 100 : (completed / totalItems) * 100);
+    }, 0);
+
+    return checklistData.length === 0 ? 0 : total / checklistData.length;
+}, [checklistsState, checklistData]);
+
+    // Функция для рендеринга действий в зависимости от роли пользователя и статуса задачи
 
     const renderActions = () => {
         if (!user || !taskDetails) return null;
 
-        if (user.role === 'housekeeper') {
-            if (taskDetails.status === 'assigned') {
+        if (user.role === USER_ROLES.HOUSEKEEPER) {
+            if (taskDetails.status === CLEANICNG_STATUSES.ASSIGNED) {
                 return (
                     <Button variant="default" onClick={handleStartCleaning}>
                         <Play className="mr-2 h-4 w-4" />
                         Начать уборку
                     </Button>
                 );
-            } else if (taskDetails.status === 'in_progress') {
+            } else if (taskDetails.status === CLEANICNG_STATUSES.IN_PROGRESS) {
                 return (
                     <Button variant="default" onClick={handleFinishCleaning} disabled={!isChecklistComplete}>
                         <CheckCircle className="mr-2 h-4 w-4" />
@@ -219,50 +267,44 @@ export default function CleaningTaskDetailsPage() {
                     </Button>
                 );
             }
-        } else if (['manager', 'front-desk'].includes(user.role)) {
-            
-                return (
-                    <>  {(taskDetails.status === 'waiting_check' || taskDetails.status === 'completed') &&
+        } else if ([USER_ROLES.MANAGER, USER_ROLES.FRONT_DESK].includes(user.role)) {
+            return (
+                <>
+                    {(taskDetails.status === CLEANICNG_STATUSES.WAITING_CHECK || taskDetails.status === CLEANICNG_STATUSES.COMPLETED) &&
                         <Button variant="default" onClick={handleFinishInspection} disabled={!isChecklistComplete}>
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Завершить проверку
-                    </Button>
-                    
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Завершить проверку
+                        </Button>
                     }
-                        <Button variant="outline" onClick={() => router.push(`/housekeeping/${taskId}/edit`)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Редактировать
-                        </Button>
-                        <Button variant="destructive" onClick={handleCancelTask}>
-                            <XCircle className="mr-2 h-4 w-4" />
-                            Отменить
-                        </Button>
-                    </>
-                )
+
+                    <Button variant='secondary' onClick={handleToggleRush}> {/* Вызываем новую функцию */}
+                            <Flame className={`mr-2 h-4 w-4 ${taskDetails.is_rush ? 'text-red-600' : 'text-gray-500'}`} /> 
+                            {taskDetails.is_rush ? 'Снять срочность' : 'Пометить как срочную'} 
+                    </Button>
+                </>
+            )
         }
         return null;
     };
 
-    const canEditChecklist =
-        (user?.role === 'housekeeper' && taskDetails?.status === 'in_progress') ||
-        ((user?.role === 'manager' || user?.role === 'front-desk') && taskDetails?.status === 'waiting_check');
+  
 
 
     if (isLoading || isAuthLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+            <div className="flex items-center justify-center min-h-screen">
                 <Spinner />
             </div>
         );
     }
 
     if (!isAuthenticated || !user) {
-        return <AuthRequiredMessage/>;
+        return <AuthRequiredMessage />;
     }
 
     if (error) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+            <div className="flex items-center justify-center min-h-screen">
                 <ErrorMessage message={error} onRetry={fetchTaskDetails} isLoading={isLoading} />
             </div>
         );
@@ -270,7 +312,7 @@ export default function CleaningTaskDetailsPage() {
 
     if (!taskDetails && taskId) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+            <div className="flex items-center justify-center min-h-screen">
                 <div className="rounded-md border bg-muted p-4">
                     Задача уборки с ID {taskId} не найдена.
                 </div>
@@ -279,6 +321,9 @@ export default function CleaningTaskDetailsPage() {
     }
 
     if (taskDetails) {
+        // Оборачиваем checklistData в массив, так как ChecklistCardList ожидает массив
+        
+
         return (
             <div className="container mx-auto py-10">
                 <Button variant="ghost" onClick={() => router.back()} className="mb-4">
@@ -287,10 +332,15 @@ export default function CleaningTaskDetailsPage() {
 
                 <Card className="shadow-md">
                     <CardHeader className="space-y-4">
-                        <CardTitle className="text-2xl font-bold">
-                            Задача уборки: {taskDetails.room_number || taskDetails.zone_name || "Общая"}
+                        <CardTitle className="text-2xl font-bold flex items-center ">
+                            <span>Задача уборки: {taskDetails.room_number || taskDetails.zone_name || "Общая"}</span>
+                             {taskDetails.is_rush && ( // Conditional rendering for the rush badge
+                                <Badge className="ml-4 bg-red-500 text-white flex items-center"> {/* Added ml-4 for margin */}
+                                    <Flame className="mr-1 h-4 w-4" /> СРОЧНО
+                                </Badge>
+                            )}
                         </CardTitle>
-                        <CardDescription className="text-gray-500">
+                        <CardDescription >
                             Подробная информация о задаче.
                         </CardDescription>
                     </CardHeader>
@@ -340,33 +390,36 @@ export default function CleaningTaskDetailsPage() {
                                 </Badge>
                             </div>
                         </div>
+                       
+                        <div className="w-30 mx-auto">
+                            <CircularProgressbar
+                                value={totalProgress}
+                                text={`${Math.round(totalProgress)}%`}
+                                styles={buildStyles({
+                                    textColor: 'black',
+                                    pathColor: '#0070f3', 
+                                    trailColor: '#d6d6d6',
+                                })}
+                            />
+                            <p className="text-center mt-2 text-sm">
+                                Общий прогресс
+                            </p>
+                        </div>
+                    
 
-                        {/* Чек-лист */}
-                        {taskDetails.checklist_data && taskDetails.checklist_data.items && taskDetails.checklist_data.items.length > 0 && (
-                            <div className="mt-6 border-t pt-4">
-                                <h3 className="text-lg font-semibold mb-2">
-                                    <ClipboardList className="mr-2 inline-block h-5 w-5" />
-                                    Чек-лист
-                                </h3>
-                                <ul>
-                                    {checklistItems.map((item, index) => (
-                                        <li key={index} className="flex items-center py-2 border-b last:border-b-0">
-                                            <input
-                                                type="checkbox"
-                                                checked={checkedItemIds.includes(item.id)}
-                                                onChange={() => handleChecklistItemChange(item.id)}
-                                                className="mr-2 h-4 w-4"
-                                                disabled={
-                                                    !canEditChecklist
-                                                }
-                                            />
-                                            <span>{item.text}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
+                        {/* Заменяем старый рендеринг чек-листа на ChecklistCardList */}
+                        {checklistData.length > 0 && (
+                            checklistData.map((checklist) => {
+                                return (
+                                    <ChecklistCardList
+                                        key={checklist.id}
+                                        checklist={checklist} // Передаем массив с одним чек-листом
+                                        onChange={handleChecklistChange}
+                                    />
+                                );
+                            }))}
                     </CardContent>
+                            
                     <CardFooter className="flex justify-end gap-2">
                         {renderActions()}
                     </CardFooter>
@@ -376,7 +429,7 @@ export default function CleaningTaskDetailsPage() {
     }
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="flex items-center justify-center min-h-screen">
             <div className="rounded-md border bg-muted p-4">
                 Неизвестная ошибка при загрузке...
             </div>

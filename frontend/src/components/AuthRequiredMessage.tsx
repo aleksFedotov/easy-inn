@@ -20,16 +20,16 @@ const AuthRequiredMessage: React.FC = () => {
     };
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 p-4">
+        <div className="flex items-center justify-center min-h-screen p-4">
             <Card className="w-full max-w-md text-center shadow-lg rounded-lg">
                 <CardHeader>
-                    <CardTitle className="text-2xl font-bold text-gray-800 dark:text-gray-100">Доступ запрещен</CardTitle>
-                    <CardDescription className="text-gray-600 dark:text-gray-400">
+                    <CardTitle className="text-2xl font-bold ">Доступ запрещен</CardTitle>
+                    <CardDescription >
                         Для просмотра этой страницы необходимо войти в систему.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-gray-700 dark:text-gray-300 mb-6">
+                    <p className="mb-6">
                         Пожалуйста, войдите в свой аккаунт, чтобы получить доступ к содержимому.
                     </p>
                 </CardContent>

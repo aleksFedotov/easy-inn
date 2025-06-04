@@ -27,9 +27,9 @@ import { Spinner } from '@/components/spinner';
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from 'zod';
-import { CalendarDays, Clock, User as UserIcon, Tag, MapPin, FileText } from 'lucide-react';
+import { CalendarDays, Clock, User as UserIcon, Tag, MapPin, FileText, Flame } from 'lucide-react';
 import { cleaningTypeOptions, CLEANING_TYPE_VALUES } from '@/lib/constants';
-
+import { Switch } from '@/components/ui/switch'
 
 
 
@@ -45,6 +45,7 @@ interface CleaningTaskFormData {
     room?: string;
     zone?: string;
     notes?: string;
+    is_rush?: boolean;
 }
 
 // Zod validation schema
@@ -57,6 +58,7 @@ const formSchema = z.object({
     scheduled_date: z.string().min(1, { message: "Укажите запланированную дату." }),
     due_time: z.string().optional(),
     notes: z.string().optional(),
+    is_rush: z.boolean().optional(),
 }).refine(data => {
     return (!!data.room && !data.zone) || (!data.room && !!data.zone);
 }, {
@@ -106,6 +108,7 @@ export default function CleaningTaskForm({
             scheduled_date: cleaningTaskToEdit.scheduled_date ?? new Date().toISOString().split('T')[0], // ✅ Убедись, что это строка
             due_time: cleaningTaskToEdit.due_time ? cleaningTaskToEdit.due_time.substring(11, 16) : '',
             notes: cleaningTaskToEdit.notes || '',
+            is_rush: cleaningTaskToEdit.is_rush || false,
         } : {
             room: '',
             zone: '',
@@ -114,6 +117,7 @@ export default function CleaningTaskForm({
             scheduled_date: new Date().toISOString().split('T')[0], // ✅ по умолчанию — сегодняшняя дата
             due_time: '',
             notes: '',
+            is_rush: false,
         },
     });
 
@@ -149,6 +153,7 @@ export default function CleaningTaskForm({
                 scheduled_date: data.scheduled_date,
                 due_time: data.due_time !== '' ? `${data.scheduled_date}T${data.due_time}:00` : null,
                 notes: data.notes !== '' ? data.notes : null,
+                is_rush: data.is_rush,
             };
 
             let response;
@@ -361,6 +366,30 @@ export default function CleaningTaskForm({
                         </FormItem>
                     )}
                 />
+
+            
+                <FormField
+                    control={form.control}
+                    name="is_rush"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 mb-4">
+                            <div className="space-y-0.5">
+                                <FormLabel className="flex items-center">
+                                    <Flame size={16} className="inline mr-1 text-red-600" /> Срочная задача:
+                                </FormLabel>
+                                <FormMessage />
+                            </div>
+                            <FormControl>
+                                <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+              
+
 
                 {generalError && <p className="text-red-500 text-xs italic mb-4 text-center">{generalError}</p>}
 

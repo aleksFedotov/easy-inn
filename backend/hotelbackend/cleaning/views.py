@@ -127,7 +127,7 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         # Если пользователь аутентифицирован и является горничной, вернуть только задачи, назначенные ему
         if user.is_authenticated and user.role == User.Role.HOUSEKEEPER:
             logger.debug(f"User is Housekeeper, returning tasks assigned to {user}.")
-            return queryset.filter(assigned_to=user, status__in=['assigned', 'in_progress', 'waiting_inspection'])
+            return queryset.filter(assigned_to=user, status__in=['assigned', 'in_progress', 'waiting_inspection']).order_by('-is_rush', 'due_time')
         
         # For all other authenticated users or if the user is not authenticated,
         # return an empty queryset. Permission classes will further restrict access.
@@ -285,10 +285,11 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         # Проверяем, можно ли завершить задачу из текущего статуса
         if task.status == CleaningTask.Status.IN_PROGRESS:
             logger.info(f"Task {task.pk} status is {task.get_status_display()}, allowing completion.")
-            if  task.cleaning_type == None or task.cleaning_type == CleaningTypeChoices.STAYOVER:
+            if  task.cleaning_type == None or task.cleaning_type == CleaningTypeChoices.STAYOVER or task.cleaning_type == CleaningTypeChoices.PUBLIC_AREA_CLEANING:
                 task.status = CleaningTask.Status.CHECKED 
             elif task.cleaning_type == CleaningTypeChoices.DEPARTURE_CLEANING:
                 task.status = CleaningTask.Status.WAITING_CHECK 
+             
 
             task.completed_at = timezone.now() # Set completion time / Устанавливаем время завершения
             task.save(update_fields=['status', 'completed_at'])
@@ -305,6 +306,7 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                 zone = task.zone
                 zone.status = Zone.Status.CLEAN
                 zone.save(update_fields=['status'])
+                logger.info(f"Zone new status {zone.status}.")
                 logger.info(f"Zone {zone.name} status changed to 'clean'.")
             serializer = self.get_serializer(task)
             logger.info(f"Task {task.pk} completed successfully by user {request.user}.")
@@ -495,7 +497,6 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
             "message": f"Создано {created_tasks_count} задач по уборке."
         }, status=status.HTTP_201_CREATED)
 
-
     @action(detail=False, methods=['post'])
     def assign_multiple(self, request):
         serializer = MultipleTaskAssignmentSerializer(data=request.data)
@@ -523,6 +524,16 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
+    @action(detail=True,methods=['patch'], permission_classes=[IsAuthenticated, IsManagerOrFrontDesk])
+    def set_rush(self,request, pk=None):
+        task = self.get_object()
+        is_rush = request.data.get('is_rush')
+        if is_rush is None:
+            return Response({"detail": "is_rush field is required."}, status=status.HTTP_400_BAD_REQUEST)
+        task.is_rush = bool(is_rush)
+        task.save()
+        serializer = self.get_serializer(task)
+        return Response(serializer.data)
 
 @api_view(['GET'])
 def get_cleaning_stats(request):

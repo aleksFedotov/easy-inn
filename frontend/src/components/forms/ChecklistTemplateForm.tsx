@@ -195,7 +195,7 @@ export default function ChecklistTemplateForm({ checklistTemplateToEdit, onSucce
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="bg-white p-6 rounded-lg shadow-md">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 rounded-lg shadow-md">
                 <h2 className="text-xl font-bold mb-4">{checklistTemplateToEdit ? 'Редактировать шаблон чек-листа' : 'Создать новый шаблон чек-листа'}</h2>
 
                 <FormField
@@ -296,7 +296,7 @@ export default function ChecklistTemplateForm({ checklistTemplateToEdit, onSucce
 
                 <div className="mb-6 border-t pt-4">
                     <div className="flex justify-between items-center mb-3">
-                        <h3 className="text-lg font-semibold text-gray-700">Пункты чек-листа</h3>
+                        <h3 className="text-lg font-semibold">Пункты чек-листа</h3>
                         <Button
                             type="button"
                             onClick={() => append({ text: '' })}
@@ -336,7 +336,7 @@ export default function ChecklistTemplateForm({ checklistTemplateToEdit, onSucce
                     ))}
 
                     {fields.length === 0 && (
-                        <p className="text-center text-gray-500 text-sm">Нет пунктов в чек-листе. Добавьте первый пункт.</p>
+                        <p className="text-center text-sm">Нет пунктов в чек-листе. Добавьте первый пункт.</p>
                     )}
                 </div>
 

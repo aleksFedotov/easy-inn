@@ -25,7 +25,7 @@ export default function ErrorMessage({ message, onRetry, isLoading = false }: Er
     // Контейнер для центрирования сообщения об ошибке
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       {/* Блок сообщения об ошибке */}
-      <div className="p-8 rounded-lg shadow-lg bg-white max-w-md w-full text-center text-red-600 font-bold">
+      <div className="p-8 rounded-lg shadow-lg max-w-md w-full text-center text-red-600 font-bold">
         {/* Текст сообщения об ошибке */}
         <p>Ошибка: {message}</p>
         {/* Показываем кнопку "Повторить", только если передана функция onRetry */}

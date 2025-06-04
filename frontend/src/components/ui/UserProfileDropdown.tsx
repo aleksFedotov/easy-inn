@@ -46,10 +46,10 @@ const UserProfileDropdown = () => {
                     {user && (
                         <div className="text-left"> 
                             <p className="text-sm font-medium">{user.last_name} {user.first_name}</p>
-                            <p className="text-xs text-gray-500">{user.username}</p>
+                            <p className="text-xs">{user.username}</p>
                         </div>
                     )}
-                    <ChevronDown className="h-4 w-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
+                    <ChevronDown className="h-4 w-4 absolute right-1 top-1/2 -translate-y-1/2" />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56 mr-2">

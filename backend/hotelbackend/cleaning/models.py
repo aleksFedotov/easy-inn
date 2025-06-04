@@ -13,6 +13,13 @@ from .cleaningTypeChoices import CleaningTypeChoices
 
 class ChecklistTemplate(models.Model):
 
+    class PeriodicityChoices(models.IntegerChoices):
+        DAILY = 1, "Каждый день"
+        EVERY_OTHER_DAY = 2, "Раз в 2 дня"
+        EVERY_THREE_DAYS = 3, "Раз в 3 дня"
+        EVERY_FOUR_DAYS = 4, "Раз в 4 дня"
+        WEEKLY = 7, "Раз в неделю"
+        MONTHLY = 30, "Раз в месяц" 
 
     # Мета-параметры модели
     # Model meta options
@@ -43,6 +50,22 @@ class ChecklistTemplate(models.Model):
     description = models.TextField(
         blank=True, # Поле может быть пустым / Field can be blank
         verbose_name="Описание" # Человекочитаемое имя поля / Human-readable field name
+    )
+    
+
+    periodicity = models.IntegerField(
+        choices=PeriodicityChoices.choices,
+        default=PeriodicityChoices.DAILY,
+        verbose_name="Периодичность уборки",
+        help_text="Как часто должна проводиться уборка (в днях)."
+    )
+    
+
+    # Дополнительное поле для смещения (например, начать со 2-го дня)
+    offset_days = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Смещение (дни)",
+        help_text="Через сколько дней после начала отсчета начать уборку."
     )
 
     # Строковое представление объекта ChecklistTemplate
@@ -258,6 +281,10 @@ class CleaningTask(models.Model):
         null=True, # Поле может быть NULL в базе данных / Field can be NULL in the database
         verbose_name="Заметки" # Человекочитаемое имя поля / Human-readable field name
     )
+
+    # Флаг, указывающий, что задача является срочной
+    # Flag indicating that the task is urgent
+    is_rush = models.BooleanField(default=False)
 
     # Метод для пользовательской валидации данных модели
     # Method for custom model data validation

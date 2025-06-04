@@ -123,7 +123,8 @@ class ZoneSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'name', # Название зоны / Zone name
-            'description', # Описание зоны / Zone description
+            'description',
+            'status', # Описание зоны / Zone description
             'floor', # Этаж (может быть null) / Floor (can be null)
         ]
         # Поля, доступные только для чтения.
