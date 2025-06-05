@@ -4,11 +4,14 @@ import CleaningTaskCard from '@/components/cleaning/CleaningTaskCard';
 import { CleaningTask } from '@/lib/types'; // Убедитесь, что у вас есть этот тип
 import { LogOut, Bed, House, Boxes } from 'lucide-react';
 
+
+
 interface CleaningTasksSectionProps {
   checkoutTasks: CleaningTask[];
   currentTasks: CleaningTask[];
   zoneTasks: CleaningTask[];
   otherTasks: CleaningTask[];
+  isDashBoard?: boolean; 
 }
 
 const CleaningTasksSection: React.FC<CleaningTasksSectionProps> = ({
@@ -16,54 +19,76 @@ const CleaningTasksSection: React.FC<CleaningTasksSectionProps> = ({
   currentTasks,
   zoneTasks,
   otherTasks,
+  isDashBoard = false, 
 }) => {
+
+  const tabsConfig = [
+    {
+      value: 'checkout',
+      label: 'Выезд',
+      icon: LogOut,
+      tasks: checkoutTasks,
+      getColor: (task: CleaningTask) => task.is_guest_checked_out ? 'bg-red-100' : 'bg-gray-100',
+      emptyText: 'Нет задач уборки после выезда.',
+    },
+    {
+      value: 'current',
+      label: 'Текущая',
+      icon: Bed,
+      tasks: currentTasks,
+      getColor: () => 'bg-yellow-100',
+      emptyText: 'Нет текущих задач уборки.',
+    },
+    {
+      value: 'zones',
+      label: 'Зоны',
+      icon: House,
+      tasks: zoneTasks,
+      getColor: () => 'bg-yellow-100',
+      emptyText: 'Нет задач уборки зон.',
+    },
+    {
+      value: 'other',
+      label: 'Другое',
+      icon: Boxes,
+      tasks: otherTasks,
+      getColor: () => 'bg-yellow-100',
+      emptyText: 'Нет других задач.',
+    },
+  ];
+  
   return (
     <>
-      <h2 className="text-2xl font-bold mt-8 mb-4">Последние задачи по уборке</h2>
+      {isDashBoard && <h2 className="text-2xl font-bold mt-8 mb-4">Последние задачи по уборке</h2>}
       <div className="flex justify-center">
-        <Tabs defaultValue="checkout" className='w-full'>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="checkout" className="flex items-center space-x-2"><LogOut size={16} /><span>Выезд</span></TabsTrigger>
-            <TabsTrigger value="current" className="flex items-center space-x-2"><Bed size={16} /><span>Текущая</span></TabsTrigger>
-            <TabsTrigger value="zones" className="flex items-center space-x-2"><House size={16} /><span>Зоны</span></TabsTrigger>
-            <TabsTrigger value="other" className="flex items-center space-x-2"><Boxes size={16} /><span>Другое</span></TabsTrigger>
-          </TabsList>
+      <Tabs defaultValue="checkout" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          {tabsConfig.map(tab => (
+            <TabsTrigger key={tab.value} value={tab.value} className="flex items-center space-x-2">
+              <tab.icon size={16} />
+              <span>{tab.label}</span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-          <TabsContent value="checkout">
+        {tabsConfig.map(tab => (
+          <TabsContent key={tab.value} value={tab.value} className="mt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-              {checkoutTasks.map(task => (
-                <CleaningTaskCard key={task.id} task={task} cardColor={task.is_guest_checked_out ? 'bg-red-100' : 'bg-gray-100'} />
-              ))}
-              {checkoutTasks.length === 0 && <p>Нет задач уборки после выезда.</p>}
+              {tab.tasks.length > 0 ? (
+                tab.tasks.map(task => (
+                  <CleaningTaskCard
+                    key={task.id}
+                    task={task}
+                    cardColor={tab.getColor(task)}
+                  />
+                ))
+              ) : (
+                <p>{tab.emptyText}</p>
+              )}
             </div>
           </TabsContent>
-
-          <TabsContent value="current">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-              {currentTasks.map(task => (
-                <CleaningTaskCard key={task.id} task={task} cardColor="bg-yellow-100" />
-              ))}
-              {currentTasks.length === 0 && <p>Нет текущих задач уборки.</p>}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="zones">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-              {zoneTasks.map(task => (
-                <CleaningTaskCard key={task.id} task={task} cardColor="bg-yellow-100" />
-              ))}
-              {zoneTasks.length === 0 && <p>Нет задач уборки зон.</p>}
-            </div>
-          </TabsContent>
-          <TabsContent value="other">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-              {otherTasks.map(task => (
-                <CleaningTaskCard key={task.id} task={task} cardColor="bg-yellow-100" />
-              ))}
-              {otherTasks.length === 0 && <p>Нет задач других задач.</p>}
-            </div>
-          </TabsContent>
-        </Tabs>
+        ))}
+      </Tabs>
       </div>
     </>
   );

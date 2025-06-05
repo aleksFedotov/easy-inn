@@ -42,7 +42,8 @@ const DashboardPage: React.FC = () => {
         checkoutTasks={checkoutTasks} 
         currentTasks={currentTasks} 
         zoneTasks={zoneTasks} 
-        otherTasks={otherTasks} 
+        otherTasks={otherTasks}
+        isDashBoard={true}  
       />
     </div>
   );
