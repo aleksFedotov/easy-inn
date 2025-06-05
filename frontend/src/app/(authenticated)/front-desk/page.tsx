@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useReducer } from 'react';
 
 import { useAuth } from '@/lib/AuthContext';
 import { Spinner } from '@/components/spinner';
 import ErrorMessage from '@/components/ErrorMessage';
-import { Booking } from '@/lib/types';
+;
+import { USER_ROLES, TAB_TYPES } from '@/lib/constants';
 
 // Импортируем новые компоненты
 import FrontDeskHeader from '@/components/front-desk/FrontDeskHeader';
@@ -13,6 +14,8 @@ import FrontDeskSummaryCards from '@/components/front-desk/FrontDeskSummaryCards
 import BookingsTable from '@/components/front-desk/BookingsTable';
 import BookingActionsSheet from '@/components/front-desk/BookingActionsSheet';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
+
+import { uiReducer, initialUiState } from '@/reducers/FrontDeskReducer'; 
 
 
 // Импортируем хук для данных
@@ -27,12 +30,14 @@ export default function FrontDeskPage() {
     const [selectedTab, setSelectedTab] = useState<'departures' | 'arrivals' | 'stays'>('departures');
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
-    const [isPerformingAction, setIsPerformingAction] = useState<boolean>(false);
-    const [isCreateSheetOpen, setIsCreateSheetOpen] = useState<boolean>(false);
-    const [isConfirmDeleteModalOpen, setIsConfirmDeleteModalOpen] = useState<boolean>(false);
-    const [bookingToDelete, setBookingToDelete] = useState<Booking | null>(null);
-    const [bookingToDeleteNumber, setBookingToDeleteNumber] = useState<string | null>(null);
-    const [bookingToEdit, setBookingToEdit] = useState<Booking | undefined>(undefined);
+    const [uiState, dispatchUiAction] = useReducer(uiReducer, initialUiState);
+    const {
+        isPerformingAction,
+        isCreateSheetOpen,
+        isConfirmDeleteModalOpen,
+        bookingToDelete,
+        bookingToEdit,
+    } = uiState;
 
     // Используем хук для получения данных
     const {
@@ -48,11 +53,9 @@ export default function FrontDeskPage() {
         isLoadingSummary,
         error,
         summaryError,
-        refetchBookings,
-        refetchSummary,
-        refetchReadyForCheckTasks,
+        refetchAllData,
         handlePageChange,
-    } = useFrontDeskData({ selectedDate, selectedTab, isPerformingAction, isCreateSheetOpen, isConfirmDeleteModalOpen });
+    } = useFrontDeskData({ selectedDate, selectedTab });
 
         const {
         handleCheckout,
@@ -63,18 +66,8 @@ export default function FrontDeskPage() {
         handleConfirmDelete,
         handleCancelDelete,
     } = useFrontdeskActions({
-        refetchBookings,
-        refetchSummary,
-        refetchReadyForCheckTasks,
-        isPerformingAction,
-        setIsPerformingAction,
-        isCreateSheetOpen,
-        isConfirmDeleteModalOpen,
-        setBookingToEdit,
-        setIsCreateSheetOpen,
-        setBookingToDelete,
-        setBookingToDeleteNumber,
-        setIsConfirmDeleteModalOpen,
+        refetchAllData,
+        dispatchUiAction
     });
 
     // Единый флаг для отключения UI элементов
@@ -82,25 +75,18 @@ export default function FrontDeskPage() {
 
 
     const handleCreateEditSuccess = useCallback(() => {
-        setIsCreateSheetOpen(false);
-        setBookingToEdit(undefined);
-        refetchBookings();
-        refetchSummary();
-        refetchReadyForCheckTasks();
-    }, [refetchBookings, refetchSummary, refetchReadyForCheckTasks]);
+        dispatchUiAction({ type: 'ACTION_SUCCESS' });
+        refetchAllData()
+    }, [refetchAllData]);
 
     const handleCreateCancel = useCallback(() => {
-        setBookingToEdit(undefined);
-        setIsCreateSheetOpen(false);
+        dispatchUiAction({ type: 'CLOSE_MODALS_AND_RESET_SELECTIONS' });
     }, []);
 
     const handleCreateBooking = useCallback(() => {
         if (isDisabledUI) return;
-        setIsCreateSheetOpen(true);
+        dispatchUiAction({ type: 'OPEN_CREATE_SHEET' });
     }, [isDisabledUI]);
-
-   
-
 
     // --- Определение колонок для DataTable ---
     const columns = useMemo(() => getColumns({
@@ -114,14 +100,14 @@ export default function FrontDeskPage() {
     }), [selectedTab, isDisabledUI, handleViewDetails, handleCheckout, handleCheckin, handleEditBooking, handleDeleteBookingClick]);
 
     const currentTableData = useMemo(() => {
-      if (selectedTab === 'departures') return departures;
-      if (selectedTab === 'arrivals') return arrivals;
+      if (selectedTab === TAB_TYPES.DEPARTURES) return departures;
+      if (selectedTab === TAB_TYPES.ARRIVALS) return arrivals;
       return stays;
     }, [selectedTab, departures, arrivals, stays]);
 
     const currentTablePagination = useMemo(() => {
-      if (selectedTab === 'departures') return departuresPagination;
-      if (selectedTab === 'arrivals') return arrivalsPagination;
+      if (selectedTab === TAB_TYPES.DEPARTURES) return departuresPagination;
+      if (selectedTab === TAB_TYPES.ARRIVALS) return arrivalsPagination;
       return staysPagination;
     }, [selectedTab, departuresPagination, arrivalsPagination, staysPagination]);
 
@@ -134,7 +120,7 @@ export default function FrontDeskPage() {
         );
     }
 
-    if (!user || (user.role !== 'front-desk' && user.role !== 'manager')) {
+    if (!user || (user.role !== USER_ROLES.FRONT_DESK && user.role !== USER_ROLES.MANAGER)) {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <div className="p-8 rounded-lg shadow-lg max-w-md w-full text-center text-red-600 font-bold">
@@ -147,9 +133,7 @@ export default function FrontDeskPage() {
     if ((error || summaryError) && !isDisabledUI) {
         const errorMessage = error || summaryError;
         const handleRetry = () => {
-            refetchBookings();
-            refetchSummary();
-            refetchReadyForCheckTasks();
+           refetchAllData()
         };
 
         return (
@@ -196,9 +180,11 @@ export default function FrontDeskPage() {
             <BookingActionsSheet
                 isOpen={isCreateSheetOpen}
                 onOpenChange={(open) => {
-                    setIsCreateSheetOpen(open);
                     if (!open) {
-                        setBookingToEdit(undefined);
+                       
+                        dispatchUiAction({ type: 'CLOSE_MODALS_AND_RESET_SELECTIONS' });
+                    } else {
+                        
                     }
                 }}
                 bookingToEdit={bookingToEdit}
@@ -210,7 +196,7 @@ export default function FrontDeskPage() {
                 isOpen={isConfirmDeleteModalOpen}
                 onClose={handleCancelDelete}
                 onConfirm={() => handleConfirmDelete(bookingToDelete)} 
-                message={`Вы уверены, что хотите удалить бронирование для номера ${bookingToDeleteNumber || 'N/A'}?`}
+                message={`Вы уверены, что хотите удалить бронирование для номера ${bookingToDelete?.room?.number || 'N/A'}?`}
                 title="Подтверждение удаления"
                 confirmButtonText="Удалить"
                 isLoading={isPerformingAction}

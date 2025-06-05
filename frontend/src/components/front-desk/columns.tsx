@@ -5,7 +5,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Eye, Edit, MoreHorizontal, CheckCircle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
-// Определяем тип для пропсов, которые нужны для создания колонок
+
 type GetColumnsProps = {
   selectedTab: 'departures' | 'arrivals' | 'stays';
   isDisabledUI: boolean;
@@ -16,7 +16,7 @@ type GetColumnsProps = {
   onDelete: (booking: Booking) => void;
 };
 
-// Функция-фабрика, которая возвращает массив колонок
+
 export const getColumns = ({
   selectedTab,
   isDisabledUI,
@@ -32,7 +32,6 @@ export const getColumns = ({
       header: 'Номер комнаты',
       cell: ({ row }) => row.original.room?.number || 'N/A',
     },
-    // ... другие общие колонки, например, "Имя гостя" если оно есть
     {
       accessorKey: 'booking_status_display',
       header: 'Статус',
@@ -40,7 +39,7 @@ export const getColumns = ({
     },
   ];
 
-  // Декларативно определяем контекстную колонку
+
   let contextualColumn: ColumnDef<Booking> | null = null;
   switch (selectedTab) {
     case 'departures':
@@ -94,7 +93,6 @@ export const getColumns = ({
                     <CheckCircle className="mr-2 h-4 w-4" /> Заезд
                 </DropdownMenuItem>
             )}
-            {/* ... остальная логика меню, использующая переданные функции (onCheckout, onEdit, etc.) */}
             <DropdownMenuItem onClick={() => onEdit(booking)}>
                 <Edit className="mr-2 h-4 w-4" />
                 Редактировать
@@ -109,7 +107,7 @@ export const getColumns = ({
     },
   };
 
-  // Собираем итоговый массив колонок без мутаций
+
   return [
     baseColumns[0], // Номер комнаты
     ...(contextualColumn ? [contextualColumn] : []), // Контекстная колонка

@@ -38,9 +38,7 @@ interface PaginationState {
 interface UseFrontDeskDataProps {
     selectedDate: Date | undefined;
     selectedTab: 'departures' | 'arrivals' | 'stays';
-    isPerformingAction: boolean; // Флаг, который показывает, выполняется ли действие (заезд/выезд/удаление/отмена)
-    isCreateSheetOpen: boolean; // Флаг, который показывает, открыт ли Sheet создания/редактирования
-    isConfirmDeleteModalOpen: boolean; // Флаг, который показывает, открыто ли модальное окно подтверждения удаления
+   
 }
 
 interface UseFrontDeskDataReturn {
@@ -56,18 +54,14 @@ interface UseFrontDeskDataReturn {
     isLoadingSummary: boolean;
     error: string | null;
     summaryError: string | null;
-    refetchBookings: () => void;
-    refetchSummary: () => void;
-    refetchReadyForCheckTasks: () => void;
+    refetchAllData: () => void;
     handlePageChange: (tab: 'departures' | 'arrivals' | 'stays', newPage: number) => void;
 }
 
 export const useFrontDeskData = ({
     selectedDate,
     selectedTab,
-    isPerformingAction,
-    isCreateSheetOpen,
-    isConfirmDeleteModalOpen,
+   
 }: UseFrontDeskDataProps): UseFrontDeskDataReturn => {
     // Состояния для данных таблицы
     const [departures, setDepartures] = useState<Booking[]>([]);
@@ -112,10 +106,6 @@ export const useFrontDeskData = ({
     ) => {
         const dateString = formatDateForApi(date);
 
-        if (!dateString || isPerformingAction || isCreateSheetOpen || isConfirmDeleteModalOpen) {
-            // Если какое-либо действие выполняется, не запускаем повторный fetch
-            return;
-        }
 
         setIsLoadingData(true);
         setError(null);
@@ -170,12 +160,10 @@ export const useFrontDeskData = ({
         } finally {
             setIsLoadingData(false);
         }
-    }, [isPerformingAction, isCreateSheetOpen, isConfirmDeleteModalOpen]); 
+    }, []); 
 
     const fetchSummaryData = useCallback(async () => {
-        if (isPerformingAction || isCreateSheetOpen || isConfirmDeleteModalOpen) {
-            return;
-        }
+       
 
         setIsLoadingSummary(true);
         setSummaryError(null);
@@ -200,12 +188,10 @@ export const useFrontDeskData = ({
         } finally {
             setIsLoadingSummary(false);
         }
-    }, [isPerformingAction, isCreateSheetOpen, isConfirmDeleteModalOpen]); 
+    }, []); 
 
     const fetchReadyForCheckTasks = useCallback(async () => {
-        if (isPerformingAction || isCreateSheetOpen || isConfirmDeleteModalOpen) {
-            return;
-        }
+    
 
         try {
             const response = await api.get<CleaningTask[]>(`/api/cleaningtasks/ready_for_check/`);
@@ -221,10 +207,13 @@ export const useFrontDeskData = ({
             console.error("Error fetching ready for check tasks:", err);
             
         }
-    }, [isPerformingAction, isCreateSheetOpen, isConfirmDeleteModalOpen]); 
+    }, []); 
 
-
+    
     useEffect(() => {
+        setDeparturesPagination(prev => ({ ...prev, currentPage: 1 }));
+        setArrivalsPagination(prev => ({ ...prev, currentPage: 1 }));
+        setStaysPagination(prev => ({ ...prev, currentPage: 1 }));
         const currentPageSize = selectedTab === 'departures' ? departuresPagination.pageSize : selectedTab === 'arrivals' ? arrivalsPagination.pageSize : staysPagination.pageSize;
         fetchBookings(selectedDate, selectedTab, 1, currentPageSize);
         fetchSummaryData();
@@ -269,6 +258,13 @@ export const useFrontDeskData = ({
         fetchReadyForCheckTasks();
     }, [fetchReadyForCheckTasks]);
 
+
+    const refetchAllData = useCallback(() => {
+        refetchBookings();  
+        refetchSummary();
+        refetchReadyForCheckTasks();
+    }, [refetchBookings, refetchSummary, refetchReadyForCheckTasks]);
+
     return {
         departures,
         arrivals,
@@ -282,9 +278,7 @@ export const useFrontDeskData = ({
         isLoadingSummary,
         error,
         summaryError,
-        refetchBookings,
-        refetchSummary,
-        refetchReadyForCheckTasks,
+        refetchAllData,
         handlePageChange,
     };
 };

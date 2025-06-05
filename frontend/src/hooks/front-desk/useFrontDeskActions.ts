@@ -3,22 +3,13 @@ import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { Booking } from '@/lib/types'; // Убедитесь, что тип Booking доступен
+import { Booking } from '@/lib/types';
+import { UiAction } from '@/reducers/FrontDeskReducer';
+
 
 interface UseFrontdeskActionsProps {
-  refetchBookings: () => void;
-  refetchSummary: () => void;
-  refetchReadyForCheckTasks: () => void;
-  // Флаги из useFrontDeskData, которые влияют на возможность выполнения действий
-  isPerformingAction: boolean;
-  setIsPerformingAction: React.Dispatch<React.SetStateAction<boolean>>;
-  isCreateSheetOpen: boolean;
-  isConfirmDeleteModalOpen: boolean;
-  setBookingToEdit: React.Dispatch<React.SetStateAction<Booking | undefined>>;
-  setIsCreateSheetOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  setBookingToDelete: React.Dispatch<React.SetStateAction<Booking | null>>;
-  setBookingToDeleteNumber: React.Dispatch<React.SetStateAction<string | null>>;
-  setIsConfirmDeleteModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  refetchAllData: () => void;
+  dispatchUiAction: React.Dispatch<UiAction>;
 }
 
 interface UseFrontdeskReturn {
@@ -32,38 +23,24 @@ interface UseFrontdeskReturn {
 }
 
 export const useFrontdeskActions = ({
-  refetchBookings,
-  refetchSummary,
-  refetchReadyForCheckTasks,
-  isPerformingAction,
-  setIsPerformingAction,
-  isCreateSheetOpen,
-  isConfirmDeleteModalOpen,
-  setBookingToEdit,
-  setIsCreateSheetOpen,
-  setBookingToDelete,
-  setBookingToDeleteNumber,
-  setIsConfirmDeleteModalOpen,
+  refetchAllData,
+  dispatchUiAction,
 }: UseFrontdeskActionsProps): UseFrontdeskReturn => {
   const router = useRouter();
 
   // Общая функция для обработки успешных операций, которая вызывает refetch всех связанных данных
   const handleOperationSuccess = useCallback(() => {
-    refetchBookings();
-    refetchSummary();
-    refetchReadyForCheckTasks();
-  }, [refetchBookings, refetchSummary, refetchReadyForCheckTasks]);
+      refetchAllData()
+  }, [refetchAllData]);
 
-  // Проверяет, можно ли выполнить действие, основываясь на глобальных флагах
-  const canPerformAction = useCallback(() => {
-    return !(isPerformingAction || isCreateSheetOpen || isConfirmDeleteModalOpen);
-  }, [isPerformingAction, isCreateSheetOpen, isConfirmDeleteModalOpen]);
+
 
 
   const handleCheckout = useCallback(async (bookingId: number, roomNumber: string) => {
-    if (!canPerformAction()) return;
+   
 
-    setIsPerformingAction(true);
+    dispatchUiAction({ type: 'SET_PERFORMING_ACTION', payload: true });
+
     try {
       const response = await api.post(`/api/bookings/${bookingId}/check_out/`);
       if (response.status === 200) {
@@ -82,14 +59,14 @@ export const useFrontdeskActions = ({
       }
       toast.error(errorMessage);
     } finally {
-      setIsPerformingAction(false);
+      dispatchUiAction({ type: 'SET_PERFORMING_ACTION', payload: false });
     }
-  }, [canPerformAction, setIsPerformingAction, handleOperationSuccess]);
+  }, [dispatchUiAction, handleOperationSuccess]);
 
   const handleCheckin = useCallback(async (bookingId: number, roomNumber: string) => {
-    if (!canPerformAction()) return;
+   
 
-    setIsPerformingAction(true);
+    dispatchUiAction({ type: 'SET_PERFORMING_ACTION', payload: true });
     try {
       const response = await api.post(`/api/bookings/${bookingId}/check_in/`);
       if (response.status === 200) {
@@ -108,37 +85,29 @@ export const useFrontdeskActions = ({
       }
       toast.error(errorMessage);
     } finally {
-      setIsPerformingAction(false);
+      dispatchUiAction({ type: 'SET_PERFORMING_ACTION', payload: false });
     }
-  }, [canPerformAction, setIsPerformingAction, handleOperationSuccess]);
+  }, [dispatchUiAction, handleOperationSuccess]);
 
   const handleViewDetails = useCallback((bookingId: number) => {
-    if (!canPerformAction()) return;
     router.push(`/bookings/${bookingId}`);
-  }, [canPerformAction, router]);
+  }, [router]);
 
   const handleEditBooking = useCallback((booking: Booking) => {
-    if (!canPerformAction()) return;
-    setBookingToEdit(booking);
-    setIsCreateSheetOpen(true);
-  }, [canPerformAction, setBookingToEdit, setIsCreateSheetOpen]);
+    dispatchUiAction({ type: 'OPEN_EDIT_SHEET', payload: booking });
+  }, [dispatchUiAction]);
 
   const handleDeleteBookingClick = useCallback((booking: Booking) => {
-    if (!canPerformAction()) return;
-    setBookingToDelete(booking);
-    setBookingToDeleteNumber(booking.room?.number || null);
-    setIsConfirmDeleteModalOpen(true);
-  }, [canPerformAction, setBookingToDelete, setBookingToDeleteNumber, setIsConfirmDeleteModalOpen]);
+    dispatchUiAction({ type: 'OPEN_DELETE_MODAL', payload: booking });
+  }, [dispatchUiAction]);
 
   const handleCancelDelete = useCallback(() => {
-    setBookingToDelete(null);
-    setBookingToDeleteNumber(null);
-    setIsConfirmDeleteModalOpen(false);
-  }, [setBookingToDelete, setBookingToDeleteNumber, setIsConfirmDeleteModalOpen]);
+    dispatchUiAction({ type: 'CLOSE_MODALS_AND_RESET_SELECTIONS' });
+  }, [dispatchUiAction]);
 
   const handleConfirmDelete = useCallback(async (booking: Booking | null) => {
     if (!booking) return; 
-    setIsPerformingAction(true);
+    dispatchUiAction({ type: 'SET_PERFORMING_ACTION', payload: true });
     try {
       const response = await api.delete(`/api/bookings/${booking.id}/`);
       if (response.status === 204) {
@@ -158,9 +127,9 @@ export const useFrontdeskActions = ({
       }
       toast.error(errorMessage);
     } finally {
-      setIsPerformingAction(false);
+      dispatchUiAction({ type: 'SET_PERFORMING_ACTION', payload: true });
     }
-  }, [setIsPerformingAction, handleOperationSuccess, handleCancelDelete]);
+  }, [dispatchUiAction, handleOperationSuccess, handleCancelDelete]);
 
 
   return {
