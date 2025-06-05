@@ -103,32 +103,38 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         user = self.request.user
         logger.info(f"Filtering CleaningTask queryset for user {user} with role {user.role}.")
         
-        scheduled_date_str = self.request.query_params.get('scheduled_date')
-        scheduled_date = None
-        if scheduled_date_str:
-            try:
-                scheduled_date = timezone.datetime.strptime(scheduled_date_str, '%Y-%m-%d').date()
-            except ValueError:
-                logger.warning("Invalid date format. Expected YYYY-MM-DD.")
-                # Можно не фильтровать по дате, если формат неправильный, или использовать localdate
-                scheduled_date = timezone.localdate()
-        else:
-            scheduled_date = timezone.localdate()
-        # If the user is authenticated and is a manager or front desk, return all tasks
-        # Если пользователь аутентифицирован и является управляющим или администратором, вернуть все задачи
         queryset = CleaningTask.objects.all()
-        
-        if scheduled_date:
-            queryset = queryset.filter(scheduled_date=scheduled_date)
-        if user.is_authenticated and user.role in [User.Role.FRONT_DESK, User.Role.MANAGER]:       
-            logger.debug("User is Manager or Admin, returning all tasks.")
 
-            return queryset
+        if self.action == 'list':
+            # Get the scheduled date from query parameters, default to today if not provided
+            # Получаем дату из параметров запроса, по умолчанию сегодня, если не указано    
+            scheduled_date_str = self.request.query_params.get('scheduled_date')
+            
+            if scheduled_date_str:
+                try:
+                    scheduled_date = timezone.datetime.strptime(scheduled_date_str, '%Y-%m-%d').date()
+                except ValueError:
+                    logger.warning("Invalid date format. Expected YYYY-MM-DD.")
+                    # Можно не фильтровать по дате, если формат неправильный, или использовать localdate
+                    scheduled_date = timezone.localdate()
+            else:
+                scheduled_date = timezone.localdate()
+            
+            queryset = queryset.filter(scheduled_date=scheduled_date)
+
+
+        if user.is_authenticated and user.role in [User.Role.FRONT_DESK, User.Role.MANAGER]:
+            logger.debug("User is Manager or Admin, returning all tasks.")
+            return queryset      
+
         # If the user is authenticated and is a housekeeper, return only tasks assigned to them
         # Если пользователь аутентифицирован и является горничной, вернуть только задачи, назначенные ему
         if user.is_authenticated and user.role == User.Role.HOUSEKEEPER:
             logger.debug(f"User is Housekeeper, returning tasks assigned to {user}.")
-            return queryset.filter(assigned_to=user, status__in=['assigned', 'in_progress', 'waiting_inspection']).order_by('-is_rush', 'due_time')
+            return queryset.filter(
+            assigned_to=user,
+            status__in=['assigned', 'in_progress', 'waiting_inspection']
+        ).order_by('-is_rush', 'due_time')
         
         # For all other authenticated users or if the user is not authenticated,
         # return an empty queryset. Permission classes will further restrict access.
