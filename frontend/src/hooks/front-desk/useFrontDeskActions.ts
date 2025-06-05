@@ -56,11 +56,6 @@ export const useFrontdeskActions = ({
 
   // Проверяет, можно ли выполнить действие, основываясь на глобальных флагах
   const canPerformAction = useCallback(() => {
-    console.log('Checking if action can be performed:', {
-      isPerformingAction, 
-      isCreateSheetOpen,
-      isConfirmDeleteModalOpen
-    });
     return !(isPerformingAction || isCreateSheetOpen || isConfirmDeleteModalOpen);
   }, [isPerformingAction, isCreateSheetOpen, isConfirmDeleteModalOpen]);
 
@@ -142,12 +137,10 @@ export const useFrontdeskActions = ({
   }, [setBookingToDelete, setBookingToDeleteNumber, setIsConfirmDeleteModalOpen]);
 
   const handleConfirmDelete = useCallback(async (booking: Booking | null) => {
-    if (!booking || !canPerformAction()) return; 
-    console.log('handleConfirmDelete called with booking:', booking);
+    if (!booking) return; 
     setIsPerformingAction(true);
     try {
       const response = await api.delete(`/api/bookings/${booking.id}/`);
-      console.log('Delete response:', response);  
       if (response.status === 204) {
         toast.success(`Бронирование для номера ${booking.room?.number || 'N/A'} успешно удалено.`);
         handleOperationSuccess();
@@ -167,7 +160,7 @@ export const useFrontdeskActions = ({
     } finally {
       setIsPerformingAction(false);
     }
-  }, [canPerformAction, setIsPerformingAction, handleOperationSuccess, handleCancelDelete]);
+  }, [setIsPerformingAction, handleOperationSuccess, handleCancelDelete]);
 
 
   return {

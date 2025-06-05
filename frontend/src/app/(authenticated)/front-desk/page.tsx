@@ -14,15 +14,12 @@ import BookingsTable from '@/components/front-desk/BookingsTable';
 import BookingActionsSheet from '@/components/front-desk/BookingActionsSheet';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
 
-import { ColumnDef } from '@tanstack/react-table';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
-import { Eye, Edit, MoreHorizontal, CheckCircle, XCircle } from 'lucide-react';
-import { format } from 'date-fns';
 
 // Импортируем хук для данных
 import { useFrontDeskData } from '@/hooks/front-desk/useFrontDeskData';
 import { useFrontdeskActions } from '@/hooks/front-desk/useFrontDeskActions';
+
+import { getColumns } from '@/components/front-desk/columns';
 
 export default function FrontDeskPage() {
    const { user, isLoading: isAuthLoading } = useAuth();
@@ -106,91 +103,15 @@ export default function FrontDeskPage() {
 
 
     // --- Определение колонок для DataTable ---
-    const columns: ColumnDef<Booking>[] = useMemo(() => {
-        const baseColumns: ColumnDef<Booking>[] = [
-            {
-                accessorKey: 'room.number',
-                header: 'Номер комнаты',
-                cell: ({ row }) => row.original.room?.number || 'N/A',
-            },
-            {
-                accessorKey: 'booking_status_display', // Использование `_display` поля
-                header: 'Статус',
-                cell: ({ row }) => row.original.booking_status_display,
-            },
-            {
-                id: 'actions',
-                header: 'Действия',
-                cell: ({ row }) => {
-                    const booking = row.original;
-                    return (
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0" disabled={isDisabledUI}>
-                                    <span className="sr-only">Открыть меню</span>
-                                    <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Действия</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => handleViewDetails(booking.id)}>
-                                    <Eye className="mr-2 h-4 w-4" /> Детали
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                {selectedTab === 'departures' && booking.booking_status_display !== 'Выехал' && booking.booking_status_display !== 'Отменено' && (
-                                     <DropdownMenuItem onClick={() => handleCheckout(booking.id, booking.room?.number || 'N/A')}>
-                                         <CheckCircle className="mr-2 h-4 w-4" /> Выезд
-                                     </DropdownMenuItem>
-                                )}
-                                 {selectedTab === 'arrivals' && booking.booking_status_display !== 'Заехал' && booking.booking_status_display !== 'Отменено' && (
-                                     <DropdownMenuItem onClick={() => handleCheckin(booking.id, booking.room?.number || 'N/A')}>
-                                         <CheckCircle className="mr-2 h-4 w-4" /> Заезд
-                                     </DropdownMenuItem>
-                                 )}
-                                <DropdownMenuItem id="edit-booking" onClick={() => handleEditBooking(booking)}>
-                                    <Edit className="mr-2 h-4 w-4" /> Редактировать
-                                </DropdownMenuItem>
-                                 <DropdownMenuItem onClick={() => handleDeleteBookingClick(booking)} className="text-red-600">
-                                     <XCircle className="mr-2 h-4 w-4" /> Удалить бронирование
-                                 </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    );
-                },
-            },
-        ];
-
-        if (selectedTab === 'departures') {
-            baseColumns.splice(1, 0, {
-                accessorKey: 'check_out',
-                header: 'Время выезда',
-                cell: ({ row }) => {
-                    const date = new Date(row.original.check_out);
-                    return format(date, 'HH:mm');
-                },
-            });
-        } else if (selectedTab === 'arrivals') {
-            baseColumns.splice(1, 0, {
-                accessorKey: 'check_in',
-                header: 'Время заезда',
-                cell: ({ row }) => {
-                    const date = new Date(row.original.check_in);
-                    return format(date, 'HH:mm');
-                },
-            });
-        } else if (selectedTab === 'stays') {
-            baseColumns.splice(1, 0, {
-                id: 'stayPeriod',
-                header: 'Период проживания',
-                cell: ({ row }) => {
-                    const checkInDate = format(new Date(row.original.check_in), 'dd.MM.yyyy');
-                    const checkOutDate = format(new Date(row.original.check_out), 'dd.MM.yyyy');
-                    return `${checkInDate} - ${checkOutDate}`;
-                },
-            });
-        }
-        return baseColumns;
-    }, [selectedTab, isDisabledUI, handleViewDetails, handleCheckout, handleCheckin, handleEditBooking, handleDeleteBookingClick]);
+    const columns = useMemo(() => getColumns({
+        selectedTab,
+        isDisabledUI,
+        onViewDetails: handleViewDetails,
+        onCheckout: handleCheckout,
+        onCheckin: handleCheckin,
+        onEdit: handleEditBooking,
+        onDelete: handleDeleteBookingClick,
+    }), [selectedTab, isDisabledUI, handleViewDetails, handleCheckout, handleCheckin, handleEditBooking, handleDeleteBookingClick]);
 
     const currentTableData = useMemo(() => {
       if (selectedTab === 'departures') return departures;
