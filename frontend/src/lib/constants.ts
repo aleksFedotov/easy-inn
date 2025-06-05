@@ -39,6 +39,7 @@ export const cleaningTypeOptions = [
   { value: 'on_demand', label: 'Уборка по запросу' },
   { value: 'post_renovation_cleaning', label: 'Уборка после ремонта' },
   { value: 'public_area_cleaning', label: 'Текущая уборка общих зон' },
+  { value: 'pre_arrival', label: 'Подготовка к заезду' },
 ];
 
 export const CLEANING_TYPE_VALUES = [
@@ -48,6 +49,7 @@ export const CLEANING_TYPE_VALUES = [
   'on_demand',
   'post_renovation_cleaning',
   'public_area_cleaning',
+  'pre_arrival'
 ] as const;
 
 
@@ -63,3 +65,11 @@ export const BOOKING_STATUSES = {
   CANCELLED : 'front-cancelled', 
   NO_SHOW : 'front-no_show', 
 }
+
+export const COLORS = ['#2563eb', '#dc2626', '#a855f7', '#16a34a', '#eab308', '#0e7490', '#f97316', '#7e22ce', '#0284c7'];
+
+export const TAB_TYPES = {
+  DEPARTURES: 'departures',
+  ARRIVALS: 'arrivals',
+  STAYS: 'stays',
+} as const;

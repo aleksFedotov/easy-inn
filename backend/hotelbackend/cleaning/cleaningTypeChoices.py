@@ -7,3 +7,4 @@ class CleaningTypeChoices(models.TextChoices):
     ON_DEMAND = "on_demand", "Уборка по запросу"
     POST_RENOVATION_CLEANING = "post_renovation_cleaning", "Уборка после ремонта"
     PUBLIC_AREA_CLEANING = "public_area_cleaning", "Текущая уборка общих зон"
+    PRE_ARRIVAL = "pre_arrival", "Подготовка к заезду" 

@@ -124,6 +124,7 @@ class CleaningTask(models.Model):
         WAITING_CHECK = "waiting_check", "Ожидает проверки" # Уборка завершена, ожидает проверки менеджером / Completed, waiting for manager check
         CHECKED = "checked", "Проверено" # Уборка проверена менеджером / Cleaning is checked by the manager
         CANCELED = "canceled", "Отменена" # Задача отменена / Task is canceled
+       
 
     # Мета-параметры модели
     # Model meta options

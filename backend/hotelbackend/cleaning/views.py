@@ -14,6 +14,7 @@ from django.db import transaction
 from django.utils import timezone
 from utills.calculateAverageDuration import calculate_average_duration
 from .cleaningTypeChoices import CleaningTypeChoices 
+from django.db.models import Q
 
 from hotel.models import Zone, Room
 
@@ -102,32 +103,38 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         user = self.request.user
         logger.info(f"Filtering CleaningTask queryset for user {user} with role {user.role}.")
         
-        scheduled_date_str = self.request.query_params.get('scheduled_date')
-        scheduled_date = None
-        if scheduled_date_str:
-            try:
-                scheduled_date = timezone.datetime.strptime(scheduled_date_str, '%Y-%m-%d').date()
-            except ValueError:
-                logger.warning("Invalid date format. Expected YYYY-MM-DD.")
-                # Можно не фильтровать по дате, если формат неправильный, или использовать localdate
-                scheduled_date = timezone.localdate()
-        else:
-            scheduled_date = timezone.localdate()
-        # If the user is authenticated and is a manager or front desk, return all tasks
-        # Если пользователь аутентифицирован и является управляющим или администратором, вернуть все задачи
         queryset = CleaningTask.objects.all()
-        
-        if scheduled_date:
-            queryset = queryset.filter(scheduled_date=scheduled_date)
-        if user.is_authenticated and user.role in [User.Role.FRONT_DESK, User.Role.MANAGER]:       
-            logger.debug("User is Manager or Admin, returning all tasks.")
 
-            return queryset
+        if self.action == 'list':
+            # Get the scheduled date from query parameters, default to today if not provided
+            # Получаем дату из параметров запроса, по умолчанию сегодня, если не указано    
+            scheduled_date_str = self.request.query_params.get('scheduled_date')
+            
+            if scheduled_date_str:
+                try:
+                    scheduled_date = timezone.datetime.strptime(scheduled_date_str, '%Y-%m-%d').date()
+                except ValueError:
+                    logger.warning("Invalid date format. Expected YYYY-MM-DD.")
+                    # Можно не фильтровать по дате, если формат неправильный, или использовать localdate
+                    scheduled_date = timezone.localdate()
+            else:
+                scheduled_date = timezone.localdate()
+            
+            queryset = queryset.filter(scheduled_date=scheduled_date)
+
+
+        if user.is_authenticated and user.role in [User.Role.FRONT_DESK, User.Role.MANAGER]:
+            logger.debug("User is Manager or Admin, returning all tasks.")
+            return queryset      
+
         # If the user is authenticated and is a housekeeper, return only tasks assigned to them
         # Если пользователь аутентифицирован и является горничной, вернуть только задачи, назначенные ему
         if user.is_authenticated and user.role == User.Role.HOUSEKEEPER:
             logger.debug(f"User is Housekeeper, returning tasks assigned to {user}.")
-            return queryset.filter(assigned_to=user, status__in=['assigned', 'in_progress', 'waiting_inspection']).order_by('-is_rush', 'due_time')
+            return queryset.filter(
+            assigned_to=user,
+            status__in=['assigned', 'in_progress', 'waiting_inspection']
+        ).order_by('-is_rush', 'due_time')
         
         # For all other authenticated users or if the user is not authenticated,
         # return an empty queryset. Permission classes will further restrict access.
@@ -287,7 +294,7 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
             logger.info(f"Task {task.pk} status is {task.get_status_display()}, allowing completion.")
             if  task.cleaning_type == None or task.cleaning_type == CleaningTypeChoices.STAYOVER or task.cleaning_type == CleaningTypeChoices.PUBLIC_AREA_CLEANING:
                 task.status = CleaningTask.Status.CHECKED 
-            elif task.cleaning_type == CleaningTypeChoices.DEPARTURE_CLEANING:
+            else:
                 task.status = CleaningTask.Status.WAITING_CHECK 
              
 
@@ -472,6 +479,35 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                 )
                 created_tasks_count += 1
                 created_tasks_details.append(f"Комната {booking.room.number} (Текущая)")
+        
+        # --- Подготовка номера к заезду ---
+        preparing_bookings = Booking.objects.filter(
+            check_in__date=scheduled_date,
+            guest_count__gt=2 
+        ).select_related("room")      
+
+        for booking in preparing_bookings:
+            if not booking.room:
+                continue
+            
+            exists = CleaningTask.objects.filter(
+                booking=booking,
+                room=booking.room,
+                scheduled_date=scheduled_date,
+                cleaning_type=CleaningTypeChoices.PRE_ARRIVAL
+            ).exists()
+
+            if not exists:
+                task = CleaningTask.objects.create(
+                    booking=booking,
+                    room=booking.room,
+                    scheduled_date=scheduled_date,
+                    cleaning_type=CleaningTypeChoices.PRE_ARRIVAL,
+                    status=CleaningTask.Status.UNASSIGNED,
+                    notes=f"Подготовить номер для {booking.guest_count} гостей."  
+                )
+                created_tasks_count += 1
+                created_tasks_details.append(f"Комната {booking.room.number} (Подготовка)") 
 
         # --- Зоны ---
         zones = Zone.objects.all()
@@ -534,6 +570,24 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         task.save()
         serializer = self.get_serializer(task)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'],permission_classes=[IsAuthenticated, IsManagerOrFrontDesk])
+    def ready_for_check(self, request):
+        """
+        Получает список задач, готовых к проверке (COMPLETED или WAITING_CHECK).
+        Доступно только для менеджеров и сотрудников службы приема.
+        """
+        # Удаляем фильтрацию по scheduled_date, если фронтенд должен получать все даты
+        # Если нужна фильтрация по дате, фронтенд должен передавать scheduled_date
+        
+        tasks = CleaningTask.objects.filter(
+            Q(status=CleaningTask.Status.WAITING_CHECK) | Q(status=CleaningTask.Status.COMPLETED)
+        ).select_related('room', 'booking') # Добавьте select_related для оптимизации запросов к связанным объектам
+
+        tasks = tasks.order_by('-is_rush', 'due_time') 
+
+        serializer = self.get_serializer(tasks, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 def get_cleaning_stats(request):
