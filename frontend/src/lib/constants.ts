@@ -67,3 +67,9 @@ export const BOOKING_STATUSES = {
 }
 
 export const COLORS = ['#2563eb', '#dc2626', '#a855f7', '#16a34a', '#eab308', '#0e7490', '#f97316', '#7e22ce', '#0284c7'];
+
+export const TAB_TYPES = {
+  DEPARTURES: 'departures',
+  ARRIVALS: 'arrivals',
+  STAYS: 'stays',
+} as const;
