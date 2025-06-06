@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { CleaningTask } from '@/lib/types';
-import CleaningTaskCard from '@/components/cleaning/CleaningTaskCard';
+import CleaningTaskCard from '@/components/housekeeping/CleaningTaskCard';
 import { Spinner } from '@/components/spinner';
 import ErrorMessage from '@/components/ErrorMessage';
 import api from '@/lib/api';

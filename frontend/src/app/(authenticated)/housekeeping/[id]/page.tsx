@@ -5,106 +5,57 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 import { Spinner } from '@/components/spinner';
 import ErrorMessage from '@/components/ErrorMessage';
-import api from '@/lib/api';
-import axios from 'axios';
-import {
-    Building,
-    FileText,
-    User as UserIcon,
-    BookOpen,
-    Clock,
-    ClipboardList,
-    CheckCircle,
-    Play,
-    CircleDotDashed,
-    Flame,
-} from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { format } from 'date-fns'
-import { ru } from 'date-fns/locale'
 import AuthRequiredMessage from '@/components/AuthRequiredMessage';
-import getCleaningStatusColor from '@/lib/cleaning/GetCLeaningStatusColor';
-import { CLEANICNG_STATUSES, USER_ROLES } from '@/lib/constants';
-import ChecklistCardList from '@/components/cleaning/ChecklistCardList';
-import { Checklist, CleaningTask, ChecklistProgress } from '@/lib/types/housekeeping';
+import ChecklistCardList from '@/components/housekeeping/ChecklistCardList';
+import { ChecklistProgress } from '@/lib/types/housekeeping';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
-import 'react-circular-progressbar/dist/styles.css'; //  Подключаем стили
-import { toast } from 'sonner';
+import 'react-circular-progressbar/dist/styles.css';
 
 
-interface ChecklistsState {
-  [checklistId: number]: ChecklistProgress;
-}
+import { useTaskDetails } from '@/hooks/housekeeping/details/useTaskDetailsData';
+import { useTaskActions } from '@/hooks/housekeeping/details/useTaskActions';
+import { TaskHeader } from '@/components/housekeeping/details/TaskHeader';
+import { TaskInfo } from '@/components/housekeeping/details/TaskInfo'; 
+import { TaskActionsFooter } from '@/components/housekeeping/details/TaskActionsFooter'; 
+import {Checklist } from '@/lib/types/housekeeping';
 
 export default function CleaningTaskDetailsPage() {
     const params = useParams<{ id: string }>();
     const router = useRouter();
     const taskId = params.id;
 
-
     const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth();
+    
+   
+    const { taskDetails, isLoading: isTaskLoading, error, fetchTaskDetails } = useTaskDetails(taskId);
+    
+   
+    const { 
+        isActionLoading, 
+        startCleaning, 
+        finishCleaning, 
+        finishInspection, 
+        toggleRush 
+    } = useTaskActions(taskId, fetchTaskDetails);
 
-    const [taskDetails, setTaskDetails] = useState<CleaningTask | null>(null);
-    const [checklistData, setChecklistData] = useState<Checklist[]>([]);
-    const [checkedItemIds, setCheckedItemIds] = useState<number[]>([]);
-    const [checklistsState, setChecklistsState] = useState<ChecklistsState>({}); 
+    // --- Логика чек-листов остается здесь, так как она тесно связана с состоянием этой страницы ---
+    const [checklistsState, setChecklistsState] = useState<{ [key: number]: ChecklistProgress }>({});
     const [isChecklistComplete, setIsChecklistComplete] = useState<boolean>(false);
 
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
-    
-    const fetchTaskDetails = useCallback(async () => {
-        if (!taskId) {
-            setError('ID задачи не указан.');
-            setIsLoading(false);
+    const checklistData: Checklist[] = useMemo(() => (taskDetails?.checklist_data as Checklist[] | undefined) || [], [taskDetails]);
+
+    useEffect(() => {
+        if (checklistData?.length === 0) {
+            setIsChecklistComplete(true);
             return;
         }
-
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            const response = await api.get(`/api/cleaningtasks/${taskId}/`);
-            if (response.status === 200) {
-                setTaskDetails(response.data);
-                // console.log('Fetched task details:', response.data);
-                if (response.data.checklist_data && response.data.checklist_data.length > 0) {
-                    setChecklistData(response.data.checklist_data); 
-        
-                    setCheckedItemIds([]); 
-                } else {
-                    setChecklistData([]);  
-                    setIsChecklistComplete(true); 
-                }
-
-            } else if (response.status === 404) {
-                setError(`Задача с ID ${taskId} не найдена.`);
-            } else {
-                setError(`Ошибка при загрузке задачи: ${response.status}`);
-            }
-        } catch (err) {
-            if (axios.isAxiosError(err) && err.response) {
-                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data));
-            } else {
-                setError('Произошла ошибка при загрузке задачи.');
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    }, [taskId]);
-
-    useEffect(() => {
-        fetchTaskDetails();
-    }, [fetchTaskDetails]);
-
-    useEffect(() => {
-        const canFinishCleaning = Object.values(checklistsState).every(
-        ({ total, completed }) => completed === total
+        const canFinish = Object.values(checklistsState).every(
+            ({ total, completed }) => total > 0 && completed === total
         );
-        setIsChecklistComplete(canFinishCleaning);
-    }, [checklistsState]);
+        setIsChecklistComplete(canFinish);
+    }, [checklistsState, checklistData]);
 
     const handleChecklistChange = useCallback((checklistId: number, progress: ChecklistProgress) => {
         setChecklistsState((prev) => ({
@@ -113,193 +64,28 @@ export default function CleaningTaskDetailsPage() {
         }));
     }, []);
 
-    const handleStartCleaning = async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            await api.patch(`/api/cleaningtasks/${taskId}/start/`);
-            await fetchTaskDetails();
-        } catch (err) {
-            console.error('Error during start cleaning:', err);
-            if (axios.isAxiosError(err) && err.response) {
-                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при удалении бронирования.');
-            } else if (axios.isAxiosError(err) && err.request) {
-                setError('Нет ответа от сервера при начавле уборки.');
-            } else {
-                setError('Не удалось начать уборку.');
-            }
-
-        } finally {
-            setIsLoading(false);
-        }
-
-    };
-
-    const handleFinishCleaning = async () => {
-        if (!isChecklistComplete) {
-            setError("Пожалуйста, завершите все пункты чек-листа.");
-            return;
-        }
-
-
-        setIsLoading(true);
-        setError(null);
-        try {
-            console.log("trying to finish inspection with checked items:", checkedItemIds);
-            // Отправляем список отмеченных пунктов при завершении уборки
-            const response = await api.patch(`/api/cleaningtasks/${taskId}/complete/`);
-            console.log('Finish inspection response:', response.data);
-            fetchTaskDetails();
-        } catch (err) {
-            console.error('Error during start cleaning:', err);
-            if (axios.isAxiosError(err) && err.response) {
-                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при удалении бронирования.');
-            } else if (axios.isAxiosError(err) && err.request) {
-                setError('Нет ответа от сервера при завершении уборки.');
-            } else {
-                setError('Не удалось завершить уборку.');
-            }
-
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleFinishInspection = async () => {
-        
-        if (!isChecklistComplete) {
-            setError("Пожалуйста, проверьте все пункты чек-листа.");
-            return;
-        }
-
-        setIsLoading(true);
-        setError(null);
-        try {
-         
-            // Отправляем список отмеченных пунктов при завершении проверки
-            await api.patch(`/api/cleaningtasks/${taskId}/check/`);
-           
-            fetchTaskDetails(); // Обновляем данные после изменения статуса
-        } catch (err) {
-            console.error('Error during start cleaning:', err);
-            if (axios.isAxiosError(err) && err.response) {
-                setError(err.response.data.detail || err.response.data.message || JSON.stringify(err.response.data) || 'Ошибка при удалении бронирования.');
-            } else if (axios.isAxiosError(err) && err.request) {
-                setError('Нет ответа от сервера при завершении уборки.');
-            } else {
-                setError('Не удалось завершить проверку.');
-            }
-
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleToggleRush = async () => {
-        if (!taskDetails) {
-            setError('Детали задачи не загружены.');
-            return;
-        }
-        setIsLoading(true);
-        setError(null);
-        const newRushStatus = !taskDetails.is_rush; 
-        try {
-            
-            const response = await api.patch(`/api/cleaningtasks/${taskDetails.id}/set_rush/`, {
-                is_rush: newRushStatus
-            });
-
-            if (response.status === 200) {
-                toast.success(`Задача успешно ${newRushStatus ? 'помечена как срочная' : 'снята с срочных'}.`);
-                fetchTaskDetails()
-            } else {
-                // Обработка неуспешного ответа
-                toast.error(`Не удалось изменить статус срочности. Статус: ${response.status}`);
-            }
-        } catch (err) {
-            // Обработка ошибок сети или API
-            console.error('Error toggling rush status:', err);
-            let errorMessage = 'Произошла ошибка при изменении статуса срочности.';
-            if (axios.isAxiosError(err) && err.response) {
-                errorMessage = err.response.data.detail || JSON.stringify(err.response.data) || errorMessage;
-            }
-            toast.error(errorMessage);
-        } finally {
-            setIsLoading(false); // Снимаем флаг выполнения действия
-        }
-
-    }
-
-
     const totalProgress = useMemo(() => {
-    if (checklistData.length === 0) return 0;
+        // ... логика подсчета прогресса остается без изменений
+        if (checklistData.length === 0) return 0;
 
-    const total = checklistData.reduce((sum, checklist) => {
-        const checklistProgress = checklistsState[checklist.id];
-        if (!checklistProgress) return sum; 
+        const total = checklistData.reduce((sum, checklist) => {
+            const checklistProgress = checklistsState[checklist.id];
+            if (!checklistProgress) return sum; 
+    
+            const completed = checklistProgress.completed || 0;
+            const totalItems = checklistProgress.total || 0;
+            return sum + (totalItems === 0 ? 100 : (completed / totalItems) * 100);
+        }, 0);
+    
+        return checklistData.length === 0 ? 0 : total / checklistData.length;
 
-        const completed = checklistProgress.completed || 0;
-        const totalItems = checklistProgress.total || 0;
-        return sum + (totalItems === 0 ? 100 : (completed / totalItems) * 100);
-    }, 0);
+    }, [checklistsState, checklistData]);
+    // --- Конец логики чек-листов ---
 
-    return checklistData.length === 0 ? 0 : total / checklistData.length;
-}, [checklistsState, checklistData]);
+    // ----- Рендеринг -----
 
-    // Функция для рендеринга действий в зависимости от роли пользователя и статуса задачи
-
-    const renderActions = () => {
-        if (!user || !taskDetails) return null;
-
-        if (user.role === USER_ROLES.HOUSEKEEPER) {
-            if (taskDetails.status === CLEANICNG_STATUSES.ASSIGNED) {
-                return (
-                    <Button variant="default" onClick={handleStartCleaning}>
-                        <Play className="mr-2 h-4 w-4" />
-                        Начать уборку
-                    </Button>
-                );
-            } else if (taskDetails.status === CLEANICNG_STATUSES.IN_PROGRESS) {
-                return (
-                    <Button variant="default" onClick={handleFinishCleaning} disabled={!isChecklistComplete}>
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Завершить уборку
-                    </Button>
-                );
-            }
-        } else if ([USER_ROLES.MANAGER, USER_ROLES.FRONT_DESK].includes(user.role)) {
-            return (
-                <>
-                    {(taskDetails.status === CLEANICNG_STATUSES.WAITING_CHECK || taskDetails.status === CLEANICNG_STATUSES.COMPLETED) &&
-                        <Button variant="default" onClick={handleFinishInspection} disabled={!isChecklistComplete}>
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            Завершить проверку
-                        </Button>
-                    }
-                    {(
-                       ![CLEANICNG_STATUSES.COMPLETED, CLEANICNG_STATUSES.WAITING_CHECK,CLEANICNG_STATUSES.CHECKED].includes(taskDetails.status)
-                    ) && (
-                        <Button variant='secondary' onClick={handleToggleRush}> {/* Вызываем новую функцию */}
-                            <Flame className={`mr-2 h-4 w-4 ${taskDetails.is_rush ? 'text-red-600' : 'text-gray-500'}`} /> 
-                            {taskDetails.is_rush ? 'Снять срочность' : 'Пометить как срочную'} 
-                        </Button>
-                    )
-                    }
-                </>
-            )
-        }
-        return null;
-    };
-
-  
-
-
-    if (isLoading || isAuthLoading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <Spinner />
-            </div>
-        );
+    if (isAuthLoading || isTaskLoading) {
+        return <div className="flex items-center justify-center min-h-screen"><Spinner /></div>;
     }
 
     if (!isAuthenticated || !user) {
@@ -309,134 +95,67 @@ export default function CleaningTaskDetailsPage() {
     if (error) {
         return (
             <div className="flex items-center justify-center min-h-screen">
-                <ErrorMessage message={error} onRetry={fetchTaskDetails} isLoading={isLoading} />
+                <ErrorMessage message={error} onRetry={fetchTaskDetails} isLoading={isTaskLoading} />
             </div>
         );
     }
 
-    if (!taskDetails && taskId) {
+    if (!taskDetails) {
         return (
             <div className="flex items-center justify-center min-h-screen">
-                <div className="rounded-md border bg-muted p-4">
-                    Задача уборки с ID {taskId} не найдена.
-                </div>
-            </div>
-        );
-    }
-
-    if (taskDetails) {
-        // Оборачиваем checklistData в массив, так как ChecklistCardList ожидает массив
-        
-
-        return (
-            <div className="container mx-auto py-10">
-                <Button variant="ghost" onClick={() => router.back()} className="mb-4">
-                    &#8592; Назад к списку задач
-                </Button>
-
-                <Card className="shadow-md">
-                    <CardHeader className="space-y-4">
-                        <CardTitle className="text-2xl font-bold flex items-center ">
-                            <span>Задача уборки: {taskDetails.room_number || taskDetails.zone_name || "Общая"}</span>
-                             {taskDetails.is_rush && ( // Conditional rendering for the rush badge
-                                <Badge className="ml-4 bg-red-500 text-white flex items-center"> {/* Added ml-4 for margin */}
-                                    <Flame className="mr-1 h-4 w-4" /> СРОЧНО
-                                </Badge>
-                            )}
-                        </CardTitle>
-                        <CardDescription >
-                            Подробная информация о задаче.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid gap-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <h3 className="text-lg font-semibold mb-2">
-                                    <FileText className="mr-2 inline-block h-5 w-5" />
-                                    Детали
-                                </h3>
-                                <ul className="list-none space-y-2">
-                                    <li className="flex items-center">
-                                        <Building className="mr-2 h-4 w-4" />
-                                        <span>
-                                            {taskDetails.room_number ? `Комната: ${taskDetails.room_number}` : `Зона: ${taskDetails.zone_name}`}
-                                        </span>
-                                    </li>
-                                    <li className="flex items-center">
-                                        <BookOpen className="mr-2 h-4 w-4" />
-                                        <span>Тип уборки: {taskDetails.cleaning_type_display}</span>
-                                    </li>
-                                    <li className="flex items-center">
-                                        <UserIcon className="mr-2 h-4 w-4" />
-                                        <span>Назначена: {taskDetails.assigned_to_name || "Не назначена"}</span>
-                                    </li>
-                                    <li className="flex items-center">
-                                        <Clock className="mr-2 h-4 w-4" />
-                                        <span>
-                                            {taskDetails.due_time
-                                                ? `Время: ${format(new Date(taskDetails.due_time), 'HH:mm', { locale: ru })}`
-                                                : "Время не указано"}
-                                        </span>
-                                    </li>
-                                    <li className="flex items-center">
-                                        <ClipboardList className="mr-2 h-4 w-4" />
-                                        <span>Описание: {taskDetails.notes || "Нет описания"}</span>
-                                    </li>
-                                </ul>
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-semibold mb-2">
-                                    <CircleDotDashed className="mr-2 inline-block h-5 w-5" />
-                                    Статус
-                                </h3>
-                                <Badge className={getCleaningStatusColor(taskDetails.status)}>
-                                    {taskDetails.status_display}
-                                </Badge>
-                            </div>
-                        </div>
-                       
-                        <div className="w-30 mx-auto">
-                            <CircularProgressbar
-                                value={totalProgress}
-                                text={`${Math.round(totalProgress)}%`}
-                                styles={buildStyles({
-                                    textColor: 'black',
-                                    pathColor: '#0070f3', 
-                                    trailColor: '#d6d6d6',
-                                })}
-                            />
-                            <p className="text-center mt-2 text-sm">
-                                Общий прогресс
-                            </p>
-                        </div>
-                    
-
-                        {/* Заменяем старый рендеринг чек-листа на ChecklistCardList */}
-                        {checklistData.length > 0 && (
-                            checklistData.map((checklist) => {
-                                return (
-                                    <ChecklistCardList
-                                        key={checklist.id}
-                                        checklist={checklist} // Передаем массив с одним чек-листом
-                                        onChange={handleChecklistChange}
-                                    />
-                                );
-                            }))}
-                    </CardContent>
-                            
-                    <CardFooter className="flex justify-end gap-2">
-                        {renderActions()}
-                    </CardFooter>
-                </Card>
+                <div className="rounded-md border bg-muted p-4">Задача не найдена.</div>
             </div>
         );
     }
 
     return (
-        <div className="flex items-center justify-center min-h-screen">
-            <div className="rounded-md border bg-muted p-4">
-                Неизвестная ошибка при загрузке...
-            </div>
+        <div className="container mx-auto py-10">
+            <Button variant="ghost" onClick={() => router.back()} className="mb-4">
+                &#8592; Назад к списку задач
+            </Button>
+
+            <Card className="shadow-md">
+                {/* Используем декомпозированные компоненты */}
+                <TaskHeader task={taskDetails} />
+
+                <CardContent className="grid gap-6">
+                    <TaskInfo task={taskDetails} />
+                    
+                    {/* Прогресс-бар и чек-листы */}
+                    <div className="w-30 mx-auto">
+                        <CircularProgressbar
+                            value={totalProgress}
+                            text={`${Math.round(totalProgress)}%`}
+                            styles={buildStyles({ pathColor: '#0070f3', trailColor: '#d6d6d6', textColor: 'black' })}
+                        />
+                        <p className="text-center mt-2 text-sm">Общий прогресс</p>
+                    </div>
+
+                    {checklistData.map((checklist) => (
+                        <ChecklistCardList
+                            key={checklist.id}
+                            checklist={checklist}
+                            onChange={handleChecklistChange}
+                        />
+                    ))}
+                </CardContent>
+                
+                <CardFooter className="flex justify-end gap-2">
+                    {/* Логику рендеринга кнопок также можно вынести в отдельный компонент */}
+                    <TaskActionsFooter
+                        user={user}
+                        task={taskDetails}
+                        isChecklistComplete={isChecklistComplete}
+                        isLoading={isActionLoading}
+                        actions={{
+                            onStart: startCleaning,
+                            onFinish: finishCleaning,
+                            onInspect: finishInspection,
+                            onToggleRush: () => toggleRush(taskDetails.is_rush),
+                        }}
+                    />
+                </CardFooter>
+            </Card>
         </div>
     );
 }

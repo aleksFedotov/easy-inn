@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Spinner } from '@/components/spinner';
-import CleaningTaskCard from '@/components/cleaning/CleaningTaskCard';
+import CleaningTaskCard from '@/components/housekeeping/CleaningTaskCard';
 import { BrushCleaning, Loader, CheckCircle, XCircle } from 'lucide-react';
 import { CleaningTask } from '@/lib/types/housekeeping'; 
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import CleaningTaskCard from '@/components/cleaning/CleaningTaskCard';
+import CleaningTaskCard from '@/components/housekeeping/CleaningTaskCard';
 import { CleaningTask } from '@/lib/types'; // Убедитесь, что у вас есть этот тип
 import { LogOut, Bed, House, Boxes } from 'lucide-react';
 

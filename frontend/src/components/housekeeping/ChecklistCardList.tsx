@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useState, useEffect } from 'react';
 import { Checklist, ChecklistProgress } from '@/lib/types/housekeeping';
 import {
