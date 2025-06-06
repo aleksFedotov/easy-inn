@@ -52,7 +52,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           },
         });
       if (response.status === 200) {
-          console.log('User data fetched:', response.data);
           setUser(response.data);
           setIsAuthenticated(true);
           console.log('User data fetched successfully.');
