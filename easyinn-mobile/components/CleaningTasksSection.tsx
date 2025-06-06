@@ -24,11 +24,6 @@ const CleaningTasksSection: React.FC<CleaningTasksSectionProps> = ({
 }) => {
   const [index, setIndex] = useState(0);
 
-  useEffect(() => {
-    console.log('CleaningTasksSection mounted');
-    console.log('Available icons:', { Feather, MaterialCommunityIcons, FontAwesome5, Entypo });
-  }, []);
-
   const tabsConfig = [
     {
       key: 'checkout',
