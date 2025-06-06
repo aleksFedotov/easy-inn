@@ -41,9 +41,9 @@ import { Spinner } from '@/components/spinner';
 import ErrorMessage from '@/components/ErrorMessage';
 import axios from 'axios';
 import DatePicker from '@/components/ui/DatePicker';
-import TaskActions from '@/components/cleaning/TaskActions';
-import useHousekeepingData from '@/hooks/сleaning/useHousekeepingData';
-import useTaskModals from '@/hooks/сleaning/useTaskModals';
+import TaskActions from '@/components/housekeeping/TaskActions';
+import useHousekeepingData from '@/hooks/housekeeping/useHousekeepingData';
+import useTaskModals from '@/hooks/housekeeping/useTaskModals';
 
 import {
     useReactTable,
@@ -54,8 +54,8 @@ import {
 
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import HousekeeperSelectionModal from '@/components/cleaning/HousekeeperSelectionModal';
-import HousekeeperExpandableCard from '@/components/cleaning/HousekeeperExpandableCard';
+import HousekeeperSelectionModal from '@/components/housekeeping/HousekeeperSelectionModal';
+import HousekeeperExpandableCard from '@/components/housekeeping/HousekeeperExpandableCard';
 
 export default function HousekeepingPage() {
     const { user, isLoading: isAuthLoading } = useAuth();
