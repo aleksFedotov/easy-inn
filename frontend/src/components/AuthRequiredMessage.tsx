@@ -6,12 +6,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { LogIn } from 'lucide-react'; // Иконка для кнопки входа
 
-/**
- * Компонент AuthRequiredMessage отображает сообщение о том, что для доступа к странице требуется аутентификация,
- * и предоставляет кнопку для перехода на страницу входа.
- *
- * @returns {JSX.Element} Компонент AuthRequiredMessage.
- */
 const AuthRequiredMessage: React.FC = () => {
     const router = useRouter();
 

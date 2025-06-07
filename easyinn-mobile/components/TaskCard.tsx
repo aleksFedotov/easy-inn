@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+// import { useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import { Feather, MaterialCommunityIcons, Entypo } from '@expo/vector-icons';
 import { CleaningTask } from '../lib/types'; // адаптируй путь
 
@@ -45,12 +46,13 @@ const getCleaningStatusColor = (status: string) => {
 
 const TaskCard: React.FC<TaskCardProps> = ({ task, cardColor }) => {
 
-  const navigation = useNavigation<any>();
+  // const navigation = useNavigation<any>();
+  const router = useRouter();
 
   return (
     <TouchableOpacity
       style={[styles.cardContainer, { backgroundColor: cardColor }]}
-      onPress={() => navigation.navigate('HousekeepingDetail', { id: task.id })}
+      onPress={() => router.push(`/housekeeping/${task.id}`)}
       activeOpacity={0.8}
     >
       <View style={styles.header}>

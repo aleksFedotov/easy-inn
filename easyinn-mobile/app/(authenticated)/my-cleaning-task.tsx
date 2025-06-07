@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo,useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -19,13 +20,15 @@ import CleaningTasksSection from '@/components/CleaningTasksSection';
 import ChecklistSummaryCollapsible from '@/components/my-cleaning-tasks/ChecklistSummaryCollapsible';
 import SummaryCard from '@/components/my-cleaning-tasks/SummaryCard';
 
+
+
 const MyCleaningTasksScreen: React.FC = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [isSummaryOpen, setIsSummaryOpen] = useState<boolean>(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
 
-  const { tasks: allTasks, isLoading: loading, error } = useCleaningTasks(user, selectedDate);
+  const { tasks: allTasks, isLoading: loading, error, refetch } = useCleaningTasks(user, selectedDate);
   const {
     sortedCheckoutTasks,
     sortedCurrentTasks,
@@ -42,6 +45,12 @@ const MyCleaningTasksScreen: React.FC = () => {
   );
 
   const { checklistSummary, sortedChecklistSummaryKeys } = useChecklistSummary(allTasks);
+
+  useFocusEffect(
+    useCallback(() => {
+      refetch(); // обновим задачи при возвращении
+    }, [refetch])
+  );
 
   if (isAuthLoading || loading) {
     return (

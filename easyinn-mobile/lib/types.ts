@@ -168,3 +168,8 @@ export interface RoomStatusesApi {
     number: number;          
     status: 'free' | 'occupied' | 'waiting_checkout' | 'dirty' | 'assigned' | 'in_progress' |'waiting_inspection' |'clean' |'on_maintenance'  ;              
 }
+
+export interface ChecklistProgress {
+  total: number;
+  completed: number;
+}
