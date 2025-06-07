@@ -12,6 +12,7 @@ interface TaskActionsFooterProps {
   actions: {
     onStart: () => void;
     onFinish: () => void;
+    onStartInspection: () => void;
     onInspect: () => void;
     onToggleRush: () => void;
   };
@@ -93,47 +94,66 @@ export const TaskActionsFooter: React.FC<TaskActionsFooterProps> = ({
   }
 
   if ([USER_ROLES.MANAGER, USER_ROLES.FRONT_DESK].includes(user.role)) {
-    const canBeChecked = [CLEANICNG_STATUSES.WAITING_CHECK, CLEANICNG_STATUSES.COMPLETED].includes(task.status);
-    const canBeRushed = ![CLEANICNG_STATUSES.COMPLETED, CLEANICNG_STATUSES.WAITING_CHECK, CLEANICNG_STATUSES.CHECKED].includes(task.status);
+    const canBeChecked = [CLEANICNG_STATUSES.CHECKING, CLEANICNG_STATUSES.COMPLETED].includes(task.status);
+    const canBeRushed = CLEANICNG_STATUSES.ASSIGNED === task.status;
+    if (task.status === CLEANICNG_STATUSES.WAITING_CHECK) {
+      return (
+        <View style={styles.container}>
+          {renderButton(
+            actions.onStartInspection,
+            isLoading,
+            'primary',
+            isLoading ? (
+              <ActivityIndicator size="small" color="white" style={styles.icon} />
+            ) : (
+              <Play size={16} color="white" style={styles.icon} />
+            ),
+            'Начать проверку'
+          )}
+        </View>
+      );
+    }
+    if(canBeChecked) {
 
-    return (
-      <View style={styles.container}>
-        {canBeChecked && (
-          <View style={styles.buttonWrapper}>
-            {renderButton(
-              actions.onInspect,
-              !isChecklistComplete || isLoading,
-              'primary',
-              isLoading ? (
-                <ActivityIndicator size="small" color="white" style={styles.icon} />
-              ) : (
-                <CheckCircle size={16} color="white" style={styles.icon} />
-              ),
-              'Завершить проверку'
-            )}
-          </View>
-        )}
-        {canBeRushed && (
-          <View style={styles.buttonWrapper}>
-            {renderButton(
-              actions.onToggleRush,
-              isLoading,
-              'secondary',
-              isLoading ? (
-                <ActivityIndicator size="small" color="#6b7280" style={styles.icon} />
-              ) : (
-                <Flame 
-                  size={16} 
-                  color={task.is_rush ? '#ef4444' : '#6b7280'} 
-                  style={styles.icon} 
-                />
-              ),
-              task.is_rush ? 'Снять срочность' : 'Пометить как срочную'
-            )}
-          </View>
-        )}
-      </View>
-    );
+      return (
+        <View style={styles.container}>
+          {canBeChecked && (
+            <View style={styles.buttonWrapper}>
+              {renderButton(
+                actions.onInspect,
+                !isChecklistComplete || isLoading,
+                'primary',
+                isLoading ? (
+                  <ActivityIndicator size="small" color="white" style={styles.icon} />
+                ) : (
+                  <CheckCircle size={16} color="white" style={styles.icon} />
+                ),
+                'Завершить проверку'
+              )}
+            </View>
+          )}
+          {canBeRushed && (
+            <View style={styles.buttonWrapper}>
+              {renderButton(
+                actions.onToggleRush,
+                isLoading,
+                'secondary',
+                isLoading ? (
+                  <ActivityIndicator size="small" color="#6b7280" style={styles.icon} />
+                ) : (
+                  <Flame 
+                    size={16} 
+                    color={task.is_rush ? '#ef4444' : '#6b7280'} 
+                    style={styles.icon} 
+                  />
+                ),
+                task.is_rush ? 'Снять срочность' : 'Пометить как срочную'
+              )}
+            </View>
+          )}
+        </View>
+      );
+    }
   }
 
   return null;

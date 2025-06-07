@@ -14,6 +14,10 @@ import { TaskActionsFooter } from '@/components/housekeeping/details/TaskFooter'
 import AuthRequiredMessage from '@/components/AuthRequiredMessage';
 // import { ErrorMessage } from '@/components/ErrorMessage';
 import { Checklist, ChecklistProgress } from '@/lib/types';
+import { CLEANICNG_STATUSES, USER_ROLES } from '@/lib/constants';
+
+type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES];
+type CleaningStatus = typeof CLEANICNG_STATUSES[keyof typeof CLEANICNG_STATUSES]
 
 
 export default function CleaningTaskDetailsPage() {
@@ -27,6 +31,7 @@ export default function CleaningTaskDetailsPage() {
         isActionLoading,
         startCleaning, 
         finishCleaning, 
+        startInspection,
         finishInspection, 
         toggleRush 
     } = useTaskActions(taskId, fetchTaskDetails, router);
@@ -45,6 +50,14 @@ export default function CleaningTaskDetailsPage() {
             [checklistId]: progress
         }));
     }, [updateChecklist]);
+
+    const shouldRenderChecklist = (role : UserRole, status:CleaningStatus) => {
+        if (role === USER_ROLES.HOUSEKEEPER) {
+            return status !== CLEANICNG_STATUSES.ASSIGNED;
+        }
+        return status !== CLEANICNG_STATUSES.WAITING_CHECK;
+    };
+
 
     const handleBackPress = () => {
         router.back();
@@ -97,7 +110,7 @@ export default function CleaningTaskDetailsPage() {
                             <ProgressCircle progress={totalProgress} />
                         </View>
                         
-                        {checklistData.map((checklist) => (
+                        {shouldRenderChecklist(user.role, taskDetails.status) && checklistData.map((checklist) => (
                             <ChecklistCardList
                                 key={checklist.id}
                                 checklist={checklist}
@@ -114,6 +127,7 @@ export default function CleaningTaskDetailsPage() {
                         actions={{
                             onStart: startCleaning,
                             onFinish: finishCleaning,
+                            onStartInspection: startInspection,
                             onInspect: finishInspection,
                             onToggleRush: () => toggleRush(taskDetails.is_rush),
                         }}

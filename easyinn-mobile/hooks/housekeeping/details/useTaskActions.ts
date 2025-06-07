@@ -57,11 +57,17 @@ export function useTaskActions(taskId: string, onActionSuccess: () => void, rout
         'Не удалось завершить уборку.',
         'my-cleaning-task'
     );
+    const startInspection = () => performAction(
+        () => api.patch(`/api/cleaningtasks/${taskId}/start_check/`),
+        'Проверка успешно начата.',
+        'Не удалось начать проверку.',  
+    );
 
     const finishInspection = () => performAction(
         () => api.patch(`/api/cleaningtasks/${taskId}/check/`),
         'Проверка успешно завершена.',
-        'Не удалось завершить проверку.'
+        'Не удалось завершить проверку.',
+         'ready-for-check'
     );
 
     const toggleRush = (currentRushStatus: boolean) => performAction(
@@ -74,6 +80,7 @@ export function useTaskActions(taskId: string, onActionSuccess: () => void, rout
         isActionLoading,
         startCleaning,
         finishCleaning,
+        startInspection,
         finishInspection,
         toggleRush,
     };

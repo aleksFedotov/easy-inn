@@ -17,6 +17,7 @@ export const CLEANICNG_STATUSES = {
   IN_PROGRESS: 'in_progress', // В процессе уборки
   COMPLETED: 'completed', // Уборка завершена
   WAITING_CHECK: 'waiting_check', // Ожидает проверки
+  CHECKING: 'checking', // Проверка в процессе
   CHECKED: 'checked', // Проверено
   CANCELED: 'canceled', // Отменена
 };

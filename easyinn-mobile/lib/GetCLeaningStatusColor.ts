@@ -10,6 +10,8 @@ const getCleaningStatusColor = (status: string | undefined) => {
             return { backgroundColor: '#dcfce7', textColor: '#15803d' }; // green
         case 'waiting_inspection': 
             return { backgroundColor: '#fed7aa', textColor: '#c2410c' }; // orange
+        case 'checking':
+            return { backgroundColor: '#e0e7ff', color: '#4338ca' };    // indigo
         case 'checked': 
             return { backgroundColor: '#d1fae5', textColor: '#047857' }; // emerald
         case 'canceled': 
