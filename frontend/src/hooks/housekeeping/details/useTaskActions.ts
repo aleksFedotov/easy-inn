@@ -3,6 +3,7 @@ import { useState } from 'react';
 import api from '@/lib/api';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 
 async function handleApiCall(apiCall: () => Promise<void>, onSuccessMessage: string, onFailMessage: string) {
@@ -22,14 +23,17 @@ async function handleApiCall(apiCall: () => Promise<void>, onSuccessMessage: str
 }
 
 
-export function useTaskActions(taskId: string, onActionSuccess: () => void) {
+export function useTaskActions(taskId: string, onActionSuccess: () => void, router?: ReturnType<typeof useRouter>) {
     const [isActionLoading, setIsActionLoading] = useState(false);
 
-    const performAction = async (apiCall: () => Promise<void>, successMessage: string, failMessage: string) => {
+    const performAction = async (apiCall: () => Promise<void>, successMessage: string, failMessage: string, redirectTo? :string) => {
         setIsActionLoading(true);
         const success = await handleApiCall(apiCall, successMessage, failMessage);
         if (success) {
             onActionSuccess(); 
+            if(router && redirectTo) {  
+                router.push(`/${redirectTo}`);
+            }
         }
         setIsActionLoading(false);
     };
@@ -43,13 +47,21 @@ export function useTaskActions(taskId: string, onActionSuccess: () => void) {
     const finishCleaning = () => performAction(
         () => api.patch(`/api/cleaningtasks/${taskId}/complete/`),
         'Уборка успешно завершена.',
-        'Не удалось завершить уборку.'
+        'Не удалось завершить уборку.',
+         'my-cleaning-task'
+    );
+
+    const startInspection = () => performAction(
+        () => api.patch(`/api/cleaningtasks/${taskId}/start_check/`),
+        'Проверка успешно начата.',
+        'Не удалось начать проверку.',  
     );
 
     const finishInspection = () => performAction(
         () => api.patch(`/api/cleaningtasks/${taskId}/check/`),
         'Проверка успешно завершена.',
-        'Не удалось завершить проверку.'
+        'Не удалось завершить проверку.',
+         'ready-for-check'
     );
 
     const toggleRush = (currentRushStatus: boolean) => performAction(
@@ -62,6 +74,7 @@ export function useTaskActions(taskId: string, onActionSuccess: () => void) {
         isActionLoading,
         startCleaning,
         finishCleaning,
+        startInspection,
         finishInspection,
         toggleRush,
     };

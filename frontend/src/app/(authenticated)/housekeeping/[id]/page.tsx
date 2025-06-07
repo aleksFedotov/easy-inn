@@ -19,6 +19,12 @@ import ErrorMessage from '@/components/ErrorMessage';
 import { Button } from "@/components/ui/button";
 import {Checklist } from '@/lib/types/housekeeping';
 import { ProgressCircle } from '@/components/housekeeping/details/ProgressCircle';
+import { CLEANICNG_STATUSES, USER_ROLES } from '@/lib/constants';
+
+
+
+type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES];
+type CleaningStatus = typeof CLEANICNG_STATUSES[keyof typeof CLEANICNG_STATUSES]
 
 export default function CleaningTaskDetailsPage() {
     const params = useParams<{ id: string }>();
@@ -32,9 +38,10 @@ export default function CleaningTaskDetailsPage() {
         isActionLoading, 
         startCleaning, 
         finishCleaning, 
+        startInspection,
         finishInspection, 
         toggleRush 
-    } = useTaskActions(taskId, fetchTaskDetails);
+    } = useTaskActions(taskId, fetchTaskDetails, router);
 
 
     const checklistData: Checklist[] = useMemo(() => (taskDetails?.checklist_data as Checklist[] | undefined) || [], [taskDetails]);
@@ -52,6 +59,13 @@ export default function CleaningTaskDetailsPage() {
             [checklistId]: progress
         }));
     }, [updateChecklist]);
+
+    const shouldRenderChecklist = (role : UserRole, status:CleaningStatus) => {
+        if (role === USER_ROLES.HOUSEKEEPER) {
+            return status !== CLEANICNG_STATUSES.ASSIGNED;
+        }
+        return status !== CLEANICNG_STATUSES.WAITING_CHECK;
+    };
 
  
 
@@ -96,12 +110,13 @@ export default function CleaningTaskDetailsPage() {
                         progress ={totalProgress}
                     />
                     
-                    {checklistData.map((checklist) => (
-                        <ChecklistCardList
+                    {shouldRenderChecklist(user.role, taskDetails.status) &&
+                        checklistData.map((checklist) => (
+                            <ChecklistCardList
                             key={checklist.id}
                             checklist={checklist}
                             onChange={handleChecklistChange}
-                        />
+                            />
                     ))}
                 </CardContent>
                 
@@ -115,6 +130,7 @@ export default function CleaningTaskDetailsPage() {
                         actions={{
                             onStart: startCleaning,
                             onFinish: finishCleaning,
+                            onStartInspection: startInspection,
                             onInspect: finishInspection,
                             onToggleRush: () => toggleRush(taskDetails.is_rush),
                         }}

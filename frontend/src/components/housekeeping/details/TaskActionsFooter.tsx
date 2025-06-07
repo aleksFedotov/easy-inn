@@ -13,6 +13,7 @@ interface TaskActionsFooterProps {
   actions: {
     onStart: () => void;
     onFinish: () => void;
+    onStartInspection: () => void;
     onInspect: () => void;
     onToggleRush: () => void;
   };
@@ -54,33 +55,46 @@ export const TaskActionsFooter: React.FC<TaskActionsFooterProps> = ({
   }
 
   if ([USER_ROLES.MANAGER, USER_ROLES.FRONT_DESK].includes(user.role)) {
-    const canBeChecked = [CLEANICNG_STATUSES.WAITING_CHECK, CLEANICNG_STATUSES.COMPLETED].includes(task.status);
-    const canBeRushed = ![CLEANICNG_STATUSES.COMPLETED, CLEANICNG_STATUSES.WAITING_CHECK, CLEANICNG_STATUSES.CHECKED].includes(task.status);
-
-    return (
-      <>
-        {canBeChecked && (
-          <Button onClick={actions.onInspect} disabled={!isChecklistComplete || isLoading}>
-            {isLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <CheckCircle className="mr-2 h-4 w-4" />
-            )}
-            Завершить проверку
-          </Button>
-        )}
-        {canBeRushed && (
-          <Button variant="secondary" onClick={actions.onToggleRush} disabled={isLoading}>
-            {isLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Flame className={`mr-2 h-4 w-4 ${task.is_rush ? 'text-red-500' : 'text-gray-500'}`} />
-            )}
-            {task.is_rush ? 'Снять срочность' : 'Пометить как срочную'}
-          </Button>
-        )}
-      </>
-    );
+    const canBeChecked = [CLEANICNG_STATUSES.CHECKING, CLEANICNG_STATUSES.COMPLETED].includes(task.status);
+    const canBeRushed = CLEANICNG_STATUSES.ASSIGNED == task.status;
+    if (task.status === CLEANICNG_STATUSES.WAITING_CHECK) {
+      return (
+        <Button onClick={actions.onStartInspection} disabled={isLoading}>
+          {isLoading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Play className="mr-2 h-4 w-4" />
+          )}
+          Начать проверку
+        </Button>
+      );
+    }
+    if(canBeChecked) {
+      return (
+        <>
+          {canBeChecked && (
+            <Button onClick={actions.onInspect} disabled={!isChecklistComplete || isLoading}>
+              {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle className="mr-2 h-4 w-4" />
+              )}
+              Завершить проверку
+            </Button>
+          )}
+          {canBeRushed && (
+            <Button variant="secondary" onClick={actions.onToggleRush} disabled={isLoading}>
+              {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Flame className={`mr-2 h-4 w-4 ${task.is_rush ? 'text-red-500' : 'text-gray-500'}`} />
+              )}
+              {task.is_rush ? 'Снять срочность' : 'Пометить как срочную'}
+            </Button>
+          )}
+        </>
+      );  
+    }
   }
 
   return null;
