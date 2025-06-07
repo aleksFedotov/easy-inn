@@ -122,6 +122,7 @@ class CleaningTask(models.Model):
         IN_PROGRESS = "in_progress", "В процессе уборки" # Уборка начата / Cleaning has started
         COMPLETED = "completed", "Уборка завершена" # Уборка завершена горничной / Cleaning is completed by the cleaner
         WAITING_CHECK = "waiting_check", "Ожидает проверки" # Уборка завершена, ожидает проверки менеджером / Completed, waiting for manager check
+        CHECKING = "checking", "Проверяется" # Уборка проверяется менеджером / Cleaning is being checked by the manager
         CHECKED = "checked", "Проверено" # Уборка проверена менеджером / Cleaning is checked by the manager
         CANCELED = "canceled", "Отменена" # Задача отменена / Task is canceled
        

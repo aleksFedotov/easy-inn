@@ -303,12 +303,13 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
 
             if task.room:
                 room = task.room
-                if task.cleaning_type == CleaningTypeChoices.DEPARTURE_CLEANING:
-                    room.status = Room.Status.WAITING_INSPECTION 
-                elif task.cleaning_type == CleaningTypeChoices.STAYOVER:
-                    room.status = Room.Status.CLEAN  
+                if task.cleaning_type == CleaningTypeChoices.STAYOVER or task.cleaning_type == CleaningTypeChoices.ON_DEMAND:
+                    room.status = Room.Status.OCCUPIED 
+                    logger.info(f"Room {room.number} status changed to 'occupied'.")
+                else:
+                    room.status = Room.Status.WAITING_INSPECTION  
+                    logger.info(f"Room {room.number} status changed to 'waiting_inspection'.")
                 room.save(update_fields=['status'])
-                logger.info(f"Room {room.number} status changed to 'waiting_inspection'.")
             if task.zone:
                 zone = task.zone
                 zone.status = Zone.Status.CLEAN
@@ -327,6 +328,32 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
             {"detail": f"Задача не может быть завершена из статуса '{task.get_status_display()}'."},
             status=status.HTTP_400_BAD_REQUEST
         )
+    
+    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated, IsAssignedHousekeeperOrManagerOrFrontDesk])
+    def start_check(self, request, pk=None):
+        """
+        Custom action to start inspection of a cleaning task.
+        Can be called by the assigned housekeeper, a manager, or an front desk.
+        The task must be in WAITING_INSPECTION status.
+
+        Кастомное действие для начала проверки задачи по уборке.
+        Может быть вызвано назначенным горничной, менеджером или администратором.
+        Задача должна быть в статусе WAITING_INSPECTION.
+        """
+        logger.info(f"User {request.user} attempting to start inspection for task {pk}.")
+        task = self.get_object()
+
+        # Check if the task can be inspected from the current status
+        # Проверяем, можно ли начать проверку задачи из текущего статуса
+        if task.status == CleaningTask.Status.WAITING_CHECK:
+            logger.info(f"Task {task.pk} status is {task.get_status_display()}, allowing inspection.")
+            task.status = CleaningTask.Status.CHECKING # Set status to CHECKING / Переводим в статус "Проверка"
+            task.save(update_fields=['status']) # Save only the changed fields / Сохраняем только измененные поля
+        serializer = self.get_serializer(task)      
+        logger.info(f"Inspection started for task {task.pk} by user {request.user}.")
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated, IsManagerOrFrontDesk])
     def check(self, request, pk=None):
@@ -344,7 +371,7 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
 
         # Check if the task can be checked from the current status
         # Проверяем, можно ли проверить задачу из текущего статуса
-        if task.status == CleaningTask.Status.WAITING_CHECK:
+        if task.status == CleaningTask.Status.CHECKING:
             logger.info(f"Task {task.pk} status is {task.get_status_display()}, allowing check.")
             task.status = CleaningTask.Status.CHECKED # Set status to CHECKED / Переводим в статус "Проверено"
             task.checked_at = timezone.now() # Set check time / Устанавливаем время проверки
@@ -535,6 +562,12 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
 
     @action(detail=False, methods=['post'])
     def assign_multiple(self, request):
+        """        Кастомное действие для назначения нескольких задач по уборке горничной.
+        Доступно только для менеджеров и сотрудников службы приема.     
+        Custom action to assign multiple cleaning tasks to a housekeeper.
+        Available only for managers and front desk staff.
+        """
+        user = request.user
         serializer = MultipleTaskAssignmentSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             task_ids = serializer.validated_data['task_ids']
@@ -553,6 +586,8 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
             #  Обновляем горничную для каждой задачи
             for task in tasks:
                 task.assigned_to_id = housekeeper_id
+                task.assigned_by = user
+                task.assigned_at = timezone.now()
                 task.status = Room.Status.ASSIGNED
                 task.save()
 
