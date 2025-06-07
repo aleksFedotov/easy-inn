@@ -1,19 +1,17 @@
-'use client'; // Указываем, что это клиентский компонент
-
+'use client'; 
 import React, { useState } from 'react';
-import {  ChevronDown, LogOut, Bed, House } from 'lucide-react'; // Импорт иконок
-import { CleaningTask, User } from '@/lib/types'; // Импорт типов User и CleaningTask
+import {  ChevronDown, LogOut, Bed, House, Boxes } from 'lucide-react'; 
+import { CleaningTask, User } from '@/lib/types';
 import { Avatar, AvatarFallback,  } from '@/components/ui/avatar';
 import { CLEANING_TYPES } from '@/lib/constants';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'; // Импорт компонентов Collapsible из shadcn/ui
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'; 
 
-// Интерфейс для пропсов компонента HousekeeperExpandableCard
 interface HousekeeperExpandableCardProps {
-    housekeeper: User; // Объект горничной
-    cleaningTasks: CleaningTask[]; // Список задач, назначенных этой горничной
+    housekeeper: User; 
+    cleaningTasks: CleaningTask[]; 
 }
 
-// Вспомогательная функция для генерации инициалов
+
 const getInitials = (firstName?: string, lastName?: string): string => {
     const firstInitial = firstName ? firstName.charAt(0) : '';
     const lastInitial = lastName ? lastName.charAt(0) : '';
@@ -31,8 +29,11 @@ const TaskCard: React.FC<{ task: CleaningTask; }> = ({ task }) => {
         case CLEANING_TYPES.STAYOVER: 
             icon = <Bed size={16} className="text-green-500" />;
             break;
-        default: 
+        case CLEANING_TYPES.PUBLIC_AREA:
             icon = <House size={16} className="text-purple-500" />;
+
+        default: 
+            icon = <Boxes size={16} className="text-red-500" />;
             break;
     }
 
@@ -51,7 +52,7 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
     housekeeper,
     cleaningTasks,
 }) => {
-    // Состояние для контроля, развернута ли основная карточка горничной
+ 
     const [isCardExpanded, setIsCardExpanded] = useState(false);
     // Состояние для контроля, какой раздел задач развернут ('checkout', 'current', 'zones', или null)
     const [activeTaskSection, setActiveTaskSection] = useState<string | null>(null);
@@ -65,6 +66,12 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
     );
     const zoneTasks = cleaningTasks.filter((task) => task.zone_name);
 
+    const otherTasks = cleaningTasks.filter(task => ![
+          CLEANING_TYPES.DEPARTURE,
+          CLEANING_TYPES.STAYOVER,
+          CLEANING_TYPES.PUBLIC_AREA
+        ].includes(task.cleaning_type))
+
     return (
         <Collapsible
             open={isCardExpanded}
@@ -76,15 +83,14 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
                 <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors duration-200">
                     <div className="flex items-center space-x-4">
                         <Avatar className="h-12 w-12">
-                            {/* Если у горничной есть URL изображения, используйте AvatarImage */}
-                            {/* <AvatarImage src={housekeeper.profile_picture_url} alt={`${housekeeper.first_name} ${housekeeper.last_name}`} /> */}
+                           
                             <AvatarFallback>{getInitials(housekeeper.first_name, housekeeper.last_name)}</AvatarFallback>
                         </Avatar>
                         <div>
                             <p className="font-semibold text-lg">
                                 {housekeeper.first_name} {housekeeper.last_name}
                             </p>
-                            {/* Можно добавить общую статистику здесь, если нужно */}
+                            
                             <p className="text-sm">
                                 Всего задач: {cleaningTasks.length}
                             </p>
@@ -192,6 +198,37 @@ const HousekeeperExpandableCard: React.FC<HousekeeperExpandableCardProps> = ({
                         ) : (
                             <p className="text-sm col-span-full px-3 py-1 text-gray-600">
                                 Нет задач по зонам.
+                            </p>
+                        )}
+                    </CollapsibleContent>
+                </Collapsible>
+                {/* Раздел "Другое" */}
+                <Collapsible
+                    open={activeTaskSection === 'other'}
+                    onOpenChange={() => setActiveTaskSection(activeTaskSection === 'other' ? null : 'other')}
+                    className="mb-4 last:mb-0"
+                >
+                    <CollapsibleTrigger asChild>
+                        <div className="flex items-center justify-between py-2 px-3 rounded-md cursor-pointer bg-white hover:bg-gray-100 transition-colors duration-200">
+                            <h3 className="font-semibold text-md">
+                                Другое ({otherTasks.length})
+                            </h3>
+                            <ChevronDown
+                                size={20}
+                                className={`transition-transform duration-300 ${
+                                    activeTaskSection === 'other' ? 'rotate-180' : ''
+                                }`}
+                            />
+                        </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                        {otherTasks.length > 0 ? (
+                            otherTasks.map((task) => (
+                                <TaskCard key={task.id} task={task} />
+                            ))
+                        ) : (
+                            <p className="text-sm col-span-full px-3 py-1 text-gray-600">
+                                Нет других задач.
                             </p>
                         )}
                     </CollapsibleContent>
