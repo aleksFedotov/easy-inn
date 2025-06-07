@@ -48,7 +48,7 @@ const MyCleaningTasksScreen: React.FC = () => {
 
   useFocusEffect(
     useCallback(() => {
-      refetch(); // обновим задачи при возвращении
+      refetch(); 
     }, [refetch])
   );
 

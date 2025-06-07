@@ -27,12 +27,9 @@ interface AuthContextType {
 // Используем 'as const', чтобы TypeScript понимал ключи как конкретные строки, а не просто 'string'
 const routePermissions: Record<string, readonly UserRole[]> = {
   'dashboard': ['frontdesk', 'manager'],
-  'front-desk': ['frontdesk', 'manager'],
   'housekeeping/index': ['frontdesk', 'manager'],
   'my-cleaning-task': ['housekeeper'],
-  'users': ['manager'],
-  'room-setup': ['manager'],
-  'cleaning-setup': ['manager'],
+  'ready-for-check': ['frontdesk', 'manager'],
 } as const;
 
 // Автоматически создаем тип для всех возможных маршрутов на основе ключей routePermissions
@@ -49,16 +46,11 @@ interface MenuItem {
 // --- Данные меню (уже с типами) ---
 const menuItems: MenuItem[] = [
     { id: 'dashboard', name: 'Главная', routeName: 'dashboard', roles: routePermissions.dashboard },
-    { id: 'front-desk', name: 'Служба приема', routeName: 'front-desk', roles: routePermissions['front-desk'] },
-    { id: 'housekeeping', name: 'Уборка', routeName: 'housekeeping/index', roles: routePermissions['housekeeping/index'] },
     { id: 'my-cleaning-task', name: 'Мои задачи', routeName: 'my-cleaning-task', roles: routePermissions['my-cleaning-task'] },
+    { id: 'ready-for-check', name: 'Готовы к проверке', routeName: 'ready-for-check', roles: routePermissions['ready-for-check'] },
 ];
   
-const settingsItems: MenuItem[] = [
-    { id: 'settings-users', name: 'Пользователи', routeName: 'users', roles: routePermissions.users },
-    { id: 'settings-rooms', name: 'Настройка комнат', routeName: 'room-setup', roles: routePermissions['room-setup'] },
-    { id: 'settings-cleaning', name: 'Настройка уборки', routeName: 'cleaning-setup', roles: routePermissions['cleaning-setup'] },
-];
+
 
 // --- Кастомный компонент для содержимого меню (типизированный) ---
 function CustomDrawerContent(props: DrawerContentComponentProps) {
@@ -69,7 +61,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
   if (!user) return null;
 
   const visibleMenuItems = menuItems.filter(item => item.roles.includes(user.role));
-  const visibleSettingsItems = settingsItems.filter(item => item.roles.includes(user.role));
+  
 
   return (
     <DrawerContentScrollView {...props}>
@@ -82,20 +74,6 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
           }}
         />
       ))}
-      {visibleSettingsItems.length > 0 && (
-          <View>
-              <Text style={styles.settingsHeader}>Настройки</Text>
-              {visibleSettingsItems.map((item) => (
-                    <DrawerItem
-                    key={item.id}
-                    label={item.name}
-                    onPress={() => {
-                        router.navigate(item.routeName);
-                    }}
-                    />
-              ))}
-          </View>
-      )}
       <DrawerItem
         label="Выйти"
         onPress={logout}
@@ -141,14 +119,9 @@ const AuthenticatedLayout: FC = () => {
       <Drawer drawerContent={(props) => <CustomDrawerContent {...props} />}>
         {/* Объявляем все экраны, чтобы Expo Router мог корректно настраивать заголовки */}
         <Drawer.Screen name="dashboard" options={{ title: 'Главная' }} />
-        <Drawer.Screen name="front-desk" options={{ title: 'Служба приема' }} />
-        <Drawer.Screen name="housekeeping/index" options={{ title: 'Уборка', drawerLabel: 'Уборка' }} />
         <Drawer.Screen name="my-cleaning-task" options={{ title: 'Мои задачи' }} />
-        <Drawer.Screen name="users" options={{ title: 'Пользователи' }} />
-        <Drawer.Screen name="room-setup" options={{ title: 'Настройка комнат' }} />
-        <Drawer.Screen name="cleaning-setup" options={{ title: 'Настройка уборки' }} />
-        
-        <Drawer.Screen name="booking/[id]" options={{ drawerItemStyle: { display: 'none' } }} />
+        <Drawer.Screen name="ready-for-check" options={{ title: 'Готовы к проверке' }} />
+        {/* Скрываем экран для housekeeper, так как он не должен быть доступен напрямую */}
         <Drawer.Screen name="housekeeping/[id]" options={{ drawerItemStyle: { display: 'none' } }} />
       </Drawer>
     </GestureHandlerRootView>
