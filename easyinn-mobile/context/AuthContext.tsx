@@ -6,6 +6,9 @@ import { useRouter } from 'expo-router';
 import { Alert } from 'react-native'; 
 import { User,JwtPayload } from '@/lib/types';
 import axios from 'axios';
+import { registerForPushNotificationsAsync } from '@/lib/registerForPushNotificationsAsync';
+import { sendPushToken } from '@/lib/sendPushToken';
+import { ACCESS_TOKEN, REFRESH_TOKEN } from '@/lib/constants';
 
 
 interface AuthContextType {
@@ -27,8 +30,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Logout function
   const logout = useCallback(async () => {
     try {
-        await AsyncStorage.removeItem('accessToken');
-        await AsyncStorage.removeItem('refreshToken');
+        await AsyncStorage.removeItem(ACCESS_TOKEN);
+        await AsyncStorage.removeItem(REFRESH_TOKEN);
         setIsAuthenticated(false);
         setUser(null);
         router.replace('/login'); // Перенаправляем на экран логина
@@ -44,7 +47,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Fetch User Data
   const fetchUser = useCallback(async (accessTokenOverride?: string) => {
     try {
-        const accessToken = accessTokenOverride || await AsyncStorage.getItem('accessToken');
+        const accessToken = accessTokenOverride || await AsyncStorage.getItem(ACCESS_TOKEN);
     
         const response = await api.get<User>('/api/users/me/', {
           headers: {
@@ -55,6 +58,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setUser(response.data);
           setIsAuthenticated(true);
           console.log('User data fetched successfully.');
+          const expoPushToken = await registerForPushNotificationsAsync();
+          if (expoPushToken) {
+            await sendPushToken(expoPushToken);
+          }
       } else {
           console.log('Failed to fetch user data. Redirecting to login.');
           logout();
@@ -74,8 +81,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Login Function
   const login = useCallback(async (accessToken: string, refreshToken: string) => {
     try {
-      await AsyncStorage.setItem('accessToken', accessToken);
-      await AsyncStorage.setItem('refreshToken', refreshToken);
+      await AsyncStorage.setItem(ACCESS_TOKEN, accessToken);
+      await AsyncStorage.setItem(REFRESH_TOKEN, refreshToken);
       await fetchUser(accessToken); // Fetch user data after login
     } catch (error) {
       console.error('Error during login:', error);
@@ -89,8 +96,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const accessToken = await AsyncStorage.getItem('accessToken');
-        const refreshToken = await AsyncStorage.getItem('refreshToken');
+        const accessToken = await AsyncStorage.getItem(ACCESS_TOKEN);
+        const refreshToken = await AsyncStorage.getItem(REFRESH_TOKEN);
 
         if (!accessToken) {
           setIsAuthenticated(false);
@@ -111,7 +118,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               const response = await api.post('/token/refresh/', { refresh: refreshToken });
               if (response.status === 200) {
                 const newAccessToken = response.data.access;
-                await AsyncStorage.setItem('accessToken', newAccessToken);
+                await AsyncStorage.setItem(ACCESS_TOKEN, newAccessToken);
                 await fetchUser();
                 console.log('Token refreshed successfully during initial check. Fetching user data.');
               } else {

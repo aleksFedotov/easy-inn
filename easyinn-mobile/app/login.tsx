@@ -12,18 +12,18 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Получаем функции login и user из AuthContext
+
   const { login, user } = useAuth();
   const router = useRouter();
 
   const handleLogin = async () => {
-    setIsLoading(true); // Устанавливаем состояние загрузки
-    setError(null); // Сбрасываем предыдущие ошибки
+    setIsLoading(true); 
+    setError(null); 
 
 
 
     try {
-      const response = await api.post('/api/token/', { // Используем /token/ так как baseURL уже настроен
+      const response = await api.post('/api/token/', { 
         username: username,
         password: password,
       });
