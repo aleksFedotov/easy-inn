@@ -10,6 +10,7 @@ from cleaning.views import (
 )
 from users.views import UserViewSet, get_assigned_housekeepers_for_date
 from hotel.views import RoomViewSet, RoomTypeViewSet, ZoneViewSet,RoomStatusViewSet
+from users.views import RegisterPushTokenView, SendPushNotificationView
 
 
 
@@ -48,4 +49,5 @@ router.register(r'users', UserViewSet, basename='user')
 urlpatterns = [
     path('cleaning/stats/', get_cleaning_stats, name='cleaning-stats'),  
     path('housekeepers/assigned/', get_assigned_housekeepers_for_date, name='assigned-housekeepers'),  
+    path('users/', include('users.urls')),
 ] + router.urls

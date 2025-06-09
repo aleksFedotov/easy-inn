@@ -165,7 +165,9 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         Создает и возвращает список разрешений, необходимых для данного представления.
         Применяет различные разрешения в зависимости от выполняемого действия.
         """
+        logger.debug(f"User {self.request.user} is accessing action: {self.action}")
         logger.debug(f"Getting permissions for action: {self.action}")
+
 
         # Authentication is required for all actions (enforced by DEFAULT_PERMISSION_CLASSES or IsAuthenticated)
         # Требуется аутентификация для всех действий (обеспечивается DEFAULT_PERMISSION_CLASSES или IsAuthenticated)

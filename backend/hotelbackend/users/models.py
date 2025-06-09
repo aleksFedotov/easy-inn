@@ -49,3 +49,20 @@ class User(AbstractUser):
         # Otherwise, return the username with the role display
         # В противном случае возвращаем username вместе с отображаемым значением роли
         return f"{self.username} ({self.get_role_display()})"
+    
+# Model for storing push tokens associated with users
+# Модель для хранения push-токенов, связанных с пользователями
+
+class PushToken(models.Model):
+    # Foreign key to the User model, establishing a many-to-one relationship
+    # Внешний ключ к модели User, устанавливающий отношение многие-к-одному
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='push_tokens')
+    # Token field to store the push token, must be unique
+    # Поле токена для хранения push-токена, должно быть уникальным
+    token = models.CharField(max_length=255, unique=True)
+    # Timestamp for when the token was created
+    # Временная метка для создания токена
+    created_at = models.DateTimeField(auto_now_add=True)
+
+def __str__(self):
+    return f"{self.user.username} - {self.token[:10]}"

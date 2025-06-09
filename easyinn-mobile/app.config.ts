@@ -15,6 +15,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supportsTablet: true,
   },
   android: {
+    package: "com.easyinn.easyinnmobile",
     adaptiveIcon: {
       foregroundImage: './assets/images/adaptive-icon.png',
       backgroundColor: '#ffffff',
@@ -28,6 +29,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   plugins: [
     'expo-router',
+    "expo-notifications",
     [
       'expo-splash-screen',
       {
@@ -43,5 +45,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   extra: {
     apiUrl: process.env.API_URL,
+    eas: {
+      projectId: "fc9d19ca-1683-4e44-9507-5171adb2f840", 
+    },
   },
 });

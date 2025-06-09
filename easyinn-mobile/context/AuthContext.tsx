@@ -5,10 +5,10 @@ import api from '../lib/api';
 import { useRouter } from 'expo-router';
 import { Alert } from 'react-native'; 
 import { User,JwtPayload } from '@/lib/types';
-import axios from 'axios';
-import { registerForPushNotificationsAsync } from '@/lib/registerForPushNotificationsAsync';
-import { sendPushToken } from '@/lib/sendPushToken';
-import { ACCESS_TOKEN, REFRESH_TOKEN } from '@/lib/constants';
+import {isAxiosError} from 'axios';
+import  registerForPushNotificationsAsync  from '@/lib/registerForPushNotificationsAsync';
+
+
 
 
 interface AuthContextType {
@@ -30,15 +30,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Logout function
   const logout = useCallback(async () => {
     try {
-        await AsyncStorage.removeItem(ACCESS_TOKEN);
-        await AsyncStorage.removeItem(REFRESH_TOKEN);
+        await AsyncStorage.removeItem('access_token');
+        await AsyncStorage.removeItem('refresh_token');
         setIsAuthenticated(false);
         setUser(null);
         router.replace('/login'); // Перенаправляем на экран логина
         console.log('User logged out.');
     } catch (error) {
-        console.error('Error during logout:', error);
-        Alert.alert('Ошибка', 'Не удалось выйти из системы.');
+    console.error('Error fetching user data:', error);
+    if (isAxiosError(error) && error.response) {
+        console.error('Axios error response status:', error.response.status);
+        console.error('Axios error response data:', JSON.stringify(error.response.data, null, 2));
+        if (error.response.status === 401) {
+            console.log('Unauthorized when fetching user data. Token might be invalid or expired. Performing logout.');
+            logout(); // Only logout on 401, or specific unrecoverable errors
+        }
+        // Other errors (e.g., network, 500 from server) might not warrant immediate logout.
+        // You might just show an error message.
+    } else {
+        // Non-Axios errors (like the TypeError you had) or network issues
+        console.error('Non-Axios error or network issue:', error);
+        // Decide here: does this error also mean force logout? Usually not.
+        // If it was the TypeError, the user might actually be logged in, but the app crashed.
+        // If it's a network error, they might just be offline.
+        // For now, let's keep it to 401 only for logout.
+        // logout(); // <-- Avoid this general logout unless truly necessary
+    }
     } finally {
         setIsLoading(false);
     }
@@ -47,42 +64,47 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Fetch User Data
   const fetchUser = useCallback(async (accessTokenOverride?: string) => {
     try {
-        const accessToken = accessTokenOverride || await AsyncStorage.getItem(ACCESS_TOKEN);
-    
+        const accessToken = accessTokenOverride || await AsyncStorage.getItem('access_token');
         const response = await api.get<User>('/api/users/me/', {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+            },
         });
-      if (response.status === 200) {
-          setUser(response.data);
-          setIsAuthenticated(true);
-          console.log('User data fetched successfully.');
-          const expoPushToken = await registerForPushNotificationsAsync();
-          if (expoPushToken) {
-            await sendPushToken(expoPushToken);
-          }
-      } else {
-          console.log('Failed to fetch user data. Redirecting to login.');
-          logout();
-      }
+
+        if (response.status === 200) {
+            
+            setUser(response.data);
+            setIsAuthenticated(true);
+            console.log('User data fetched successfully. User state set.'); // Reorder this log
+            await registerForPushNotificationsAsync();
+           
+        } else {
+            console.log('Failed to fetch user data (non-200 status). Redirecting to login.');
+            logout();
+        }
     } catch (error) {
-          console.error('Error fetching user data:', error);
-          // eslint-disable-next-line import/no-named-as-default-member
-      if (axios.isAxiosError(error) && error.response && error.response.status === 401) {
-          console.log('Unauthorized when fetching user data. Token might be invalid.');
-      }
-      logout();
+        console.error('Error fetching user data:', error);
+        if (isAxiosError(error) && error.response) {
+            console.error('Axios error response status:', error.response.status);
+            console.error('Axios error response data:', JSON.stringify(error.response.data, null, 2));
+            if (error.response.status === 401) {
+                console.log('Unauthorized when fetching user data. Token might be invalid or expired.');
+            }
+        }
+        // IMPORTANT: Remove or conditionally call logout() here for now
+        // logout(); // <-- COMMENT THIS OUT TEMPORARILY TO PREVENT IMMEDIATE LOGOUT
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
-  }, [logout]);
+}, [logout]);
 
   // Login Function
   const login = useCallback(async (accessToken: string, refreshToken: string) => {
     try {
-      await AsyncStorage.setItem(ACCESS_TOKEN, accessToken);
-      await AsyncStorage.setItem(REFRESH_TOKEN, refreshToken);
+      await AsyncStorage.setItem('access_token', accessToken);
+      await AsyncStorage.setItem('refresh_token', refreshToken);
+      
+    
       await fetchUser(accessToken); // Fetch user data after login
     } catch (error) {
       console.error('Error during login:', error);
@@ -96,8 +118,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const accessToken = await AsyncStorage.getItem(ACCESS_TOKEN);
-        const refreshToken = await AsyncStorage.getItem(REFRESH_TOKEN);
+        const accessToken = await AsyncStorage.getItem('access_token');
+        const refreshToken = await AsyncStorage.getItem('refresh_token');
 
         if (!accessToken) {
           setIsAuthenticated(false);
@@ -118,7 +140,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               const response = await api.post('/token/refresh/', { refresh: refreshToken });
               if (response.status === 200) {
                 const newAccessToken = response.data.access;
-                await AsyncStorage.setItem(ACCESS_TOKEN, newAccessToken);
+                await AsyncStorage.setItem('access_token', newAccessToken);
                 await fetchUser();
                 console.log('Token refreshed successfully during initial check. Fetching user data.');
               } else {

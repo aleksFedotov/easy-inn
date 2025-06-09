@@ -12,7 +12,7 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.easyinn.mobile",
+      "package": "com.easyinn.easyinnmobile",
       "googleServicesFile": "./android/app/google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -40,6 +40,13 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "apiUrl": "http://192.168.1.133:8000",
+      "router": {},
+      "eas": {
+        "projectId": "fc9d19ca-1683-4e44-9507-5171adb2f840"
+      }
     }
   }
 }

@@ -14,12 +14,16 @@ const api = axios.create({
 api.interceptors.request.use(
      async (config) => {
         try {
-            const accessToken = await AsyncStorage.getItem(ACCESS_TOKEN);
+            const accessToken = await AsyncStorage.getItem('access_token');
+            
             if (accessToken) {
                 config.headers.Authorization = `Bearer ${accessToken}`;
+              
+            } else {
+                
             }
         } catch (error) {
-            console.error('Error getting access token from AsyncStorage:', error);
+            console.error('Error getting access token from AsyncStorage in interceptor:', error);
         }
         return config;
     },

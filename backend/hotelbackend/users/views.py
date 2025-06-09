@@ -1,10 +1,13 @@
 import logging
 from rest_framework.permissions import IsAuthenticated
-from utills.permissions import IsManager
 from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.filters import OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.views import APIView
+from rest_framework import status
+from .models import PushToken
+from firebase_admin import messaging
 
 from users.models import User
 from users.serializers import UserSerializer
@@ -63,7 +66,7 @@ class UserViewSet(viewsets.ModelViewSet):
         Get data for the current authenticated user.
         Получить данные текущего аутентифицированного пользователя.
         """
-        # request.user содержит объект текущего аутентифицированного пользователя
+      
         logger.info(f'Получение данных для пользователя {request.user.username, request.user.id}')
         serializer = self.get_serializer(request.user)
         logger.info(f'AUTHENTICATION BACKEND: {request.successful_authenticator.__class__.__name__}')
@@ -77,7 +80,7 @@ class UserViewSet(viewsets.ModelViewSet):
     
 
 
-@api_view(['GET'])  # Or whatever method you use
+@api_view(['GET'])
 def get_assigned_housekeepers_for_date(request):
     scheduled_date_str = request.query_params.get('scheduled_date')
     logger.info(f'Поиск горничных на дату {scheduled_date_str}')
@@ -91,7 +94,7 @@ def get_assigned_housekeepers_for_date(request):
    
     available_housekeepers = User.objects.filter(role=User.Role.HOUSEKEEPER)  
 
-    # 2. Get housekeepers *already* assigned to tasks on this date
+
     already_assigned_housekeepers = User.objects.filter(
         assigned_tasks__scheduled_date=scheduled_date
     ).distinct().all()
@@ -103,3 +106,56 @@ def get_assigned_housekeepers_for_date(request):
     serializer = UserSerializer(all_relevant_housekeepers, many=True)  
     return Response(serializer.data)
 
+class RegisterPushTokenView(APIView):
+    permission_classes = [IsAuthenticated] # Ensure only authenticated users can register tokens
+
+    def post(self, request, *args, **kwargs):
+        token = request.data.get('token')
+
+        if not token:
+            return Response({'detail': 'Push token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Assuming your User model has a field to store the push token
+        # For example, if you have a custom User model or a Profile model linked to User
+        # You'll need to adjust this based on your actual User/Profile model structure
+        try:
+            # Example: Store the token directly on the User model
+            # user = request.user
+            # user.expo_push_token = token # Add this field to your User model!
+            # user.save()
+
+            # OR, if you have a separate PushToken model to store multiple tokens per user
+            # from .models import UserPushToken # Create this model first
+            # UserPushToken.objects.update_or_create(user=request.user, token=token)
+
+            print(f"Received push token for user {request.user.username}: {token}")
+            # In a real app, you'd save this token to your database
+            # For now, just a print to confirm it works
+            return Response({'detail': 'Push token registered successfully.'}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            # Handle potential database errors or other issues
+            print(f"Error registering push token: {e}")
+            return Response({'detail': 'Failed to register push token.', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class SendPushNotificationView(APIView):
+    permission_classes = [IsAuthenticated]  # или IsAdminUser, если нужно ограничить
+
+    def post(self, request):
+        title = request.data.get('title')
+        body = request.data.get('body')
+        data = request.data.get('data', {})
+
+        tokens = PushToken.objects.values_list('token', flat=True)
+
+        if not tokens:
+            return Response({'detail': 'No tokens found'}, status=404)
+
+        message = messaging.MulticastMessage(
+            notification=messaging.Notification(title=title, body=body),
+            tokens=list(tokens),
+            data=data,
+        )
+
+        response = messaging.send_multicast(message)
+        return Response({'success_count': response.success_count})
