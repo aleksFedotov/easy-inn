@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
-import { ChevronDown } from 'lucide-react-native';
+import Entypo from '@expo/vector-icons/Entypo';
 import { Checklist, ChecklistProgress } from '@/lib/types';
 
 interface CheckboxProps {
@@ -69,7 +69,8 @@ const ChecklistCardList: React.FC<ChecklistCardListProps> = ({
             <TouchableOpacity style={styles.header} onPress={toggleCard} activeOpacity={0.7}>
                 <View style={styles.headerContent}>
                     <Text style={styles.title}>{checklist.name}</Text>
-                    <ChevronDown
+                    <Entypo
+                        name='chevron-down'
                         size={20}
                         color="#6b7280"
                         style={[

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { LogIn } from 'lucide-react-native'; // Expo-friendly версия иконки Lucide
+import Entypo from '@expo/vector-icons/Entypo';
 
 const AuthRequiredMessage: React.FC = () => {
   const navigation = useNavigation();
@@ -21,7 +21,7 @@ const AuthRequiredMessage: React.FC = () => {
           Пожалуйста, войдите в свой аккаунт, чтобы получить доступ к содержимому.
         </Text>
         <TouchableOpacity style={styles.button} onPress={handleLoginRedirect}>
-          <LogIn color="white" size={20} style={{ marginRight: 8 }} />
+          <Entypo name='login' color="white" size={20} style={{ marginRight: 8 }} />
           <Text style={styles.buttonText}>Войти</Text>
         </TouchableOpacity>
       </View>

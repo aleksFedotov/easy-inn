@@ -1,7 +1,7 @@
 import React, { useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft } from 'lucide-react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { useTaskDetails } from '@/hooks/housekeeping/details/useTaskDetailsData';
 import { useTaskActions } from '@/hooks/housekeeping/details/useTaskActions';
@@ -94,7 +94,7 @@ export default function CleaningTaskDetailsPage() {
                     onPress={handleBackPress}
                     activeOpacity={0.7}
                 >
-                    <ArrowLeft size={20} color="#6b7280" style={styles.backIcon} />
+                    <Ionicons name="arrow-back" size={20} color="#6b7280" style={styles.backIcon} />
                     <Text style={styles.backText}>Назад к списку задач</Text>
                 </TouchableOpacity>
             </View>

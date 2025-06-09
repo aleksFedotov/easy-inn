@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
 
 interface ProgressCircleProps {
   progress: number;
@@ -8,41 +7,14 @@ interface ProgressCircleProps {
 
 export const ProgressCircle: React.FC<ProgressCircleProps> = ({ progress }) => {
     const roundedProgress = Math.round(progress);
-    const size = 128;
-    const strokeWidth = 8;
-    const radius = (size - strokeWidth) / 2;
-    const circumference = radius * 2 * Math.PI;
-    const strokeDashoffset = circumference - (roundedProgress / 100) * circumference;
-
+    
     return (
         <View style={styles.container} accessibilityLabel={`Прогресс выполнения: ${roundedProgress}%`}>
             <View style={styles.circleContainer}>
-                <Svg width={size} height={size} style={styles.svg}>
-                    {/* Фоновый круг */}
-                    <Circle
-                        cx={size / 2}
-                        cy={size / 2}
-                        r={radius}
-                        stroke="#e5e7eb"
-                        strokeWidth={strokeWidth}
-                        fill="transparent"
-                    />
-                    {/* Прогресс-круг */}
-                    <Circle
-                        cx={size / 2}
-                        cy={size / 2}
-                        r={radius}
-                        stroke="#0070f3"
-                        strokeWidth={strokeWidth}
-                        fill="transparent"
-                        strokeDasharray={circumference}
-                        strokeDashoffset={strokeDashoffset}
-                        strokeLinecap="round"
-                        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-                    />
-                </Svg>
-                <View style={styles.textContainer}>
-                    <Text style={styles.progressText}>{roundedProgress}%</Text>
+                <View style={styles.progressCircle}>
+                    <View style={styles.textContainer}>
+                        <Text style={styles.progressText}>{roundedProgress}%</Text>
+                    </View>
                 </View>
             </View>
             <Text style={styles.labelText}>
@@ -65,11 +37,17 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    svg: {
-        position: 'absolute',
+    progressCircle: {
+        width: 128,
+        height: 128,
+        borderRadius: 64,
+        borderWidth: 8,
+        borderColor: '#e5e7eb',
+        backgroundColor: 'transparent',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     textContainer: {
-        position: 'absolute',
         justifyContent: 'center',
         alignItems: 'center',
         width: '100%',

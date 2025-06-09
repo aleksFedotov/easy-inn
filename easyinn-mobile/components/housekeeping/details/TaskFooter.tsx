@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { Play, CheckCircle, Flame } from 'lucide-react-native';
+import AntDesign from '@expo/vector-icons/AntDesign';
+import Feather from '@expo/vector-icons/Feather';
+import Octicons from '@expo/vector-icons/Octicons';
 import { CLEANICNG_STATUSES, USER_ROLES } from '@/lib/constants';
 import { CleaningTask, User } from '@/lib/types';
 
@@ -66,7 +68,7 @@ export const TaskActionsFooter: React.FC<TaskActionsFooterProps> = ({
             isLoading ? (
               <ActivityIndicator size="small" color="white" style={styles.icon} />
             ) : (
-              <Play size={16} color="white" style={styles.icon} />
+              <Feather name='play' size={16} color="white" style={styles.icon} />
             ),
             'Начать уборку'
           )}
@@ -84,7 +86,8 @@ export const TaskActionsFooter: React.FC<TaskActionsFooterProps> = ({
             isLoading ? (
               <ActivityIndicator size="small" color="white" style={styles.icon} />
             ) : (
-              <CheckCircle size={16} color="white" style={styles.icon} />
+              <AntDesign name='checkcircleo' size={16} color="white" style={styles.icon} />
+
             ),
             'Завершить уборку'
           )}
@@ -106,7 +109,7 @@ export const TaskActionsFooter: React.FC<TaskActionsFooterProps> = ({
             isLoading ? (
               <ActivityIndicator size="small" color="white" style={styles.icon} />
             ) : (
-              <Play size={16} color="white" style={styles.icon} />
+              <Feather name='play' size={16} color="white" style={styles.icon} />
             ),
             'Начать проверку'
           )}
@@ -126,7 +129,7 @@ export const TaskActionsFooter: React.FC<TaskActionsFooterProps> = ({
                 isLoading ? (
                   <ActivityIndicator size="small" color="white" style={styles.icon} />
                 ) : (
-                  <CheckCircle size={16} color="white" style={styles.icon} />
+                  <AntDesign name='checkcircleo' size={16} color="white" style={styles.icon} />
                 ),
                 'Завершить проверку'
               )}
@@ -141,11 +144,7 @@ export const TaskActionsFooter: React.FC<TaskActionsFooterProps> = ({
                 isLoading ? (
                   <ActivityIndicator size="small" color="#6b7280" style={styles.icon} />
                 ) : (
-                  <Flame 
-                    size={16} 
-                    color={task.is_rush ? '#ef4444' : '#6b7280'} 
-                    style={styles.icon} 
-                  />
+                  <Octicons name='flame' size={16} color={task.is_rush ? '#ef4444' : '#6b7280'}  style={styles.icon} />
                 ),
                 task.is_rush ? 'Снять срочность' : 'Пометить как срочную'
               )}

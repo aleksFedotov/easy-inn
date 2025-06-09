@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Flame } from 'lucide-react-native';
+import Octicons from '@expo/vector-icons/Octicons';
 import { CleaningTask } from '@/lib/types';
 
 interface TaskHeaderProps {
@@ -15,7 +15,7 @@ export const TaskHeader: React.FC<TaskHeaderProps> = ({ task }) => (
       </Text>
       {task.is_rush && (
         <View style={styles.badge}>
-          <Flame size={16} color="white" style={styles.flameIcon} />
+          <Octicons name='flame' size={16} color="white" style={styles.flameIcon} />
           <Text style={styles.badgeText}>СРОЧНО</Text>
         </View>
       )}

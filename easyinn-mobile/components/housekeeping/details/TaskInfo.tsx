@@ -1,14 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import {
-    Building,
-    FileText,
-    User as UserIcon, 
-    BookOpen,
-    Clock,
-    ClipboardList,
-    CircleDotDashed,
-} from 'lucide-react-native';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+import AntDesign from '@expo/vector-icons/AntDesign';
+import Feather from '@expo/vector-icons/Feather';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { CleaningTask } from '@/lib/types';
@@ -25,30 +19,30 @@ export const TaskInfo: React.FC<TaskInfoProps> = ({ task }) => {
         <View style={styles.container}>
             <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                    <FileText size={20} color="#374151" style={styles.headerIcon} />
+                    <AntDesign  name="filetext1" size={16} color="#374151" style={styles.headerIcon} />
                     <Text style={styles.sectionTitle}>Детали</Text>
                 </View>
                 
                 <View style={styles.detailsList}>
                     <View style={styles.detailItem}>
-                        <Building size={16} color="#6b7280" style={styles.detailIcon} />
+                        <FontAwesome name="building" size={16} color="#6b7280" style={styles.detailIcon} />
                         <Text style={styles.detailText}>
                             {task.room_number ? `Комната: ${task.room_number}` : `Зона: ${task.zone_name}`}
                         </Text>
                     </View>
                     
                     <View style={styles.detailItem}>
-                        <BookOpen size={16} color="#6b7280" style={styles.detailIcon} />
+                        <AntDesign name="book" size={16} color="#6b7280" style={styles.detailIcon} />
                         <Text style={styles.detailText}>Тип уборки: {task.cleaning_type_display}</Text>
                     </View>
                     
-                    <View style={styles.detailItem}>
-                        <UserIcon size={16} color="#6b7280" style={styles.detailIcon} />
+                    <View style={styles.detailItem}>                     
+                        <AntDesign name="user" size={16} color="#6b7280" style={styles.detailIcon} />
                         <Text style={styles.detailText}>Назначена: {task.assigned_to_name || "Не назначена"}</Text>
                     </View>
                     
                     <View style={styles.detailItem}>
-                        <Clock size={16} color="#6b7280" style={styles.detailIcon} />
+                        <Feather name="clock" size={16} color="#6b7280" style={styles.detailIcon} />
                         <Text style={styles.detailText}>
                             {task.due_time
                                 ? `Время: ${format(new Date(task.due_time), 'HH:mm', { locale: ru })}`
@@ -57,7 +51,7 @@ export const TaskInfo: React.FC<TaskInfoProps> = ({ task }) => {
                     </View>
                     
                     <View style={styles.detailItem}>
-                        <ClipboardList size={16} color="#6b7280" style={[styles.detailIcon, styles.alignTop]} />
+                        <Feather name="clipboard" size={16} color="#6b7280" style={styles.detailIcon} />
                         <Text style={[styles.detailText, styles.flexText]}>
                             Описание: {task.notes || "Нет описания"}
                         </Text>
@@ -67,7 +61,7 @@ export const TaskInfo: React.FC<TaskInfoProps> = ({ task }) => {
 
             <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                    <CircleDotDashed size={20} color="#374151" style={styles.headerIcon} />
+                    <AntDesign  name="checkcircleo" size={16} color="#374151" style={styles.detailIcon} />
                     <Text style={styles.sectionTitle}>Статус</Text>
                 </View>
                 
