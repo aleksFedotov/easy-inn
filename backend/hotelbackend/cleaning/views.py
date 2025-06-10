@@ -386,8 +386,8 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                     frontdesk_tokens_qs = PushToken.objects.filter(
                         user__role = User.Role.FRONT_DESK
                     ).values_list('token', flat=True)
-
                     tokens_to_notify = list(frontdesk_tokens_qs)
+                    logger.debug(f"Front desk tokes {tokens_to_notify}")
 
                     if tokens_to_notify:
                         title = "Уборка начата"

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from users.models import User
+from users.models import User,PushToken
 # from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 
@@ -93,6 +93,21 @@ class UserSerializer(serializers.ModelSerializer):
         # Возвращаем обновленный экземпляр пользователя.
         return user
     
-    
+class PushTokenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PushToken
+        fields = (
+            'id', 
+            'token', 
+            'user', 
+            'created_at', 
+            'last_registered_at', 
+            'platform'
+        )
 
-
+        read_only_fields = (
+            'id',
+            'user', 
+            'created_at', 
+            'last_registered_at'
+        ) 

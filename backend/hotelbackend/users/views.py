@@ -9,9 +9,10 @@ from rest_framework import status
 from .models import PushToken
 from firebase_admin import messaging
 import httpx
+from django.db import transaction
 
 from users.models import User
-from users.serializers import UserSerializer
+from users.serializers import UserSerializer, PushTokenSerializer
 from rest_framework.decorators import action, api_view
 from django.utils import timezone
 
@@ -131,41 +132,59 @@ def get_assigned_housekeepers_for_date(request):
 
 
 class RegisterPushTokenView(APIView):
-    permission_classes = [IsAuthenticated] # Ensure only authenticated users can register tokens
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         token = request.data.get('token')
+        platform = request.data.get('platform') # Получаем новое поле 'platform'
 
         if not token:
-            return Response({'detail': 'Push token is required.'}, status=status.HTTP_400_BAD_REQUEST)
-
+            return Response({"detail": "Push token is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+       
         try:
-            # Используем update_or_create для сохранения токена
-            # Это обновит существующий токен, если он уже есть для пользователя, или создаст новый
-            push_token, created = PushToken.objects.update_or_create(
-                user=request.user,
-                token=token # В случае обновления, токен будет перезаписан этим значением
-                            # Если PushToken.token уникален и вы хотите разрешить
-                            # несколько токенов на пользователя, но каждый токен уникален,
-                            # тогда просто создайте: PushToken.objects.create(user=request.user, token=token)
-                            # или ищите по токену: PushToken.objects.update_or_create(token=token, defaults={'user': request.user})
-                            # В вашей модели PushToken.token - unique=True, поэтому update_or_create
-                            # по полю 'token' является правильным подходом для обеспечения уникальности.
-            )
-            
-            # Если вы хотите, чтобы пользователь имел только один токен (перезаписывать старый при регистрации нового):
-            # PushToken.objects.filter(user=request.user).exclude(token=token).delete() # Удалить все старые токены, кроме текущего
-            # push_token, created = PushToken.objects.get_or_create(user=request.user)
-            # push_token.token = token
-            # push_token.save()
+            with transaction.atomic(): 
+           
+                push_token_obj, created = PushToken.objects.get_or_create(
+                    token=token,
+                    defaults={
+                        'user': request.user,
+                        'platform': platform, 
+                        'last_registered_at': timezone.now() 
+                    }
+                )
 
-            print(f"Received and saved push token for user {request.user.username}: {token}")
-            
-            return Response({'detail': 'Push token registered successfully.'}, status=status.HTTP_200_OK)
+                if not created:
+                    if push_token_obj.user != request.user:
+                        logger.warning(
+                            f"Push token {token} previously registered for user {push_token_obj.user.username} "
+                            f"is now being registered for {request.user.username}. Reassigning."
+                        )
+                        push_token_obj.user = request.user
+                    
+                   
+                    if push_token_obj.platform != platform:
+                        push_token_obj.platform = platform
+                        
+                   
+                    push_token_obj.last_registered_at = timezone.now()
+                    
+                    
+                    push_token_obj.save(update_fields=['user', 'platform', 'last_registered_at'])
+                    logger.info(f"Push token {token} updated for user {request.user.username}.")
+                else:
+                    logger.info(f"New push token {token} registered for user {request.user.username}.")
+
+        
+            serializer = PushTokenSerializer(push_token_obj)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:
-            print(f"Error registering push token: {e}")
-            return Response({'detail': 'Failed to register push token.', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(f"Error registering push token for user {request.user.username}: {e}", exc_info=True)
+            return Response(
+                {"detail": "Failed to register push token.", "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class SendPushNotificationView(APIView):
     permission_classes = [IsAuthenticated]

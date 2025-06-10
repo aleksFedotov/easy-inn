@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.conf import settings
 
 # Create your models here.
 
@@ -54,15 +55,42 @@ class User(AbstractUser):
 # Модель для хранения push-токенов, связанных с пользователями
 
 class PushToken(models.Model):
-    # Foreign key to the User model, establishing a many-to-one relationship
-    # Внешний ключ к модели User, устанавливающий отношение многие-к-одному
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='push_tokens')
-    # Token field to store the push token, must be unique
-    # Поле токена для хранения push-токена, должно быть уникальным
-    token = models.CharField(max_length=255, unique=True)
-    # Timestamp for when the token was created
-    # Временная метка для создания токена
-    created_at = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='push_tokens',
+        verbose_name="Пользователь"
+    )
+    
+    
+    token = models.CharField(
+        max_length=255, 
+        unique=True,
+        verbose_name="Push-токен"
+    )
+    
+    
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Дата создания"
+    )
+    
+    
+    last_registered_at = models.DateTimeField(
+        auto_now=True, 
+        verbose_name="Последняя регистрация"
+    )
 
+    platform = models.CharField(
+        max_length=20,
+        blank=True,  
+        null=True,   
+        verbose_name="Платформа"
+    )
+
+    class Meta:
+        verbose_name = "Push-токен"
+        verbose_name_plural = "Push-токены"
+    
     def __str__(self):
-        return f"{self.user.username} - {self.token[:10]}"
+        return f"{self.user.username} - {self.token[:10]}... ({self.platform or 'N/A'})"
