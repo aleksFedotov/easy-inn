@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from rest_framework import status
 from .models import PushToken
 from firebase_admin import messaging
+import httpx
 
 from users.models import User
 from users.serializers import UserSerializer
@@ -17,6 +18,28 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 # --- User ViewSet ---
+
+
+
+def send_expo_push_message(token: str, title: str, body: str, data: dict = None):
+    if not token.startswith('ExponentPushToken'):
+        print(f"Invalid Expo token: {token}")
+        return
+
+    message = {
+        'to': token,
+        'title': title,
+        'body': body,
+        'data': data or {},
+        'sound': 'default',
+    }
+
+    try:
+        response = httpx.post('https://exp.host/--/api/v2/push/send', json=message)
+        response.raise_for_status()
+        print(f"Expo push sent: {response.json()}")
+    except Exception as e:
+        print(f"Error sending push: {e}")
 
 class UserViewSet(viewsets.ModelViewSet):
     """
@@ -106,6 +129,7 @@ def get_assigned_housekeepers_for_date(request):
     serializer = UserSerializer(all_relevant_housekeepers, many=True)  
     return Response(serializer.data)
 
+
 class RegisterPushTokenView(APIView):
     permission_classes = [IsAuthenticated] # Ensure only authenticated users can register tokens
 
@@ -115,31 +139,36 @@ class RegisterPushTokenView(APIView):
         if not token:
             return Response({'detail': 'Push token is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Assuming your User model has a field to store the push token
-        # For example, if you have a custom User model or a Profile model linked to User
-        # You'll need to adjust this based on your actual User/Profile model structure
         try:
-            # Example: Store the token directly on the User model
-            # user = request.user
-            # user.expo_push_token = token # Add this field to your User model!
-            # user.save()
+            # Используем update_or_create для сохранения токена
+            # Это обновит существующий токен, если он уже есть для пользователя, или создаст новый
+            push_token, created = PushToken.objects.update_or_create(
+                user=request.user,
+                token=token # В случае обновления, токен будет перезаписан этим значением
+                            # Если PushToken.token уникален и вы хотите разрешить
+                            # несколько токенов на пользователя, но каждый токен уникален,
+                            # тогда просто создайте: PushToken.objects.create(user=request.user, token=token)
+                            # или ищите по токену: PushToken.objects.update_or_create(token=token, defaults={'user': request.user})
+                            # В вашей модели PushToken.token - unique=True, поэтому update_or_create
+                            # по полю 'token' является правильным подходом для обеспечения уникальности.
+            )
+            
+            # Если вы хотите, чтобы пользователь имел только один токен (перезаписывать старый при регистрации нового):
+            # PushToken.objects.filter(user=request.user).exclude(token=token).delete() # Удалить все старые токены, кроме текущего
+            # push_token, created = PushToken.objects.get_or_create(user=request.user)
+            # push_token.token = token
+            # push_token.save()
 
-            # OR, if you have a separate PushToken model to store multiple tokens per user
-            # from .models import UserPushToken # Create this model first
-            # UserPushToken.objects.update_or_create(user=request.user, token=token)
-
-            print(f"Received push token for user {request.user.username}: {token}")
-            # In a real app, you'd save this token to your database
-            # For now, just a print to confirm it works
+            print(f"Received and saved push token for user {request.user.username}: {token}")
+            
             return Response({'detail': 'Push token registered successfully.'}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            # Handle potential database errors or other issues
             print(f"Error registering push token: {e}")
             return Response({'detail': 'Failed to register push token.', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class SendPushNotificationView(APIView):
-    permission_classes = [IsAuthenticated]  # или IsAdminUser, если нужно ограничить
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         title = request.data.get('title')
@@ -151,11 +180,7 @@ class SendPushNotificationView(APIView):
         if not tokens:
             return Response({'detail': 'No tokens found'}, status=404)
 
-        message = messaging.MulticastMessage(
-            notification=messaging.Notification(title=title, body=body),
-            tokens=list(tokens),
-            data=data,
-        )
+        for token in tokens:
+            send_expo_push_message(token, title, body, data)
 
-        response = messaging.send_multicast(message)
-        return Response({'success_count': response.success_count})
+        return Response({'detail': f'Sent to {len(tokens)} tokens'})

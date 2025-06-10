@@ -64,5 +64,5 @@ class PushToken(models.Model):
     # Временная метка для создания токена
     created_at = models.DateTimeField(auto_now_add=True)
 
-def __str__(self):
-    return f"{self.user.username} - {self.token[:10]}"
+    def __str__(self):
+        return f"{self.user.username} - {self.token[:10]}"

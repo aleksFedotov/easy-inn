@@ -15,7 +15,8 @@ from django.utils import timezone
 from utills.calculateAverageDuration import calculate_average_duration
 from .cleaningTypeChoices import CleaningTypeChoices 
 from django.db.models import Q
-
+from utills.notifications import send_notifications_in_thread
+from users.models import User, PushToken
 from hotel.models import Zone, Room
 
 
@@ -75,8 +76,125 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
 
     
     def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        self.perform_create(serializer)
+        task = serializer.instance 
 
-        return super().create(request, *args, **kwargs)
+        logger.info(f"Cleaning task {task.id} created by user {request.user.username}.")
+
+        if task.assigned_to:
+            logger.info(f"Task {task.id} was created and immediately assigned to {task.assigned_to.username}. Sending notification.")
+            try:
+                
+                assigned_housekeeper_tokens_qs = PushToken.objects.filter(
+                    user=task.assigned_to
+                ).values_list('token', flat=True)
+
+                tokens_to_notify = list(assigned_housekeeper_tokens_qs)
+
+                if tokens_to_notify:
+                    title = "Новая задача назначена!"
+                    task_identifier = ""
+                    if task.room:
+                        task_identifier = f"Комната {task.room.number}"
+                    elif task.zone:
+                        task_identifier = f"Зона {task.zone.name}"
+                    else:
+                        task_identifier = "Новая задача" 
+
+                    body = f"{task_identifier}: Вам назначена новая задача на уборку."
+                    
+                    data = {
+                        "notification_type": "new_task_assigned", # Явный тип уведомления для клиента
+                        "task_id": str(task.id),
+                        "room_number": task.room.number if task.room else None,
+                        "zone_name": task.zone.name if task.zone else None,
+                        "cleaning_type": task.cleaning_type,
+                        "scheduled_date": str(task.scheduled_date),
+                        "assigned_housekeeper_id": str(task.assigned_to.id),
+                    }
+
+                    send_notifications_in_thread(
+                        tokens_to_notify,
+                        title,
+                        body,
+                        data
+                    )
+                    logger.info(f"Notification sent for new assigned task {task.id} to {task.assigned_to.username}.")
+                else:
+                    logger.warning(f"No push tokens found for assigned housekeeper {task.assigned_to.username} for new task {task.id}.")
+
+            except Exception as e:
+                logger.error(f"Error sending notification for new task {task.id} assigned to {task.assigned_to.username}: {e}", exc_info=True)
+        else:
+            logger.info(f"Task {task.id} created but not immediately assigned. No specific housekeeper notification sent.")
+
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    
+    def update(self, request, *args, **kwargs):
+        task = self.get_object() 
+        old_assigned_to = task.assigned_to 
+
+       
+        serializer = self.get_serializer(task, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        self.perform_update(serializer)
+        task = serializer.instance 
+
+        logger.info(f"Cleaning task {task.id} fully updated by user {request.user.username}.")
+
+        if task.assigned_to and task.assigned_to != old_assigned_to:
+            logger.info(f"Task {task.id} was assigned/reassigned to {task.assigned_to.username} during full update. Sending notification.")
+            try:
+                
+                assigned_housekeeper_tokens_qs = PushToken.objects.filter(
+                    user=task.assigned_to
+                ).values_list('token', flat=True)
+
+                tokens_to_notify = list(assigned_housekeeper_tokens_qs)
+
+                if tokens_to_notify:
+                    title = "Новая задача назначена!"
+                    task_identifier = ""
+                    if task.room:
+                        task_identifier = f"Комната {task.room.number}"
+                    elif task.zone:
+                        task_identifier = f"Зона {task.zone.name}"
+                    else:
+                        task_identifier = "Новая задача" 
+
+                    body = f"{task_identifier}: Вам назначена новая задача на уборку."
+                    
+                    data = {
+                        "notification_type": "single_task_assigned", 
+                        "task_id": str(task.id),
+                        "room_number": task.room.number if task.room else None,
+                        "zone_name": task.zone.name if task.zone else None,
+                        "cleaning_type": task.cleaning_type,
+                        "scheduled_date": str(task.scheduled_date),
+                        "assigned_housekeeper_id": str(task.assigned_to.id),
+                    }
+
+                    send_notifications_in_thread(
+                        tokens_to_notify,
+                        title,
+                        body,
+                        data
+                    )
+                    logger.info(f"Notification sent for assigned task {task.id} to {task.assigned_to.username} during full update.")
+                else:
+                    logger.warning(f"No push tokens found for assigned housekeeper {task.assigned_to.username} for task {task.id} during full update.")
+
+            except Exception as e:
+                logger.error(f"Error sending notification for task {task.id} assigned to {task.assigned_to.username} during full update: {e}", exc_info=True)
+        else:
+            logger.info(f"Task {task.id} fully updated, but 'assigned_to' field was not changed or is still unassigned. No specific housekeeper notification sent.")
+       
+        return Response(serializer.data)
 
     def get_object(self):
         """
@@ -176,7 +294,7 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
             # For listing and retrieving tasks:
             # - Authentication is required.
             # - Allowed for Managers/Admins OR Housekeepers.
-            #   get_queryset() already filters the list/details for housekeepers.
+            #   get_queryset() already filters the list/details for frontdesk.
             # Для просмотра списка и деталей задач:
             # - Требуется аутентификация.
             # - Разрешено для управляющих/администраторов ИЛИ для горничных.
@@ -247,7 +365,8 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         Может быть вызвано назначенным горничной, менеджером или администратором.
         Задача должна быть в статусе UNASSIGNED или ASSIGNED.
         """
-        logger.info(f"User {request.user} attempting to start task {pk}.")
+        user = request.user
+        logger.info(f"User {user} attempting to start task {pk}.")
         task = self.get_object() # Get the specific task object / Получаем конкретный объект задачи
 
         # Check if the task can be started from the current status
@@ -260,12 +379,48 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
 
             if task.room:
                 room = task.room
-                room.status = "in_progress"  
+                room.status = Room.Status.IN_PROGRESS  
                 room.save(update_fields=['status']) 
                 logger.info(f"Room {room.number} status changed to 'in_progress'.")
+                try:
+                    frontdesk_tokens_qs = PushToken.objects.filter(
+                        user__role = User.Role.FRONT_DESK
+                    ).values_list('token', flat=True)
 
+                    tokens_to_notify = list(frontdesk_tokens_qs)
+
+                    if tokens_to_notify:
+                        title = "Уборка начата"
+                        body = f"Уборка номера {room.number} начата горничной {user.first_name} {user.last_name}"
+                        data = {
+                            "task_id": str(task.id),
+                            "room_number": room.number,
+                            "cleaning_type": task.cleaning_type,
+                            "notification_type": "cleaning_started",
+                        
+                        }
+
+                        send_notifications_in_thread(
+                            tokens_to_notify,
+                            title,
+                            body,
+                            data
+                        )
+                        logger.info(f"Notification sent for starting task {task.id} for room {room.number}")
+                    else:
+                        logger.warning(f"No push tokens found for FRONT_DESK users to send starting notification for task {task.id}.")
+                except Exception as e:
+                        logger.error(f"Error sending starting notification for task {task.id}: {e}", exc_info=True)
+
+                logger.info(f"Room {room.number} status changed to 'waiting_inspection'.")
+            if task.zone:
+                zone = task.zone
+                zone.status = Zone.Status.IN_PROGRESS  
+                zone.save(update_fields=['status']) 
+                logger.info(f"Zone {zone.name} status changed to 'in_progress'.")
+            logger.info(f"Task {task.pk} started successfully by user {user}.")
             serializer = self.get_serializer(task) # Serialize the updated object / Сериализуем обновленный объект
-            logger.info(f"Task {task.pk} started successfully by user {request.user}.")
+        
             return Response(serializer.data, status=status.HTTP_200_OK) # Return updated data / Возвращаем обновленные данные
 
         # If the status does not allow starting the task
@@ -309,7 +464,36 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                     room.status = Room.Status.OCCUPIED 
                     logger.info(f"Room {room.number} status changed to 'occupied'.")
                 else:
-                    room.status = Room.Status.WAITING_INSPECTION  
+                    room.status = Room.Status.WAITING_INSPECTION 
+                    try:
+                        frontdesk_tokens_qs = PushToken.objects.filter(
+                            user__role = User.Role.FRONT_DESK
+                        ).values_list('token', flat=True)
+
+                        tokens_to_notify = list(frontdesk_tokens_qs)
+
+                        if tokens_to_notify:
+                            title = "Уборка завершена"
+                            body = f"Уборка номера {room.number} завершена. Требуется проверка."
+                            data = {
+                                "task_id": str(task.id),
+                                "room_number": room.number,
+                                "cleaning_type": task.cleaning_type,
+                                "notification_type": "cleaning_completed_for_inspection",
+                            
+                            }
+
+                            send_notifications_in_thread(
+                                tokens_to_notify,
+                                title,
+                                body,
+                                data
+                            )
+                            logger.info(f"Notification sent for completed task {task.id} for room {room.number} (awaiting inspection).")
+                        else:
+                            logger.warning(f"No push tokens found for FRONT_DESK users to send completion notification for task {task.id}.")
+                    except Exception as e:
+                            logger.error(f"Error sending completion notification for task {task.id}: {e}", exc_info=True)
                     logger.info(f"Room {room.number} status changed to 'waiting_inspection'.")
                 room.save(update_fields=['status'])
             if task.zone:
@@ -354,8 +538,6 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         serializer = self.get_serializer(task)      
         logger.info(f"Inspection started for task {task.pk} by user {request.user}.")
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-
 
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated, IsManagerOrFrontDesk])
     def check(self, request, pk=None):
@@ -564,50 +746,140 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
 
     @action(detail=False, methods=['post'])
     def assign_multiple(self, request):
-        """        Кастомное действие для назначения нескольких задач по уборке горничной.
-        Доступно только для менеджеров и сотрудников службы приема.     
-        Custom action to assign multiple cleaning tasks to a housekeeper.
-        Available only for managers and front desk staff.
+        """
+        Кастомное действие для назначения нескольких задач по уборке горничной.
+        Доступно только для менеджеров и сотрудников службы приема.
         """
         user = request.user
         serializer = MultipleTaskAssignmentSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             task_ids = serializer.validated_data['task_ids']
             housekeeper_id = serializer.validated_data['housekeeper_id']
-            scheduled_date = serializer.validated_data['scheduled_date'];
+            scheduled_date = serializer.validated_data['scheduled_date']
 
-            #  Получаем задачи, которые нужно назначить
-            tasks = CleaningTask.objects.filter(id__in=task_ids, scheduled_date=scheduled_date)
-            
+            try:
+                
+                assigned_housekeeper = User.objects.get(id=housekeeper_id, role=User.Role.HOUSEKEEPER)
+            except User.DoesNotExist:
+                return Response({"detail": "Горничная не найдена или не является горничной."},
+                                status=status.HTTP_400_BAD_REQUEST)
 
-            #  Проверяем, что все задачи существуют и соответствуют дате
-            if len(tasks) != len(task_ids):
+           
+            tasks_to_assign = CleaningTask.objects.filter(id__in=task_ids, scheduled_date=scheduled_date)
+
+           
+            if len(tasks_to_assign) != len(task_ids):
                 return Response({"detail": "Одна или несколько задач не найдены или не соответствуют указанной дате."},
                                 status=status.HTTP_400_BAD_REQUEST)
-    
-            #  Обновляем горничную для каждой задачи
-            for task in tasks:
-                task.assigned_to_id = housekeeper_id
-                task.assigned_by = user
-                task.assigned_at = timezone.now()
-                task.status = Room.Status.ASSIGNED
-                task.save()
 
-            return Response({"detail": "Задачи успешно назначены."}, status=status.HTTP_200_OK)
+            task_num_assigned = 0
+           
+            with transaction.atomic(): 
+                for task in tasks_to_assign:
+                    
+                    
+                    task.assigned_to = assigned_housekeeper
+                    task.assigned_by = user
+                    task.assigned_at = timezone.now()
+                    
+
+                    task.status = CleaningTask.Status.ASSIGNED 
+                    task.save()
+                    task_num_assigned += 1
+                
+                logger.info(f"{task_num_assigned} tasks assigned to housekeeper {assigned_housekeeper.username} for {scheduled_date}.")
+
+                
+                housekeepers_tokens_qs = PushToken.objects.filter(
+                    user=assigned_housekeeper
+                ).values_list('token', flat=True)
+                
+                tokens_to_notify = list(housekeepers_tokens_qs)
+
+                if tokens_to_notify:
+                    title = "Задачи назначены"
+                    body = f"Вам назначили {task_num_assigned} новых задач на {scheduled_date.strftime('%d.%m.%Y')}" # Форматируем дату
+
+                    data = {
+                        "notification_type": "multiple_tasks_assigned",
+                        "task_ids": list(task_ids),
+                        "assigned_housekeeper_id": str(housekeeper_id),
+                        "scheduled_date": str(scheduled_date), 
+                        "num_tasks": task_num_assigned,
+                    }
+
+                    send_notifications_in_thread(
+                        tokens_to_notify,
+                        title,
+                        body,
+                        data
+                    )
+                    logger.info(f"Notifications sent for {task_num_assigned} tasks assigned to housekeeper {assigned_housekeeper.username}.")
+                else:
+                    logger.warning(f"No active push tokens found for housekeeper {assigned_housekeeper.username} (ID: {housekeeper_id}) to send assignment notification.")
+
+            return Response({"detail": f"Задачи успешно назначены: {task_num_assigned}."}, status=status.HTTP_200_OK)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-    @action(detail=True,methods=['patch'], permission_classes=[IsAuthenticated, IsManagerOrFrontDesk])
-    def set_rush(self,request, pk=None):
+    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated, IsManagerOrFrontDesk])
+    def set_rush(self, request, pk=None):
         task = self.get_object()
         is_rush = request.data.get('is_rush')
+
         if is_rush is None:
             return Response({"detail": "is_rush field is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        old_is_rush = task.is_rush
         task.is_rush = bool(is_rush)
         task.save()
+
+        if task.is_rush and not old_is_rush:
+            logger.info(f"Task {task.id} set to RUSH by {request.user.username}. Sending notification to assigned housekeeper.")
+
+            if task.assigned_to and task.assigned_to.role == User.Role.HOUSEKEEPER:
+                try:
+                    # ИЗМЕНЕНИЕ: Убран фильтр is_active, так как такого поля нет в вашей модели PushToken
+                    assigned_housekeeper_tokens_qs = PushToken.objects.filter(
+                        user=task.assigned_to
+                    ).values_list('token', flat=True) #
+
+                    tokens_to_notify = list(assigned_housekeeper_tokens_qs)
+
+                    if tokens_to_notify:
+                        title = "СРОЧНАЯ ЗАДАЧА!"
+                        body = (
+                            f"Комната {task.room.number} теперь срочная! Статус: {task.get_status_display()}."
+                            if task.room
+                            else f"Зона {task.zone.name} теперь срочная! Статус: {task.get_status_display()}."
+                        )
+                        data = {
+                            "task_id": str(task.id),
+                            "room_number": task.room.number if task.room else None,
+                            "zone_name": task.zone.name if task.zone else None,
+                            "is_rush": True
+                        }
+
+                        send_notifications_in_thread(
+                            tokens_to_notify,
+                            title,
+                            body,
+                            data
+                        )
+                        logger.info(f"Rush notification sent to assigned housekeeper for task {task.id}.")
+                    else:
+                        logger.warning(f"No push tokens found for assigned housekeeper {task.assigned_to.username} for task {task.id}.")
+                except ImportError:
+                    logger.error("PushToken model not found. Cannot send push notifications for rush tasks. "
+                                 "Please ensure 'from users.models import PushToken' is correct or adjust token retrieval logic.")
+                except Exception as e:
+                    logger.error(f"Error sending rush notification for task {task.id}: {e}", exc_info=True)
+            else:
+                logger.info(f"Task {task.id} has no assigned housekeeper or assigned user is not a housekeeper. No rush notification sent.")
+
         serializer = self.get_serializer(task)
         return Response(serializer.data)
-    
+       
     @action(detail=False, methods=['get'],permission_classes=[IsAuthenticated, IsManagerOrFrontDesk])
     def ready_for_check(self, request):
         """
