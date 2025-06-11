@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
+  RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -45,6 +46,7 @@ const MyCleaningTasksScreen: React.FC = () => {
   );
 
   const { checklistSummary, sortedChecklistSummaryKeys } = useChecklistSummary(allTasks);
+
 
   useFocusEffect(
     useCallback(() => {
@@ -94,7 +96,13 @@ const MyCleaningTasksScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+     <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+                <RefreshControl refreshing={loading} onRefresh={refetch} />
+        }
+      >
         <View style={styles.content}>
           <Text style={styles.title}>Мои задачи</Text>
 

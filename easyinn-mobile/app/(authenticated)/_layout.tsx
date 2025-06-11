@@ -5,18 +5,12 @@ import { useRouter, usePathname, Redirect } from 'expo-router';
 import { Text, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { DrawerContentScrollView, DrawerItem, type DrawerContentComponentProps } from '@react-navigation/drawer';
+import { User } from '@/lib/types';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// --- Типы ---
-// Определяем возможные роли для строгой типизации
-type UserRole = 'manager' | 'frontdesk' | 'housekeeper';
 
-// Тип для объекта пользователя, который приходит из контекста
-interface User {
-  role: UserRole;
-  // ... другие поля пользователя
-}
+type UserRole = 'manager' | 'front-desk'  | 'housekeeper';
 
-// Тип для нашего контекста аутентификации
 interface AuthContextType {
   user: User | null;
   logout: () => void;
@@ -24,121 +18,131 @@ interface AuthContextType {
   isLoading: boolean;
 }
 
-// Используем 'as const', чтобы TypeScript понимал ключи как конкретные строки, а не просто 'string'
 const routePermissions: Record<string, readonly UserRole[]> = {
-  'dashboard': ['frontdesk', 'manager'],
-  'housekeeping/index': ['frontdesk', 'manager'],
+  'dashboard': ['front-desk' , 'manager'],
+  'housekeeping/index': ['front-desk' , 'manager'],
   'my-cleaning-task': ['housekeeper'],
-  'ready-for-check': ['frontdesk', 'manager'],
+  'ready-for-check': ['front-desk' , 'manager'],
 } as const;
 
-// Автоматически создаем тип для всех возможных маршрутов на основе ключей routePermissions
 type AppRoute = keyof typeof routePermissions;
 
-// Тип для одного пункта меню
 interface MenuItem {
-    id: string;
-    name: string;
-    routeName: AppRoute;
-    roles: readonly UserRole[];
+  id: string;
+  name: string;
+  routeName: AppRoute;
+  roles: readonly UserRole[];
 }
 
-// --- Данные меню (уже с типами) ---
 const menuItems: MenuItem[] = [
-    { id: 'dashboard', name: 'Главная', routeName: 'dashboard', roles: routePermissions.dashboard },
-    { id: 'my-cleaning-task', name: 'Мои задачи', routeName: 'my-cleaning-task', roles: routePermissions['my-cleaning-task'] },
-    { id: 'ready-for-check', name: 'Готовы к проверке', routeName: 'ready-for-check', roles: routePermissions['ready-for-check'] },
+  { id: 'dashboard', name: 'Главная', routeName: 'dashboard', roles: routePermissions.dashboard },
+  { id: 'my-cleaning-task', name: 'Мои задачи', routeName: 'my-cleaning-task', roles: routePermissions['my-cleaning-task'] },
+  { id: 'ready-for-check', name: 'Готовы к проверке', routeName: 'ready-for-check', roles: routePermissions['ready-for-check'] },
 ];
   
-
-
-// --- Кастомный компонент для содержимого меню (типизированный) ---
 function CustomDrawerContent(props: DrawerContentComponentProps) {
-  // Применяем наш тип к результату хука useAuth
   const { user, logout } = useAuth() as AuthContextType;
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   if (!user) return null;
 
   const visibleMenuItems = menuItems.filter(item => item.roles.includes(user.role));
-  
 
   return (
-    <DrawerContentScrollView {...props}>
-      {visibleMenuItems.map((item) => (
-        <DrawerItem
-          key={item.id}
-          label={item.name}
-          onPress={() => {
-            router.navigate(item.routeName);
-          }}
-        />
-      ))}
-      <DrawerItem
-        label="Выйти"
-        onPress={logout}
-        labelStyle={styles.logoutLabel}
-        style={styles.logoutItem}
-      />
-    </DrawerContentScrollView>
+      <View style={{ flex: 1 , paddingBottom: insets.bottom}}>
+        <DrawerContentScrollView {...props} style={{ flex: 1 }}> 
+          {visibleMenuItems.map((item) => (
+            <DrawerItem
+              key={item.id}
+              label={item.name}
+              onPress={() => {
+                router.navigate(item.routeName);
+              }}
+            />
+          ))}
+        </DrawerContentScrollView>
+
+        <View style={styles.bottomDrawerSection}>
+          <DrawerItem
+            label="Выйти"
+            onPress={logout}
+            labelStyle={styles.logoutLabel}
+            style={styles.logoutItem}
+          />
+        </View>
+      </View>
   );
 }
 
-// --- Основной компонент Layout (типизированный) ---
+
 const AuthenticatedLayout: FC = () => {
-  const { isAuthenticated, isLoading, user } = useAuth() as AuthContextType;
-  const router = useRouter();
-  const pathname = usePathname();
+   const { isAuthenticated, isLoading, user } = useAuth() as AuthContextType;
+   const router = useRouter();
+   const pathname = usePathname();
 
-  useEffect(() => {
-    if (isLoading || !isAuthenticated || !user) {
-      return;
-    }
-    const currentRoute = pathname.substring(1).split('/')[0] as AppRoute;
-    if (!currentRoute) return;
+   useEffect(() => {
+     if (isLoading || !isAuthenticated || !user) {
+        return;
+     }
+     const currentRoute = pathname.substring(1).split('/')[0] as AppRoute;
+     if (!currentRoute) return;
 
-    // Проверяем, что ключ существует в объекте прав
-    if (Object.keys(routePermissions).includes(currentRoute)) {
-        const allowedRoles = routePermissions[currentRoute];
-        if (allowedRoles && !allowedRoles.includes(user.role)) {
-            router.replace(user.role === 'housekeeper' ? '/my-cleaning-task' : '/dashboard');
-        }
-    }
-  }, [pathname, isLoading, isAuthenticated, user, router]);
 
-  if (isLoading) {
-    return <View style={styles.loading}><Text>Загрузка...</Text></View>;
-  }
+     if (Object.keys(routePermissions).includes(currentRoute)) {
+          const allowedRoles = routePermissions[currentRoute];
+          if (allowedRoles && !allowedRoles.includes(user.role)) {
+               router.replace(user.role === 'housekeeper' ? '/my-cleaning-task' : '/dashboard');
+          }
+     }
+   }, [pathname, isLoading, isAuthenticated, user, router]);
 
-  if (!isAuthenticated) {
-    return <Redirect href="/login" />;
-  }
+   if (isLoading) {
+     return <View style={styles.loading}><Text>Загрузка...</Text></View>;
+   }
 
-  return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <Drawer drawerContent={(props) => <CustomDrawerContent {...props} />}>
-        {/* Объявляем все экраны, чтобы Expo Router мог корректно настраивать заголовки */}
-        <Drawer.Screen name="dashboard" options={{ title: 'Главная' }} />
-        <Drawer.Screen name="my-cleaning-task" options={{ title: 'Мои задачи' }} />
-        <Drawer.Screen name="ready-for-check" options={{ title: 'Готовы к проверке' }} />
-        {/* Скрываем экран для housekeeper, так как он не должен быть доступен напрямую */}
-        <Drawer.Screen name="housekeeping/[id]" options={{ drawerItemStyle: { display: 'none' } }} />
-      </Drawer>
-    </GestureHandlerRootView>
-  );
+   if (!isAuthenticated) {
+     return <Redirect href="/" />;
+   }
+
+   return (
+     <GestureHandlerRootView style={{ flex: 1 }}>
+        <Drawer drawerContent={(props) => <CustomDrawerContent {...props} />}>
+          <Drawer.Screen name="dashboard" options={{ title: 'Главная' }} />
+          <Drawer.Screen name="my-cleaning-task" options={{ title: 'Мои задачи' }} />
+          <Drawer.Screen name="ready-for-check" options={{ title: 'Готовы к проверке' }} />
+          <Drawer.Screen 
+            name="housekeeping/[id]"      
+            options={{ 
+              drawerItemStyle: { display: 'none' },
+              title: '',
+              headerShown:false
+              
+              }} />
+        </Drawer>
+     </GestureHandlerRootView>
+   );
 };
 
 const styles = StyleSheet.create({
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  logoutItem: { borderTopWidth: 1, borderTopColor: '#ccc', marginTop: 10 },
-  logoutLabel: { color: '#d00', fontWeight: 'bold' },
-  settingsHeader: {
-    color: '#888',
-    marginTop: 15,
-    marginBottom: 5,
-    marginLeft: 16,
-    fontWeight: 'bold',
-  }
+   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+   logoutItem: { borderTopWidth: 1, borderTopColor: '#ccc', marginTop: 10 },
+   logoutLabel: { color: '#888', fontWeight: 'bold' },
+  bottomDrawerSection: {
+    marginBottom: 10, 
+    paddingHorizontal: 16,
+  },
+   settingsHeader: {
+     color: '#888',
+     marginTop: 15,
+     marginBottom: 5,
+     marginLeft: 16,
+     fontWeight: 'bold',
+   },
+ container: {
+    flex: 1,
+    
+  },
 });
 
 export default AuthenticatedLayout;

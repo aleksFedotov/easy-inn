@@ -15,6 +15,7 @@ import AuthRequiredMessage from '@/components/AuthRequiredMessage';
 // import { ErrorMessage } from '@/components/ErrorMessage';
 import { Checklist, ChecklistProgress } from '@/lib/types';
 import { CLEANICNG_STATUSES, USER_ROLES } from '@/lib/constants';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES];
 type CleaningStatus = typeof CLEANICNG_STATUSES[keyof typeof CLEANICNG_STATUSES]
@@ -23,6 +24,7 @@ type CleaningStatus = typeof CLEANICNG_STATUSES[keyof typeof CLEANICNG_STATUSES]
 export default function CleaningTaskDetailsPage() {
     const { id: taskId } = useLocalSearchParams<{ id: string }>();
     const router = useRouter();
+    const insets = useSafeAreaInsets();
 
     const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth();
     const { taskDetails, isLoading: isTaskLoading, fetchTaskDetails } = useTaskDetails(taskId);
@@ -87,7 +89,7 @@ export default function CleaningTaskDetailsPage() {
     }
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { paddingBottom: insets.bottom, paddingTop: insets.top }]}>
             <View style={styles.header}>
                 <TouchableOpacity 
                     style={styles.backButton} 

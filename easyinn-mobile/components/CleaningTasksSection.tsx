@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, Dimensions, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { TabView, SceneMap } from 'react-native-tab-view';
 import { Feather, MaterialCommunityIcons, FontAwesome5, Entypo } from '@expo/vector-icons';
@@ -65,7 +65,7 @@ const CleaningTasksSection: React.FC<CleaningTasksSectionProps> = ({
     title: tab.title,
   }));
 
-  // Создаем функции для каждой вкладки явно
+
   const CheckoutRoute = () => {
     return (
       <View style={styles.sceneContainer}>
@@ -187,7 +187,6 @@ const CleaningTasksSection: React.FC<CleaningTasksSectionProps> = ({
       }
     } catch (error) {
       console.log('Icon render error:', error);
-      // Fallback на простую иконку
       return <Feather name="circle" size={size} color={color} />;
     }
   };
@@ -251,7 +250,7 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   tabViewContainer: {
-    flex: 1,// Добавляем минимальную высоту
+    flex: 1,
       minHeight: 400,
   },
   tabBar: {

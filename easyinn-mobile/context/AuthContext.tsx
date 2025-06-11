@@ -34,7 +34,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         await AsyncStorage.removeItem('refresh_token');
         setIsAuthenticated(false);
         setUser(null);
-        router.replace('/login'); // Перенаправляем на экран логина
+        router.replace('/');
         console.log('User logged out.');
     } catch (error) {
     console.error('Error fetching user data:', error);

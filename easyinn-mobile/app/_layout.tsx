@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
-
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { AuthProvider } from '@/context/AuthContext';
 import registerForPushNotificationsAsync from '../lib/registerForPushNotificationsAsync';
@@ -68,8 +68,10 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Slot />
-        <StatusBar style="auto" />
+        <SafeAreaProvider>
+          <Slot />
+          <StatusBar style="auto" />
+        </SafeAreaProvider>
       </ThemeProvider>
     </AuthProvider>
   );

@@ -3,7 +3,7 @@ import { ExpoConfig, ConfigContext } from 'expo/config';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'easyinn-mobile',
+  name: 'EasyInn',
   slug: 'easyinn-mobile',
   version: '1.0.0',
   orientation: 'portrait',
@@ -11,13 +11,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   scheme: 'easyinnmobile',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
+  splash: {
+    image: './assets/images/splash-icon.png', 
+    resizeMode: 'contain',
+    backgroundColor: '#ffffff',
+  },
   ios: {
     supportsTablet: true,
   },
   android: {
     package: "com.easyinn.easyinnmobile",
+    googleServicesFile: "./google-services.json",
     adaptiveIcon: {
-      foregroundImage: './assets/images/adaptive-icon.png',
+      foregroundImage: './assets/images/icon.png',
       backgroundColor: '#ffffff',
     },
     edgeToEdgeEnabled: true,
@@ -30,15 +36,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     'expo-router',
     "expo-notifications",
-    [
-      'expo-splash-screen',
-      {
-        image: './assets/images/splash-icon.png',
-        imageWidth: 200,
-        resizeMode: 'contain',
-        backgroundColor: '#ffffff',
-      },
-    ],
   ],
   experiments: {
     typedRoutes: true,
