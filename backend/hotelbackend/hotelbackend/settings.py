@@ -32,6 +32,7 @@ ALLOWED_HOSTS = [
     'localhost',
     '192.168.1.133', 
     '192.168.1.154', 
+    '192.168.1.216'
 ]
 CORS_ALLOW_ALL_ORIGINS = True
 # Application definition
