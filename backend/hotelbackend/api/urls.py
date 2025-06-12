@@ -1,7 +1,7 @@
 from rest_framework.routers import DefaultRouter
 
 # Import all ViewSets from your apps
-from django.urls import path, include
+from django.urls import path, include,re_path
 from booking.views import BookingViewSet
 from cleaning.views import (
     ChecklistTemplateViewSet,
@@ -11,7 +11,7 @@ from cleaning.views import (
 from users.views import UserViewSet, get_assigned_housekeepers_for_date
 from hotel.views import RoomViewSet, RoomTypeViewSet, ZoneViewSet,RoomStatusViewSet
 from users.views import RegisterPushTokenView, SendPushNotificationView
-
+from notifications.views import NotificationViewSet
 
 
 # Create an instance of DefaultRouter
@@ -37,7 +37,7 @@ router.register(r'rooms-status', RoomStatusViewSet, basename='room-status')
 # Users App ViewSets
 router.register(r'users', UserViewSet, basename='user')
 
-
+router.register(r'notifications', NotificationViewSet, basename='notification')
 
 
 # router.register(r'incidents', IncidentReportViewSet, basename='incidentreport')

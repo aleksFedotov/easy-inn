@@ -5,19 +5,20 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import action ,api_view
 from django.utils import timezone 
-from .models import ChecklistTemplate, CleaningTask
-from users.models import User
-from utills.views import LoggingModelViewSet
-from utills.mixins import AllowAllPaginationMixin
-from booking.models import Booking
 from django.db import transaction 
-from django.utils import timezone
-from utills.calculateAverageDuration import calculate_average_duration
-from .cleaningTypeChoices import CleaningTypeChoices 
 from django.db.models import Q
-from utills.notifications import send_notifications_in_thread
+
+from .models import ChecklistTemplate, CleaningTask
 from users.models import User, PushToken
 from hotel.models import Zone, Room
+from booking.models import Booking
+
+from utills.views import LoggingModelViewSet
+from utills.mixins import AllowAllPaginationMixin
+from utills.calculateAverageDuration import calculate_average_duration
+from .cleaningTypeChoices import CleaningTypeChoices 
+from utills.mobileNotifications import send_notifications_in_thread
+from utills.webNotifications import create_in_app_notification,send_websocket_notification
 
 
 from .serializers import (
@@ -85,7 +86,8 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         logger.info(f"Cleaning task {task.id} created by user {request.user.username}.")
 
         if task.assigned_to:
-            logger.info(f"Task {task.id} was created and immediately assigned to {task.assigned_to.username}. Sending notification.")
+            logger.info(f"Task {task.id} was created and immediately assigned to {task.assigned_to.username}. Sending notification.")           
+            
             try:
                 
                 assigned_housekeeper_tokens_qs = PushToken.objects.filter(
@@ -382,7 +384,40 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                 room.status = Room.Status.IN_PROGRESS  
                 room.save(update_fields=['status']) 
                 logger.info(f"Room {room.number} status changed to 'in_progress'.")
+
+                title = "Уборка начата"
+                body = f"Уборка номера {room.number} начата горничной {user.first_name} {user.last_name}"
+                data = {
+                        "task_id": str(task.id),
+                        "room_number": room.number,
+                        "cleaning_type": task.cleaning_type,
+                        "notification_type": "cleaning_started",
+                    
+                    }
+
+                managers_and_front_desk_users = User.objects.filter(
+                    Q(role=User.Role.MANAGER) | Q(role=User.Role.FRONT_DESK)
+                )
+
+                for user in managers_and_front_desk_users:
+                
+                    create_in_app_notification(
+                        user.id,
+                        title,
+                        body,
+                        "task_started",
+                        data
+                    )
+
+                    send_websocket_notification(
+                        user.id,
+                        title,
+                        body,
+                        "task_started_web",
+                        data
+                    )
                 try:
+
                     frontdesk_tokens_qs = PushToken.objects.filter(
                         user__role = User.Role.FRONT_DESK
                     ).values_list('token', flat=True)
@@ -390,16 +425,6 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                     logger.debug(f"Front desk tokes {tokens_to_notify}")
 
                     if tokens_to_notify:
-                        title = "Уборка начата"
-                        body = f"Уборка номера {room.number} начата горничной {user.first_name} {user.last_name}"
-                        data = {
-                            "task_id": str(task.id),
-                            "room_number": room.number,
-                            "cleaning_type": task.cleaning_type,
-                            "notification_type": "cleaning_started",
-                        
-                        }
-
                         send_notifications_in_thread(
                             tokens_to_notify,
                             title,
@@ -422,14 +447,14 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
             serializer = self.get_serializer(task) # Serialize the updated object / Сериализуем обновленный объект
         
             return Response(serializer.data, status=status.HTTP_200_OK) # Return updated data / Возвращаем обновленные данные
-
-        # If the status does not allow starting the task
-        # Если статус не позволяет начать задачу
-        logger.warning(f"Task {task.pk} cannot be started from status '{task.get_status_display()}' by user {request.user}.")
-        return Response(
-            {"detail": f"Задача не может быть начата из статуса '{task.get_status_display()}'."},
-            status=status.HTTP_400_BAD_REQUEST # Bad Request, because the action is not possible / Bad Request, потому что действие невозможно
-        )
+        else:
+            # If the status does not allow starting the task
+            # Если статус не позволяет начать задачу
+            logger.warning(f"Task {task.pk} cannot be started from status '{task.get_status_display()}' by user {request.user}.")
+            return Response(
+                {"detail": f"Задача не может быть начата из статуса '{task.get_status_display()}'."},
+                status=status.HTTP_400_BAD_REQUEST # Bad Request, because the action is not possible / Bad Request, потому что действие невозможно
+            )
 
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated, IsAssignedHousekeeperOrManagerOrFrontDesk])
     def complete(self, request, pk=None):
@@ -465,7 +490,42 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                     logger.info(f"Room {room.number} status changed to 'occupied'.")
                 else:
                     room.status = Room.Status.WAITING_INSPECTION 
+
+                    title = "Уборка завершена"
+                    body = f"Уборка номера {room.number} завершена. Требуется проверка."
+                    data = {
+                        "task_id": str(task.id),
+                        "room_number": room.number,
+                        "cleaning_type": task.cleaning_type,
+                        "notification_type": "cleaning_completed_for_inspection",
+                    
+                    }
+
+                    managers_and_front_desk_users = User.objects.filter(
+                    Q(role=User.Role.MANAGER) | Q(role=User.Role.FRONT_DESK)
+                    )
+
+                    for user in managers_and_front_desk_users:
+                    
+                        create_in_app_notification(
+                            user.id,
+                            title,
+                            body,
+                            "task_compelted",
+                            data
+                        )
+
+                        send_websocket_notification(
+                            user.id,
+                            title,
+                            body,
+                            "task_comleted_web",
+                            data
+                        )
+                
                     try:
+
+
                         frontdesk_tokens_qs = PushToken.objects.filter(
                             user__role = User.Role.FRONT_DESK
                         ).values_list('token', flat=True)
@@ -473,15 +533,7 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                         tokens_to_notify = list(frontdesk_tokens_qs)
 
                         if tokens_to_notify:
-                            title = "Уборка завершена"
-                            body = f"Уборка номера {room.number} завершена. Требуется проверка."
-                            data = {
-                                "task_id": str(task.id),
-                                "room_number": room.number,
-                                "cleaning_type": task.cleaning_type,
-                                "notification_type": "cleaning_completed_for_inspection",
                             
-                            }
 
                             send_notifications_in_thread(
                                 tokens_to_notify,

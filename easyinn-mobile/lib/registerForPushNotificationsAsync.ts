@@ -50,7 +50,7 @@ async function registerForPushNotificationsAsync() {
       if (isAxiosError(error) && error.response) {
         console.error('Backend response status:', error.response.status);
         console.error('Backend response data:', error.response.data);
-        alert(`Ошибка регистрации токена: ${error.response.data.detail || error.response.data.error || 'Неизвестная ошибка сервера'}`);
+        
       } else if (isAxiosError(error) && error.request) {
         console.error('No response received:', error.request);
         alert('Ошибка сети: не удалось подключиться к серверу для регистрации токена.');

@@ -13,11 +13,8 @@ from cleaning.models import CleaningTask
 from cleaning.cleaningTypeChoices import CleaningTypeChoices
 from users.models import PushToken, User
 from datetime import date
-from utills.notifications import send_notifications_in_thread
+from utills.mobileNotifications import send_notifications_in_thread
 from asgiref.sync import async_to_sync
-import asyncio
-import threading
-import httpx
 from django.db import transaction
 from firebase_admin import messaging
 from django.utils import timezone
@@ -135,74 +132,6 @@ class BookingViewSet(viewsets.ModelViewSet):
         except ValueError:
             raise serializers.ValidationError({"date": "Неверный формат даты. Используйте YYYY-MM-DD."})
 
-    # async def _send_expo_push_notification(self, token: str, title: str, body: str, data: dict = None):
-    #     """
-    #     Sends a notification via Expo Push Service using httpx.
-    #     This method is async.
-    #     """
-    #     if not token.startswith("ExponentPushToken"):
-    #         logger.warning(f"Attempted to send notification to non-Expo token: {token[:20]}...")
-    #         return
-
-    #     payload = {
-    #         "to": token,
-    #         "title": title,
-    #         "body": body,
-    #         "data": data or {},
-    #         "sound": "default", # Or specify a custom sound
-    #     }
-
-    #     try:
-    #         async with httpx.AsyncClient(timeout=10.0) as client:
-    #             response = await client.post("https://exp.host/--/api/v2/push/send", json=payload)
-    #             response.raise_for_status() # Raise an exception for HTTP errors (4xx or 5xx)
-    #             result = response.json()
-    #             logger.info(f"Expo push sent successfully to {token[:20]}...: {result}")
-    #             # You might want to check result['data']['status'] for per-token errors
-    #             # Example: {'data': {'status': 'error', 'message': 'The recipient device is not registered with FCM.', 'details': {'error': 'InvalidCredentials'}}}
-    #             if result.get('data') and result['data'].get('status') == 'error':
-    #                 # Log or handle specific errors, e.g., 'InvalidCredentials' for the token
-    #                 logger.error(f"Error sending Expo push to {token[:20]}...: {result['data'].get('message')}")
-    #                 # If the token is invalid, you might want to mark it as inactive in your DB
-    #                 # self._mark_token_inactive_sync(token) # You'd need to create this sync method
-    #             return result
-    #     except httpx.TimeoutException:
-    #         logger.error(f"Expo push timeout for token {token[:20]}...")
-    #     except httpx.HTTPStatusError as e:
-    #         logger.error(f"Expo push HTTP error {e.response.status_code} for token {token[:20]}...: {e.response.text}", exc_info=True)
-    #         # You might want to parse e.response.json() for more details
-    #     except Exception as e:
-    #         logger.error(f"Expo push failed for token {token[:20]}...: {e}", exc_info=True)
-
-    # # Helper method to run async notification sending in a separate thread.
-    # # This is useful when calling from a synchronous context like a Django view.
-    # def _send_notifications_in_thread(self, tokens_to_send, room_number, task_description):
-    #     """
-    #     Sends notifications to multiple tokens concurrently using asyncio.gather
-    #     and runs it in a separate thread to avoid blocking the main request.
-    #     """
-    #     async def _send_all_expo_pushes():
-    #         # Create a list of coroutines (async calls)
-    #         tasks = [
-    #             self._send_expo_push_notification(
-    #                 token=token,
-    #                 title=f"Новая задача: Комната {room_number}",
-    #                 body=task_description,
-    #                 data={"roomNumber": str(room_number), "taskDescription": task_description}
-    #             )
-    #             for token in tokens_to_send
-    #         ]
-    #         # Run all tasks concurrently
-    #         await asyncio.gather(*tasks)
-
-    #     # Run the async function in a new thread
-    #     thread = threading.Thread(target=lambda: asyncio.run(_send_all_expo_pushes()))
-    #     thread.start()
-
-        
-    
-    
-    
     
     @action(detail=False, methods=['get'], url_path='departures-on-date')
     def departures_on_date(self, request):

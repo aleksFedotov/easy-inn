@@ -3,7 +3,7 @@
 import React, { useState, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { useAuth } from '@/lib/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { Spinner } from '@/components/spinner';
 import axios from 'axios';
 

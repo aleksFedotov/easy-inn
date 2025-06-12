@@ -2,7 +2,7 @@
 
 import React, { useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import ChecklistCardList from '@/components/housekeeping/ChecklistCardList';
 import { ChecklistProgress } from '@/lib/types/housekeeping';

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { useAuth } from '@/lib/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { CleaningTask, User} from '@/lib/types';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';

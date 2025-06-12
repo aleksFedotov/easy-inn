@@ -1,7 +1,7 @@
 'use client'
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import { useAuth } from '@/lib/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { Spinner } from '@/components/spinner';
 import ErrorMessage from '@/components/ErrorMessage';
 import BookingForm from '@/components/forms/BookingForm';

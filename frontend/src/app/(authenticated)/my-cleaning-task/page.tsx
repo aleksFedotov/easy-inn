@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useAuth } from '@/lib/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { Spinner } from '@/components/spinner';
 import ErrorMessage from '@/components/ErrorMessage';
 import { useCleaningTasks } from '@/hooks/my-cleaning-tasks/useMyCleaningTasks';

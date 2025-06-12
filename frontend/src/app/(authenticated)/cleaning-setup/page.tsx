@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { useAuth } from '@/lib/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import axios from 'axios';
 import { Zone, Checklist  } from '@/lib/types'; 

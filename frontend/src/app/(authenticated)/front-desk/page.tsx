@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo, useReducer } from 'react';
 
-import { useAuth } from '@/lib/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { Spinner } from '@/components/spinner';
 import ErrorMessage from '@/components/ErrorMessage';
 ;

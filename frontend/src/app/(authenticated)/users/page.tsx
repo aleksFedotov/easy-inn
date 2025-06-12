@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { useAuth } from '@/lib/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { Spinner } from '@/components/spinner';
 import axios from 'axios';

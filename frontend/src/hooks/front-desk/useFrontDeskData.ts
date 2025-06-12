@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
 import axios from 'axios';
 import { format } from 'date-fns';
-import { Booking } from '@/lib/types'; // Убедитесь, что Booking импортируется из правильного места
-import { CleaningTask } from '@/lib/types/housekeeping'; // Убедитесь, что CleaningTask импортируется из правильного места
+import { Booking } from '@/lib/types'; 
+import { CleaningTask } from '@/lib/types/housekeeping'; 
 
-// Определяем тип для ответа API с пагинацией
+
 interface PaginatedResponse<T> {
     count: number;
     next: string | null;
@@ -13,12 +13,11 @@ interface PaginatedResponse<T> {
     results: T[];
 }
 
-// Определяем тип для ответа API со сводными данными по номерам
+
 interface RoomSummaryResponse {
     dirty: number;
     in_progress: number;
     waiting_inspection: number;
-    // Добавьте сюда другие статусы, если они есть в вашем API и используются
     clean: number;
     free: number;
     occupied: number;
@@ -26,7 +25,7 @@ interface RoomSummaryResponse {
     on_maintenance: number;
 }
 
-// Тип для хранения данных пагинации на фронтенде для каждой вкладки
+
 interface PaginationState {
     count: number;
     next: string | null;
