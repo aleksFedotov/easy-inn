@@ -32,11 +32,11 @@ def calculate_average_duration(queryset, task_type):
                 return round(avg_minutes, 2)
                 
         elif db_vendor == 'sqlite':
-            # Для SQLite используем Python метод
+           
             raise Exception("Using Python method for SQLite")
             
         elif db_vendor == 'mysql':
-            # Для MySQL можно попробовать UNIX_TIMESTAMP
+    
             average_result = queryset.extra(
                 select={'duration_seconds': 'UNIX_TIMESTAMP(completed_at) - UNIX_TIMESTAMP(started_at)'}
             ).aggregate(avg_duration=Avg('duration_seconds'))
@@ -49,7 +49,7 @@ def calculate_average_duration(queryset, task_type):
     except Exception as e:
         logger.warning(f"SQL method failed for {task_type}: {e}. Using Python calculation.")
     
-    # Метод 2: Python расчет (fallback)
+
     try:
         total_seconds = 0
         count = 0

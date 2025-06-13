@@ -10,13 +10,15 @@ from users.models import User # Убедитесь, что User импортир
 
 logger = logging.getLogger(__name__)
 
-def create_in_app_notification(user_id, title, body, notification_type, data):
+
+def send_websocket_notification(user_id, title, body, notification_type, data):
     """
-    Создает новую запись уведомления в базе данных для пользователя.
+    Отправляет WebSocket уведомление конкретному пользователю.
     """
+
     try:
         user = User.objects.get(id=user_id)
-        Notification.objects.create(
+        notification = Notification.objects.create(
             user=user,
             title=title,
             body=body,
@@ -30,18 +32,15 @@ def create_in_app_notification(user_id, title, body, notification_type, data):
         logger.error(f"Error creating in-app notification for user {user_id}: {e}", exc_info=True)
 
 
-def send_websocket_notification(user_id, title, body, notification_type, data):
-    """
-    Отправляет WebSocket уведомление конкретному пользователю.
-    """
     channel_layer = get_channel_layer()
     if channel_layer:
         message_payload = {
-            "title": title,
-            "body": body,
-            "notification_type": notification_type,
-            "data": data,
-            "timestamp": timezone.now().isoformat()
+            "id" : notification.id,
+            "title": notification.title,
+            "body": notification.body,
+            "notification_type": notification.notification_type,
+            "data": notification.data,
+            "timestamp":notification.created_at.isoformat()
         }
         try:
             async_to_sync(channel_layer.group_send)(

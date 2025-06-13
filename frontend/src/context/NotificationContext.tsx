@@ -1,17 +1,18 @@
-// context/NotificationContext.tsx
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Notification,WebSocketNotificationPayload } from '@/lib/types/notifications';
-import { fetchNotifications, fetchUnreadCount, markNotificationsAsRead } from '@/lib/webNotifications/apiNotifications'
+import { fetchNotifications, fetchUnreadCount, markNotificationsAsRead, fetchUnreadNotifications, markSingleNotificationAsRead} from '@/lib/webNotifications/apiNotifications'
 import { useNotificationsWebSocket } from '@/hooks/notifications/useNotificationsWebSocket'; 
 import axios from 'axios';
+import { toast } from 'sonner';
 
 interface NotificationContextType {
   notifications: Notification[];
+  unreadNotification:Notification[];
   unreadCount: number;
   loading: boolean;
   error: string | null;
-  markAsRead: (notificationIds?: string[], markAll?: boolean) => Promise<void>;
+  markOneAsRead: (notificationId: string) => Promise<void>
+  markAllAsRead: (notificationIds?: string[], markAll?: boolean) => Promise<void>;
   webSocketConnected: boolean;
 }
 
@@ -25,6 +26,7 @@ interface NotificationProviderProps {
 
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children, userId, token }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadNotification, setUnreadNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,9 +34,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
 
   const handleNewWebSocketNotification = useCallback((payload: WebSocketNotificationPayload) => {
-  
     const newNotification: Notification = {
-      id: `ws-${Date.now()}-${Math.random()}`, 
+      id: payload.id, 
       user: userId, 
       title: payload.title,
       body: payload.body,
@@ -43,7 +44,13 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       is_read: false, 
       created_at: payload.timestamp,
     };
-    setNotifications((prev) => [newNotification, ...prev]);
+    toast(payload.title || 'Новое уведомление', {
+      description: payload.body,
+      icon: '🔔',
+      duration: 5000, 
+      position: 'top-right', 
+    });
+    setUnreadNotifications((prev) => [newNotification, ...prev]);
     setUnreadCount((prev) => prev + 1);
   }, [userId]);
 
@@ -65,11 +72,13 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       setLoading(true);
       setError(null);
       try {
-        const [notifResponse, countResponse] = await Promise.all([
+        const [notifResponse,unreadnotifResponse, countResponse] = await Promise.all([
           fetchNotifications(),
+          fetchUnreadNotifications(),
           fetchUnreadCount(),
         ]);
-        setNotifications(notifResponse.results);
+        setNotifications(notifResponse);
+        setUnreadNotifications(unreadnotifResponse)
         setUnreadCount(countResponse);
       } catch (error) {
           console.error("Failed to load initial notifications:", error);
@@ -84,33 +93,50 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   }, [token, userId]);
 
 
-  const markAsRead = useCallback(async (notificationIds?: string[], markAll: boolean = false) => {
+const markOneAsRead = useCallback(async (notificationId: string) => {
+  if(!token) return;
+  try {
+    await markSingleNotificationAsRead(notificationId)
+ 
+    setUnreadNotifications((prev) => prev.filter((notif) => notif.id !== notificationId))
+    setUnreadCount((prev) => Math.max(0, prev - 1));
+  } catch (error) {
+      if(axios.isAxiosError(error) && error.message) {
+            setError(error.message || 'Failed to mark single notification as read.');
+        }
+  }
+
+},[token]) 
+
+
+const markAllAsRead = useCallback(async (notificationIds?: string[], markAll: boolean = false) => {
     if (!token) return;
     try {
       await markNotificationsAsRead(notificationIds, markAll);
+      
+      
       if (markAll) {
-        setNotifications((prev) => prev.map((notif) => ({ ...notif, is_read: true })));
+        setUnreadNotifications([]);
         setUnreadCount(0);
-      } else if (notificationIds) {
-        setNotifications((prev) =>
-          prev.map((notif) => (notificationIds.includes(notif.id) ? { ...notif, is_read: true } : notif))
-        );
-        setUnreadCount((prev) => Math.max(0, prev - (notificationIds.filter(id => notifications.find(n => n.id === id && !n.is_read)).length)));
-      }
+      } 
+
     } catch (error) {
         if(axios.isAxiosError(error) && error.message) {
             setError(error.message || 'Failed to mark notifications as read.');
-
         }
       console.error("Failed to mark notifications as read:", error);
     }
-  }, [token, notifications]); 
+  }, [token]); 
+  
+
   const contextValue = {
     notifications,
+    unreadNotification,
     unreadCount,
     loading,
     error,
-    markAsRead,
+    markOneAsRead,
+    markAllAsRead,
     webSocketConnected,
   };
 

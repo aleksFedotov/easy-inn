@@ -1,17 +1,29 @@
 
-import { Notification,UnreadCountResponse,ApiResponse } from '../types/notifications';
+import { Notification,UnreadCountResponse } from '../types/notifications';
 import api from '../api';
 
 
-export const fetchNotifications = async (): Promise<ApiResponse<Notification>> => { 
+export const fetchNotifications = async (): Promise<Notification[]> => { 
   try {
-    const response = await api.get<ApiResponse<Notification>>('/api/notifications/'); 
+    const response = await api.get<Notification[]>('/api/notifications/'); 
     return response.data;
   } catch (error) {
     console.error("Error fetching notifications:", error);
     throw error;
   }
 };
+
+
+export const fetchUnreadNotifications = async (): Promise<Notification[]> => {
+  try {
+    const response = await api.get<Notification[]>('/api/notifications/unread/'); 
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching unread notifications:", error);
+    throw error;
+  }
+};
+
 
 export const fetchUnreadCount = async (): Promise<number> => { 
   try {
@@ -24,7 +36,7 @@ export const fetchUnreadCount = async (): Promise<number> => {
 };
 
 export const markNotificationsAsRead = async (
-  notificationIds?: string[], // Больше не нужен токен как аргумент
+  notificationIds?: string[], 
   markAll: boolean = false
 ): Promise<unknown> => {
   const payload: { notification_ids?: string[]; mark_all?: boolean } = {};
@@ -42,6 +54,19 @@ export const markNotificationsAsRead = async (
     return response.data;
   } catch (error) {
     console.error("Error marking notifications as read:", error);
+    throw error;
+  }
+};
+
+
+export const markSingleNotificationAsRead = async (notificationId: string): Promise<unknown> => {
+  try {
+    const response = await api.post('/api/notifications/mark-read/', {
+      single_notification_id: notificationId,
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Error marking notification ${notificationId} as read:`, error);
     throw error;
   }
 };

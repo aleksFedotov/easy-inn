@@ -12,7 +12,7 @@ import React from 'react';
 // import { useTheme } from 'next-themes';
 import { SidebarTrigger } from '../ui/sidebar';
 import UserProfileDropdown from '../ui/UserProfileDropdown';
-import NotificationBell from '../NotificationBell';
+import NotificationBell from '../notification-bell/NotificationBell';
 
 
 

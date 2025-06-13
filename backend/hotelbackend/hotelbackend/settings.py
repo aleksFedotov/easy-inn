@@ -264,6 +264,11 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': False,
         },
+        'notifications': {
+            'handlers': ['console',],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
        
     },
 

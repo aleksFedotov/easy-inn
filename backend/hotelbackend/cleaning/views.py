@@ -18,7 +18,7 @@ from utills.mixins import AllowAllPaginationMixin
 from utills.calculateAverageDuration import calculate_average_duration
 from .cleaningTypeChoices import CleaningTypeChoices 
 from utills.mobileNotifications import send_notifications_in_thread
-from utills.webNotifications import create_in_app_notification,send_websocket_notification
+from utills.webNotifications import send_websocket_notification
 
 
 from .serializers import (
@@ -401,14 +401,7 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
 
                 for user in managers_and_front_desk_users:
                 
-                    create_in_app_notification(
-                        user.id,
-                        title,
-                        body,
-                        "task_started",
-                        data
-                    )
-
+                
                     send_websocket_notification(
                         user.id,
                         title,
@@ -422,7 +415,6 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                         user__role = User.Role.FRONT_DESK
                     ).values_list('token', flat=True)
                     tokens_to_notify = list(frontdesk_tokens_qs)
-                    logger.debug(f"Front desk tokes {tokens_to_notify}")
 
                     if tokens_to_notify:
                         send_notifications_in_thread(
@@ -507,13 +499,6 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
 
                     for user in managers_and_front_desk_users:
                     
-                        create_in_app_notification(
-                            user.id,
-                            title,
-                            body,
-                            "task_compelted",
-                            data
-                        )
 
                         send_websocket_notification(
                             user.id,

@@ -13,15 +13,10 @@ export interface UnreadCountResponse {
   unread_count: number;
 }
 
-export interface ApiResponse<T> {
-  count?: number; 
-  next?: string | null;
-  previous?: string | null;
-  results: T[]; 
-}
 
 
 export interface WebSocketNotificationPayload {
+  id: string;
   title: string;
   body: string;
   notification_type: string;
