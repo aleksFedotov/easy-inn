@@ -94,7 +94,7 @@ const NotificationBell: React.FC = () => {
                         variant="ghost" 
                         size="icon" 
                         className="p-0 h-auto w-auto text-gray-500 hover:text-gray-700 ml-2" 
-                        onClick={() => markOneAsRead(notif.id)}
+                        onClick={() => markOneAsRead(notif)}
                       >
                         <X size={16} /> 
                       </Button>

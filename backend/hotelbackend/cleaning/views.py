@@ -18,7 +18,7 @@ from utills.mixins import AllowAllPaginationMixin
 from utills.calculateAverageDuration import calculate_average_duration
 from .cleaningTypeChoices import CleaningTypeChoices 
 from utills.mobileNotifications import send_notifications_in_thread
-from utills.webNotifications import send_websocket_notification
+from utills.webNotifications import send_broadcast_notification_to_roles
 
 
 from .serializers import (
@@ -395,19 +395,12 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                     
                     }
 
-                managers_and_front_desk_users = User.objects.filter(
-                    Q(role=User.Role.MANAGER) | Q(role=User.Role.FRONT_DESK)
-                )
-
-                for user in managers_and_front_desk_users:
-                
-                
-                    send_websocket_notification(
-                        user.id,
-                        title,
-                        body,
-                        "task_started_web",
-                        data
+                send_broadcast_notification_to_roles(
+                        title=title,
+                        body=body,
+                        notification_type="task_started_web",
+                        data=data,
+                        roles_to_notify=[User.Role.MANAGER, User.Role.FRONT_DESK] 
                     )
                 try:
 
@@ -493,20 +486,13 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                     
                     }
 
-                    managers_and_front_desk_users = User.objects.filter(
-                    Q(role=User.Role.MANAGER) | Q(role=User.Role.FRONT_DESK)
+                    send_broadcast_notification_to_roles(
+                        title=title,
+                        body=body,
+                        notification_type="task_completed_web",
+                        data=data,
+                        roles_to_notify=[User.Role.MANAGER, User.Role.FRONT_DESK] 
                     )
-
-                    for user in managers_and_front_desk_users:
-                    
-
-                        send_websocket_notification(
-                            user.id,
-                            title,
-                            body,
-                            "task_comleted_web",
-                            data
-                        )
                 
                     try:
 

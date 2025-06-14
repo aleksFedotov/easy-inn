@@ -7,6 +7,7 @@ export interface Notification {
   data: Record<string, unknown>; 
   is_read: boolean;
   created_at: string; 
+  save_to_db: boolean;
 }
 
 export interface UnreadCountResponse {
@@ -22,6 +23,7 @@ export interface WebSocketNotificationPayload {
   notification_type: string;
   data: Record<string, unknown>;
   timestamp: string; 
+  save_to_db: boolean;
 }
 
 export interface WebSocketMessageEvent {

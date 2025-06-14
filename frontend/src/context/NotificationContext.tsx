@@ -11,8 +11,8 @@ interface NotificationContextType {
   unreadCount: number;
   loading: boolean;
   error: string | null;
-  markOneAsRead: (notificationId: string) => Promise<void>
-  markAllAsRead: (notificationIds?: string[], markAll?: boolean) => Promise<void>;
+  markOneAsRead: (notification: Notification) => Promise<void>
+  markAllAsRead: (notifications?: Notification[], markAll?: boolean) => Promise<void>;
   webSocketConnected: boolean;
 }
 
@@ -43,6 +43,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       data: payload.data,
       is_read: false, 
       created_at: payload.timestamp,
+      save_to_db:payload.save_to_db
     };
     toast(payload.title || 'Новое уведомление', {
       description: payload.body,
@@ -93,12 +94,14 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   }, [token, userId]);
 
 
-const markOneAsRead = useCallback(async (notificationId: string) => {
+const markOneAsRead = useCallback(async (notification: Notification) => {
   if(!token) return;
   try {
-    await markSingleNotificationAsRead(notificationId)
+    if(notification.save_to_db) {
+      await markSingleNotificationAsRead(notification.id)
+    }
  
-    setUnreadNotifications((prev) => prev.filter((notif) => notif.id !== notificationId))
+    setUnreadNotifications((prev) => prev.filter((notif) => notif.id !== notification.id))
     setUnreadCount((prev) => Math.max(0, prev - 1));
   } catch (error) {
       if(axios.isAxiosError(error) && error.message) {
@@ -109,10 +112,17 @@ const markOneAsRead = useCallback(async (notificationId: string) => {
 },[token]) 
 
 
-const markAllAsRead = useCallback(async (notificationIds?: string[], markAll: boolean = false) => {
+const markAllAsRead = useCallback(async (notifications?: Notification[], markAll: boolean = false) => {
     if (!token) return;
     try {
-      await markNotificationsAsRead(notificationIds, markAll);
+      if(notifications) {
+        notifications = notifications.filter((noti) => noti.save_to_db === true)
+        const  notificationIds:string [] = notifications?.map((noti) => noti.id)
+        if(notificationIds && notificationIds.length > 0) {
+          await markNotificationsAsRead(notificationIds, markAll);
+        }
+
+      }
       
       
       if (markAll) {
