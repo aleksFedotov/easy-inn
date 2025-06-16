@@ -51,25 +51,28 @@ const ChecklistCardList: React.FC<ChecklistCardListProps> = ({
             <CardHeader className="cursor-pointer" onClick={toggleCard}>
                 <div className="flex items-center justify-between">
                     <CardTitle>{checklist.name}</CardTitle>
-                    {onRemove && ( 
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onRemove(checklist.id);
-                            }}
-                            className="text-red-500 hover:text-red-700"
-                        >
-                            <Trash2 size={18} />
-                        </Button>
-                    )}
-                    <ChevronDown
-                        size={20}
-                        className={` transition-transform duration-300 ${
-                            isCardExpanded ? 'rotate-180' : ''
-                        }`}
-                    />
+                    <div className='flex items-center  j'>
+                        <ChevronDown
+                            size={20}
+                            className={` transition-transform duration-300 ${
+                                isCardExpanded ? 'rotate-180' : ''
+                            }`}
+                            />
+                            {onRemove && ( 
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onRemove(checklist.id);
+                                    }}
+                                    className="text-red-500 hover:text-red-700"
+                                >
+                                    <Trash2 size={18} />
+                                </Button>
+                            )}
+
+                    </div>
                 </div>
             </CardHeader>
             <CardContent className={isCardExpanded ? "block" : "hidden"}>
