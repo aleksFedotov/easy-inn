@@ -5,8 +5,11 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from cleaning.cleaningTypeChoices import CleaningTypeChoices
 from hotel.models import Room
+from booking.models import Booking
 import logging 
+import copy 
 
+from datetime import date 
 
 UserModel = get_user_model() # Get the custom User model / Получаем пользовательскую модель User
 logger = logging.getLogger(__name__)
@@ -158,6 +161,10 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
     zone_name = serializers.CharField(source='zone.name', read_only=True, allow_null=True)
     cleaning_type_display = serializers.SerializerMethodField()
 
+    # Read-only field for human-readable status display
+    # Поле только для чтения для человекочитаемого отображения статуса
+    status_display = serializers.SerializerMethodField()
+
     # Use SerializerMethodField for user names to handle None assigned users gracefully.
     # These methods are defined below and return the name or None if the user is not assigned.
     # Используем SerializerMethodField для имен пользователей для корректной обработки неназначенных пользователей.
@@ -165,9 +172,15 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
     assigned_to_name = serializers.SerializerMethodField()
     assigned_by_name = serializers.SerializerMethodField()
     checked_by_name = serializers.SerializerMethodField()
-    checklist_data = serializers.SerializerMethodField()
     is_guest_checked_out = serializers.SerializerMethodField()
+    associated_checklists = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=ChecklistTemplate.objects.all(),
+        required=False,  
+        
+    )
     associated_checklist_names = serializers.SerializerMethodField()
+    checklist_data = serializers.SerializerMethodField()
 
 
     def get_cleaning_type_display(self, obj):
@@ -182,8 +195,6 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
         if obj.cleaning_type == CleaningTypeChoices.DEPARTURE_CLEANING and obj.room:
             return obj.room.status == Room.Status.DIRTY
         return False
-
-
 
     def get_assigned_to_name(self, obj):
         """
@@ -218,11 +229,6 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
             return obj.checked_by.get_full_name() or obj.checked_by.username
         return None # Return None if checked_by is None / Возвращаем None, если checked_by равно None
 
-
-    # Read-only field for human-readable status display
-    # Поле только для чтения для человекочитаемого отображения статуса
-    status_display = serializers.SerializerMethodField()
-
     def get_status_display(self, obj):
         """
         Returns the human-readable display value for the status field using the model's get_status_display() method.
@@ -233,137 +239,141 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
     # Custom validate method to trigger model's clean()
     # Пользовательский метод validate для вызова метода clean() модели
     def validate(self, attrs):
-        """
-        Custom validation to trigger the model's clean() method.
-        This ensures model-level validation (like room/zone conflict) is checked
-        during serializer validation.
+        attrs_for_validation = copy.copy(attrs)
 
-        Пользовательская валидация для вызова метода clean() модели.
-        Это гарантирует, что валидация на уровне модели (например, конфликт комнаты/зоны)
-        проверяется во время валидации сериализатора.
-        """
-        # Create a temporary instance to perform model-level clean validation
-        # This handles both create and update scenarios.
-        # For updates, apply the changes from attrs to the instance before cleaning.
-        # For creations, create a new instance with the attrs.
+  
+        associated_checklists_data = attrs_for_validation.pop('associated_checklists', None)
 
-        # Создаем временный экземпляр для выполнения валидации clean() на уровне модели.
-        # Это обрабатывает сценарии создания и обновления.
-        # Для обновлений применяем изменения из attrs к существующему экземпляру перед валидацией.
-        # Для созданий создаем новый экземпляр с данными из attrs.
+        if self.instance: 
+            
+            temp_instance = copy.deepcopy(self.instance)
+            
+            
+            for field_name, value in attrs_for_validation.items():
+                if hasattr(temp_instance, field_name):
+                    setattr(temp_instance, field_name, value)
+            
 
-        if self.instance:
-            # For update: use the existing instance and apply changes from attrs
-            # Create a copy to avoid modifying the original instance during validation
-            # Для обновления: используем существующий экземпляр и применяем изменения из attrs.
-            # Создаем копию, чтобы избежать изменения оригинального экземпляра во время валидации.
-            temp_instance = self.instance
-        else:
-            # For create: create a new temporary instance of the model
-            # Для создания: создаем новый временный экземпляр модели.
-            temp_instance = self.Meta.model()
+            temp_instance.pk = self.instance.pk
+            temp_instance.id = self.instance.id
 
-        # Apply the validated data (attrs) to the temporary instance.
-        # DRF's default validation for PrimaryKeyRelatedFields will have already
-        # converted incoming IDs into model instances in the 'attrs' dictionary.
-        # Применяем валидированные данные (attrs) к временному экземпляру.
-        # Стандартная валидация DRF для PrimaryKeyRelatedFields уже преобразует
-        # входящие ID в экземпляры моделей в словаре 'attrs'.
-        for field_name, value in attrs.items():
-             # Check if the field exists on the model before setting the attribute
-             # This prevents errors if 'attrs' contains keys not directly mapping to model fields
-             # Проверяем, существует ли поле в модели перед установкой атрибута.
-             # Это предотвращает ошибки, если 'attrs' содержит ключи, не соответствующие напрямую полям модели.
-             if hasattr(temp_instance, field_name):
-                 setattr(temp_instance, field_name, value)
-
+        else: 
+            
+            temp_instance = self.Meta.model(**attrs_for_validation)
 
         try:
-            # Call the model's full_clean() method to trigger all model-level validators.
-            # full_clean will validate all fields on the temp_instance based on model constraints.
-            # No need to exclude fields here as we are setting attributes directly.
-            # Вызываем метод full_clean() модели для запуска всех валидаторов на уровне модели.
-            # full_clean проверит все поля временного экземпляра на основе ограничений модели.
-            # Нет необходимости исключать поля здесь, так как мы устанавливаем атрибуты напрямую.
+           
             temp_instance.full_clean()
         except DjangoValidationError as e:
-            # Convert Django's ValidationError to DRF's ValidationError.
-            # Check if the error is a non-field error (usually under '__all__')
-            # Преобразуем Django's ValidationError в DRF's ValidationError.
-            # Проверяем, является ли ошибка ошибкой, не связанной с полем (обычно под '__all__').
+     
             if '__all__' in e.message_dict:
-                # Raise DRF ValidationError with the list of non-field errors
-                # Генерируем DRF ValidationError со списком ошибок, не связанных с полем.
                 raise DRFValidationError(e.message_dict['__all__'])
             else:
-                # Otherwise, it's a field-specific error, pass the message_dict
-                # В противном случае это ошибка, связанная с конкретным полем, передаем message_dict.
                 raise DRFValidationError(e.message_dict)
 
-        # Return the original validated data dictionary
-        # Возвращаем оригинальный словарь валидированных данных
+        
         return attrs
+
     
     # Метод для получения списка названий чек-листов
     def get_associated_checklist_names(self, obj: CleaningTask):
-        if not obj.cleaning_type or not obj.scheduled_date:
-            return []
-        
-        checklist_templates = ChecklistTemplate.objects.filter(
-            cleaning_type=obj.cleaning_type
-        )
-        
-        applicable_checklists = []
-        days_since_start = 0
-        
-        if obj.booking:
-            days_since_start = (obj.scheduled_date - obj.booking.check_in.date()).days
-        else:
-            days_since_start = (obj.scheduled_date - obj.scheduled_date).days # Which is 0
-        
-        for template in checklist_templates:
-            if (days_since_start - template.offset_days) >= 0 and \
-               (days_since_start - template.offset_days) % template.periodicity == 0:
-                applicable_checklists.append(template)
-        
-        # Возвращаем только названия применимых чек-листов
-        return [template.name for template in applicable_checklists]
+        # Если это новый объект и мы только что применили логику автогенерации,
+        # используем временный список. Иначе - связанные чек-листы.
+        if hasattr(obj, '_temp_auto_checklists'):
+            return [template.name for template in obj._temp_auto_checklists]
+        return [template.name for template in obj.associated_checklists.all()]
 
     def get_checklist_data(self, obj: CleaningTask):
-        """
-        Получает данные шаблонов чек-листов, применимых к данной задаче с учетом периодичности.
-        """
-        if not obj.cleaning_type or not obj.scheduled_date:
-            return [] 
+        # Аналогично get_associated_checklist_names
+        if hasattr(obj, '_temp_auto_checklists'):
+            return ChecklistTemplateSerializer(obj._temp_auto_checklists, many=True, context=self.context).data
+        return ChecklistTemplateSerializer(obj.associated_checklists.all().prefetch_related('items'), many=True, context=self.context).data
 
-        checklist_templates = ChecklistTemplate.objects.filter(
-        cleaning_type=obj.cleaning_type
-        ).prefetch_related('items')
+    def create(self, validated_data):
+        associated_checklists_input = validated_data.pop('associated_checklists', None)
+
+       
+        instance = super().create(validated_data)
+
+        user_can_manage_checklists = self.context.get('user_can_manage_checklists', False)
         
+        if associated_checklists_input is not None and user_can_manage_checklists:
+           
+            extracted_ids = []
+            if not isinstance(associated_checklists_input, (list, tuple)):
+                logger.error(f"Unexpected type for associated_checklists_input in create: {type(associated_checklists_input)}")
+                raise DRFValidationError({"associated_checklists": "Expected a list of checklist IDs."})
 
-        applicable_checklists = []
-        days_since_start = 0  
-        
-
-        if obj.booking:
-            days_since_start = (obj.scheduled_date - obj.booking.check_in.date()).days
+            for item in associated_checklists_input:
+                if isinstance(item, int):
+                    extracted_ids.append(item)
+                elif isinstance(item, ChecklistTemplate):
+                    extracted_ids.append(item.id)
+                else:
+                    logger.error(f"Invalid item type in associated_checklists (create): {type(item)} - {item}")
+                    raise DRFValidationError({"associated_checklists": "Invalid item type in checklist list."})
+            
+            associated_templates = list(ChecklistTemplate.objects.filter(id__in=extracted_ids))
+            instance.associated_checklists.set(associated_templates)
+            instance._temp_auto_checklists = associated_templates
         else:
+            room = validated_data.get('room')
+            zone = validated_data.get('zone')
+            scheduled_date = validated_data.get('scheduled_date', date.today())
 
-            days_since_start = (obj.scheduled_date - obj.scheduled_date).days 
+            current_booking = None
+            if instance.room:
+                current_booking = Booking.objects.filter(
+                    room=instance.room,
+                    check_in__date__lte=instance.scheduled_date,
+                    check_out__date__gte=instance.scheduled_date
+                ).first()
+            
+            applicable_checklists = CleaningTask.determine_applicable_checklists_by_periodicity(
+                cleaning_type=instance.cleaning_type, 
+                scheduled_date=scheduled_date,
+                booking=current_booking,
+                room=room,
+                zone=zone
+            )
+            instance.associated_checklists.set(applicable_checklists)
+            instance._temp_auto_checklists = applicable_checklists
         
-        
+        instance.save() 
+        return instance
 
-        for template in checklist_templates:
-        # Check if the checklist is due on this day
-            if (days_since_start - template.offset_days) >= 0 and \
-            (days_since_start - template.offset_days) % template.periodicity == 0:
-                applicable_checklists.append(template)
-        
 
-        if applicable_checklists:
-            return ChecklistTemplateSerializer(applicable_checklists, many=True, context=self.context).data
-        else:
-            return []
+    def update(self, instance, validated_data):
+        associated_checklists_input = validated_data.pop('associated_checklists', None)
+
+        instance = super().update(instance, validated_data)
+
+        user_can_manage_checklists = self.context.get('user_can_manage_checklists', False)
+
+        if associated_checklists_input is not None and user_can_manage_checklists:
+           
+            extracted_ids = []
+            if not isinstance(associated_checklists_input, (list, tuple)):
+                logger.error(f"Unexpected type for associated_checklists_input in update: {type(associated_checklists_input)}")
+                raise DRFValidationError({"associated_checklists": "Expected a list of checklist IDs."})
+
+            for item in associated_checklists_input:
+                if isinstance(item, int):
+                    extracted_ids.append(item)
+                elif isinstance(item, ChecklistTemplate):
+                 
+                    extracted_ids.append(item.id)
+                else:
+             
+                    logger.error(f"Invalid item type in associated_checklists (update): {type(item)} - {item}")
+                    raise DRFValidationError({"associated_checklists": "Invalid item type in checklist list."})
+            
+            # Теперь extracted_ids должен корректно содержать только целые числа.
+            associated_templates = list(ChecklistTemplate.objects.filter(id__in=extracted_ids))
+            instance.associated_checklists.set(associated_templates)
+        
+        instance.save() 
+        return instance
             
 
     class Meta:
@@ -396,6 +406,7 @@ class CleaningTaskSerializer(serializers.ModelSerializer):
             'is_guest_checked_out',
             'is_rush',
             'associated_checklist_names',
+            'associated_checklists',
         ]
         # Define all fields that should only be included in the output, not accepted as input
         # Определяем все поля, которые должны быть включены только в вывод, но не приниматься в качестве ввода

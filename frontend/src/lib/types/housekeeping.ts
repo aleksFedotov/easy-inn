@@ -56,6 +56,7 @@ export interface CleaningTask {
     is_guest_checked_out: boolean;
     is_rush: boolean;
     associated_checklist_names: string[];
+    associated_checklists: number[];
 }
 
 

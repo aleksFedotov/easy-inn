@@ -54,6 +54,27 @@ class ChecklistTemplateViewSet(AllowAllPaginationMixin,viewsets.ModelViewSet):
     serializer_class = ChecklistTemplateSerializer # Serializer class / Класс сериализатора
     # Permissions: Requires manager or front desk role / Разрешения: Требуется роль менеджера или службы приема
     permission_classes = [IsAuthenticated, IsManagerOrFrontDesk]
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def available_checklists(self, request):
+        """
+        Возвращает список доступных шаблонов чек-листов по типу уборки.
+        Пример запроса: /api/checklisttemplates/available_checklists/?cleaning_type=stayover
+        """
+        cleaning_type = request.query_params.get('cleaning_type')
+        logger.debug(f"Получение доступных чек-листов для типа: {cleaning_type}")
+
+        if not cleaning_type:
+            return Response({"detail": "Параметр 'cleaning_type' является обязательным."}, status=status.HTTP_400_BAD_REQUEST)
+
+    
+        available_checklists_qs = ChecklistTemplate.objects.filter(
+            cleaning_type=cleaning_type
+        )
+
+        
+        serializer = ChecklistTemplateSerializer(available_checklists_qs, many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # --- CleaningTask ViewSet ---
@@ -355,6 +376,23 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
 
 
         return [permission() for permission in self.permission_classes]
+    
+    def get_serializer_context(self):
+        """
+        Extra context provided to the serializer class.
+        Добавляем информацию о правах пользователя в контекст сериализатора.
+        """
+        context = super().get_serializer_context()
+        # Определяем, может ли текущий пользователь вручную управлять чек-листами.
+        # Это будет использоваться в сериализаторе для условной логики.
+        # Поскольку 'update' и 'partial_update' уже ограничены IsManagerOrFrontDesk
+        # в get_permissions, мы можем быть уверены, что здесь request.user
+        # будет менеджером или фронт-деском, если действие разрешено.
+        # Тем не менее, явная проверка роли добавляет надежности.
+        context['user_can_manage_checklists'] = (
+            self.request.user and (self.request.user.role == User.Role.MANAGER or self.request.user.role == User.Role.FRONT_DESK)
+        )
+        return context
 
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated, IsAssignedHousekeeperOrManagerOrFrontDesk])
     def start(self, request, pk=None):
@@ -638,7 +676,7 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         )
     
     @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated, IsManagerOrFrontDesk])
-    @transaction.atomic  # Декоратор транзакции
+    @transaction.atomic # Декоратор транзакции
     def auto_generate(self, request):
         """
         Автоматически генерирует задачи по уборке на указанную дату:
@@ -646,45 +684,97 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         - Текущая уборка: если гость живёт, но не выезжает в указанную дату
         - Задачи по зонам: для всех зон, если задача еще не существует
         """
-        # Get date from request data, default to today if not provided
         scheduled_date_str = request.data.get('scheduled_date')
         if scheduled_date_str:
             try:
                 scheduled_date = timezone.datetime.strptime(scheduled_date_str, '%Y-%m-%d').date()
             except ValueError:
-                return Response({"detail": "Неверный формат даты. Используйте YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"detail": "Неверный формат даты. Используйте ГГГГ-ММ-ДД."}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            scheduled_date = timezone.localdate() 
+            scheduled_date = timezone.localdate()
 
         created_tasks_count = 0
         created_tasks_details = []
 
-        # Убираем with transaction.atomic(): так как вся функция уже в транзакции
-        
-        # --- Уборка после выезда ---
-        checkout_bookings = Booking.objects.filter(check_out__date=scheduled_date).select_related("room")
-        
-        for booking in checkout_bookings:
-            if not booking.room:
-                continue
+        # Вспомогательная функция для создания и обработки задачи, избегая повторений
+        def create_and_process_task(room=None, zone=None, cleaning_type=None, booking=None, notes="", assigned_by_user=None):
+            nonlocal created_tasks_count
 
-            exists = CleaningTask.objects.filter(
-                booking=booking,
-                room=booking.room,
-                scheduled_date=scheduled_date,
-                cleaning_type=CleaningTypeChoices.DEPARTURE_CLEANING
-            ).exists()
+            # Проверка на существование задачи
+            query_filters = {
+                'scheduled_date': scheduled_date,
+                'cleaning_type': cleaning_type,
+            }
+            if room:
+                query_filters['room'] = room
+            if zone:
+                query_filters['zone'] = zone
+            # Если задача связана с бронированием, добавляем его в фильтр
+            if booking and room: # Booking only makes sense with a room
+                query_filters['booking'] = booking
+            # Внимание: для задач по зонам или другим, не привязанным к конкретному бронированию,
+            # убедитесь, что фильтр `booking` не мешает.
+            # Мы используем cleaning_type в фильтре, чтобы различать типы задач (например, DEPARTURE, STAYOVER) для одной и той же комнаты.
+
+            exists = CleaningTask.objects.filter(**query_filters).exists()
 
             if not exists:
-                task = CleaningTask.objects.create(
+                task = CleaningTask(
+                    room=room,
+                    zone=zone,
                     booking=booking,
-                    room=booking.room,
                     scheduled_date=scheduled_date,
-                    cleaning_type=CleaningTypeChoices.DEPARTURE_CLEANING,
+                    cleaning_type=cleaning_type,
                     status=CleaningTask.Status.UNASSIGNED,
+                    assigned_by=assigned_by_user, # Устанавливаем пользователя, который инициировал создание
+                    notes=notes
                 )
+                
+                # Шаг 1: Определяем применимые чек-листы с использованием метода модели
+                applicable_checklists = CleaningTask.determine_applicable_checklists_by_periodicity(
+                    cleaning_type=task.cleaning_type,
+                    scheduled_date=task.scheduled_date,
+                    booking=task.booking,
+                    room=task.room,
+                    zone=task.zone,
+                )
+
+                # Шаг 2: Сохраняем задачу, чтобы она получила ID
+                # (Это необходимо перед установкой ManyToMany связей)
+                task.save() 
+                
+                # Шаг 3: Устанавливаем ManyToMany связь с найденными шаблонами чек-листов
+                task.associated_checklists.set(applicable_checklists)
+
+                # Шаг 4: Сериализуем данные чек-листов и сохраняем их в JSONField
+                # Это гарантирует, что поле checklist_data будет заполнено актуальными данными
+                task.checklist_data = ChecklistTemplateSerializer(
+                    sorted(applicable_checklists, key=lambda x: x.name), # Сортируем для консистентного JSON
+                    many=True,
+                    context={'request': request} # Передаем контекст, если сериализатор нуждается в нем
+                ).data
+                
+                # Шаг 5: Сохраняем задачу еще раз, чтобы зафиксировать изменения в ManyToMany и JSONField
+                task.save()
+
                 created_tasks_count += 1
-                created_tasks_details.append(f"Комната {booking.room.number} (Выезд)")
+                if room:
+                    created_tasks_details.append(f"Комната {room.number} ({cleaning_type})")
+                elif zone:
+                    created_tasks_details.append(f"Зона {zone.name} ({cleaning_type})")
+                return task
+            return None # Задача уже существовала
+
+        # --- Уборка после выезда ---
+        checkout_bookings = Booking.objects.filter(check_out__date=scheduled_date).select_related("room")
+        for booking in checkout_bookings:
+            if booking.room:
+                create_and_process_task(
+                    room=booking.room,
+                    cleaning_type=CleaningTypeChoices.DEPARTURE_CLEANING,
+                    booking=booking,
+                    assigned_by_user=request.user
+                )
 
         # --- Текущая уборка ---
         staying_bookings = Booking.objects.filter(
@@ -693,73 +783,39 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
         ).select_related("room")
 
         for booking in staying_bookings:
-            if not booking.room:
-                continue
-            
-            exists = CleaningTask.objects.filter(
-                booking=booking,
-                room=booking.room,
-                scheduled_date=scheduled_date,
-                cleaning_type=CleaningTypeChoices.STAYOVER
-            ).exists()
-
-            if not exists:
-                task = CleaningTask.objects.create(
-                    booking=booking,
+            if booking.room:
+                create_and_process_task(
                     room=booking.room,
-                    scheduled_date=scheduled_date,
                     cleaning_type=CleaningTypeChoices.STAYOVER,
-                    status=CleaningTask.Status.UNASSIGNED,
+                    booking=booking,
+                    assigned_by_user=request.user
                 )
-                created_tasks_count += 1
-                created_tasks_details.append(f"Комната {booking.room.number} (Текущая)")
-        
+
         # --- Подготовка номера к заезду ---
         preparing_bookings = Booking.objects.filter(
             check_in__date=scheduled_date,
-            guest_count__gt=2 
-        ).select_related("room")      
+            guest_count__gt=2 # Пример условия
+        ).select_related("room")
 
         for booking in preparing_bookings:
-            if not booking.room:
-                continue
-            
-            exists = CleaningTask.objects.filter(
-                booking=booking,
-                room=booking.room,
-                scheduled_date=scheduled_date,
-                cleaning_type=CleaningTypeChoices.PRE_ARRIVAL
-            ).exists()
-
-            if not exists:
-                task = CleaningTask.objects.create(
-                    booking=booking,
+            if booking.room:
+                notes = f"Подготовить номер для {booking.guest_count} гостей."
+                create_and_process_task(
                     room=booking.room,
-                    scheduled_date=scheduled_date,
                     cleaning_type=CleaningTypeChoices.PRE_ARRIVAL,
-                    status=CleaningTask.Status.UNASSIGNED,
-                    notes=f"Подготовить номер для {booking.guest_count} гостей."  
+                    booking=booking,
+                    notes=notes,
+                    assigned_by_user=request.user
                 )
-                created_tasks_count += 1
-                created_tasks_details.append(f"Комната {booking.room.number} (Подготовка)") 
 
         # --- Зоны ---
         zones = Zone.objects.all()
         for zone in zones:
-            exists = CleaningTask.objects.filter(
+            create_and_process_task(
                 zone=zone,
-                scheduled_date=scheduled_date,
-            ).exists()
-
-            if not exists:
-                task = CleaningTask.objects.create(
-                    zone=zone,
-                    scheduled_date=scheduled_date,
-                    cleaning_type=CleaningTypeChoices.PUBLIC_AREA_CLEANING,
-                    status=CleaningTask.Status.UNASSIGNED
-                )
-                created_tasks_count += 1
-                created_tasks_details.append(f"Зона {zone.name}")
+                cleaning_type=CleaningTypeChoices.PUBLIC_AREA_CLEANING, # Тип для зон
+                assigned_by_user=request.user
+            )
 
         return Response({
             "created_count": created_tasks_count,

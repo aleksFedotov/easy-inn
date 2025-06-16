@@ -7,18 +7,21 @@ import {
     CardContent,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Trash2 } from 'lucide-react';
+import { Button } from '../ui/button';
 
 
 interface ChecklistCardListProps {
 
     checklist: Checklist;
     onChange: (checklistId: number, progress: ChecklistProgress) => void;
+    onRemove?: (checklistId: number) => void;
 }
 
 const ChecklistCardList: React.FC<ChecklistCardListProps> = ({
     checklist,
-    onChange
+    onChange,
+    onRemove,
 }) => {
     const [isCardExpanded, setIsCardExpanded] = useState(false);
     const [checkedItemIds, setCheckedItemIds] = useState<number[]>([]);
@@ -48,6 +51,19 @@ const ChecklistCardList: React.FC<ChecklistCardListProps> = ({
             <CardHeader className="cursor-pointer" onClick={toggleCard}>
                 <div className="flex items-center justify-between">
                     <CardTitle>{checklist.name}</CardTitle>
+                    {onRemove && ( 
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onRemove(checklist.id);
+                            }}
+                            className="text-red-500 hover:text-red-700"
+                        >
+                            <Trash2 size={18} />
+                        </Button>
+                    )}
                     <ChevronDown
                         size={20}
                         className={` transition-transform duration-300 ${

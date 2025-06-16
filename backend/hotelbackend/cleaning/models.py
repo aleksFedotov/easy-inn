@@ -5,7 +5,9 @@ from booking.models import Booking
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from datetime import time
+from datetime import date
 from .cleaningTypeChoices import CleaningTypeChoices
+from django.db.models import Q
 
 # Create your models here.
 # Создайте свои модели здесь.
@@ -132,7 +134,7 @@ class CleaningTask(models.Model):
     class Meta:
         verbose_name = "Задача по уборке" # Человекочитаемое имя модели в единственном числе / Human-readable name for the model (singular)
         verbose_name_plural = "Задачи по уборке" # Человекочитаемое имя модели во множественном числе / Human-readable name for the model (plural)
-        ordering = ['due_time'] # Порядок сортировки по умолчанию по сроку выполнения / Default ordering by due time
+        ordering = ['scheduled_date', 'due_time', 'room__number', 'zone__name'] # Порядок сортировки по умолчанию по сроку выполнения / Default ordering by due time
         # Индексы для ускорения поиска по часто используемым полям
         # Indexes to speed up lookups on frequently used fields
         indexes = [
@@ -288,6 +290,21 @@ class CleaningTask(models.Model):
     # Flag indicating that the task is urgent
     is_rush = models.BooleanField(default=False)
 
+
+    checklist_data = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Данные чек-листа"
+    )
+
+    associated_checklists = models.ManyToManyField(
+        ChecklistTemplate,
+        related_name='cleaning_tasks',
+        blank=True,
+        verbose_name="Связанные чек-листы"
+    )
+
+
     # Метод для пользовательской валидации данных модели
     # Method for custom model data validation
     def clean(self):
@@ -360,6 +377,77 @@ class CleaningTask(models.Model):
         # Вызов метода save родительского класса для сохранения объекта
         # Call the parent class's save method to save the object
         super().save(*args, **kwargs)
+
+
+    @staticmethod
+    def determine_applicable_checklists_by_periodicity(
+        cleaning_type: str,
+        scheduled_date: date,
+        booking: 'Booking' = None, # Добавьте тайп-хинты для ясности
+        room: 'Room' = None,
+        zone: 'Zone' = None
+    ):
+        """
+        Определяет применимые ChecklistTemplates на основе типа уборки, запланированной даты,
+        и правил периодичности. Приоритет отдается последней выполненной задаче для данного чек-листа.
+        Если предыдущей задачи с конкретным чек-листом нет, используется дата заезда бронирования.
+        Эта логика применяется в основном, когда указана комната.
+        """
+        if not cleaning_type or not scheduled_date:
+            return []
+
+      
+        checklist_templates_qs = ChecklistTemplate.objects.filter(
+            Q(cleaning_type=cleaning_type) | Q(cleaning_type__isnull=True) | Q(cleaning_type='')
+        ).prefetch_related('items')
+
+        applicable_checklists = []
+
+       
+        if room:
+            for template in checklist_templates_qs:
+                latest_relevant_task = CleaningTask.objects.filter(
+                    room=room,
+                    cleaning_type=cleaning_type,
+                    associated_checklists=template,
+                    # status=CleaningTask.Status.CHECKED,
+                ).order_by('-scheduled_date').first()
+
+                days_since_last_event = -1 
+
+                if latest_relevant_task and latest_relevant_task.scheduled_date:
+                    # Если существует предыдущая задача с этим шаблоном для этой комнаты/бронирования,
+                    # вычисляем количество дней с даты планирования этой задачи.
+                    days_since_last_event = (scheduled_date - latest_relevant_task.scheduled_date).days
+                elif booking and booking.check_in:
+                    # Если предыдущей задачи с этим шаблоном нет для этой комнаты/бронирования,
+                    # вычисляем количество дней с даты заезда бронирования.
+                    # Это служит "точкой отсчета" для начальных периодических проверок.
+                    days_since_last_event = (scheduled_date - booking.check_in.date()).days
+                else:
+                    # Если нет ни комнаты, ни даты заезда бронирования, ни предыдущей задачи,
+                    # этот шаблон не применим в данной логике.
+                    continue # Пропускаем этот шаблон
+
+                # Убедимся, что days_since_last_event неотрицательно для операций по модулю
+                days_since_last_event = max(0, days_since_last_event)
+
+                # Проверяем периодичность относительно вычисленного days_since_last_event
+                if (days_since_last_event >= template.offset_days) and \
+                   ((days_since_last_event - template.offset_days) % template.periodicity == 0):
+                    applicable_checklists.append(template)
+
+       
+        elif zone:
+            days_from_fixed_point = (scheduled_date - date(2000, 1, 1)).days
+            for template in checklist_templates_qs:
+                if (days_from_fixed_point >= template.offset_days) and \
+                   ((days_from_fixed_point - template.offset_days) % template.periodicity == 0):
+                    applicable_checklists.append(template)
+        
+    
+        return applicable_checklists
+
 
     # Строковое представление объекта CleaningTask
     # String representation of the CleaningTask object
