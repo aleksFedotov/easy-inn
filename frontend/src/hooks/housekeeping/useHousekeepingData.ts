@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '@/lib/api';
-import { CleaningTask, User, Room, Zone, CleaningType } from '@/lib/types';
+import { User, Room, Zone, CleaningType } from '@/lib/types';
+import { CleaningTask } from '@/lib/types/housekeeping';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { format } from 'date-fns';

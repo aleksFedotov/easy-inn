@@ -13,13 +13,16 @@ import {
   TableCell,
   TableCaption
 } from '@/components/ui/table';
-import { Plus, RefreshCw, Search } from 'lucide-react';
+import { LayoutDashboard, List, Plus, RefreshCw, Search } from 'lucide-react';
 import { flexRender, Table as ReactTable } from '@tanstack/react-table';
-import { CleaningTask } from '@/lib/types';
+import { CleaningTask } from '@/lib/types/housekeeping';
 import { useHousekeepingState, useHousekeepingDispatch } from '@/context/HousekeepingContext';
+import CleaningTasksOverview from './CleaningTasksOverview';
+
 
 interface CleaningTasksPanelProps {
     table: ReactTable<CleaningTask>;
+    cleaningTask: CleaningTask[];
     columnsLength: number;
     onGenerateClick: () => void;
     onCreateClick: () => void;
@@ -29,13 +32,14 @@ interface CleaningTasksPanelProps {
 const  CleaningTasksPanel: React.FC<CleaningTasksPanelProps> = ({
 
     table,
+    cleaningTask,
     columnsLength,
     onGenerateClick,
     onCreateClick,
     isDisabled,
 
 }) =>{
-    const { activeTab, searchQuery, selectedDate,isGenerating } = useHousekeepingState();
+    const { activeTab, searchQuery, selectedDate,isGenerating ,currentView} = useHousekeepingState();
     const dispatch = useHousekeepingDispatch();
     const formattedDate = selectedDate ? format(selectedDate, 'dd.MM.yyyy', { locale: ru }) : 'Выберите дату';
     const onTabChange = (newTab: 'unassigned' | 'assigned' | 'all') => dispatch({ type: 'SET_ACTIVE_TAB', payload: newTab });
@@ -81,48 +85,73 @@ const  CleaningTasksPanel: React.FC<CleaningTasksPanelProps> = ({
 
     return (
         <div className="md:col-span-2 shadow-md rounded-lg p-4">
-        <h2 className="text-xl font-semibold mb-4">
-            Задачи уборки ({formattedDate})
-        </h2>
+            <div className='flex justify-between'>
+                <h2 className="text-xl font-semibold mb-4">
+                    Задачи уборки ({formattedDate})
+                </h2>
+                <div className="flex space-x-2"> {/* Контейнер для кнопок переключения вида */}
+                        <Button
+                            variant={currentView === 'table' ? 'default' : 'outline'}
+                            size="icon" // Кнопка с иконкой
+                            onClick={() => dispatch({ type: 'SET_VIEW', payload: 'table' })}
+                            title="Табличный вид"
+                        >
+                            <List size={20} />
+                        </Button>
+                        <Button
+                            variant={currentView === 'overview' ? 'default' : 'outline'}
+                            size="icon" // Кнопка с иконкой
+                            onClick={() => dispatch({ type: 'SET_VIEW', payload: 'overview' })}
+                            title="Обзор"
+                        >
+                            <LayoutDashboard size={20} />
+                        </Button>
+                </div>
+            </div>
+            <div className="flex space-x-2 py-2 w-full">
+                <Button onClick={onGenerateClick} disabled={isDisabled}>
+                <RefreshCw size={18} className="mr-2" />
+                {isGenerating ? 'Создание...' : 'Создать задачи'}
+                </Button>
+                <Button onClick={onCreateClick} disabled={isDisabled}>
+                <Plus size={18} className="mr-2" /> Создать задачу
+                </Button>
+            </div>
 
-        <div className="flex space-x-2 py-2 w-full">
-            <Button onClick={onGenerateClick} disabled={isDisabled}>
-            <RefreshCw size={18} className="mr-2" />
-            {isGenerating ? 'Создание...' : 'Создать задачи'}
-            </Button>
-            <Button onClick={onCreateClick} disabled={isDisabled}>
-            <Plus size={18} className="mr-2" /> Создать задачу
-            </Button>
-        </div>
+            <div className="relative mb-4">
+                <Input
+                type="text"
+                placeholder="Поиск задач..."
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="pl-10"
+                />
+                <Search size={20} className="absolute left-3 top-2.5 text-muted-foreground" />
+            </div>
 
-        <div className="relative mb-4">
-            <Input
-            type="text"
-            placeholder="Поиск задач..."
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-10"
-            />
-            <Search size={20} className="absolute left-3 top-2.5 text-muted-foreground" />
-        </div>
+            <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as 'unassigned' | 'assigned' | 'all')} className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="unassigned">Не назначенные</TabsTrigger>
+                    <TabsTrigger value="assigned">Назначенные</TabsTrigger>
+                    <TabsTrigger value="all">Все</TabsTrigger>
+                </TabsList>
 
-        <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as 'unassigned' | 'assigned' | 'all')} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="unassigned">Не назначенные</TabsTrigger>
-            <TabsTrigger value="assigned">Назначенные</TabsTrigger>
-            <TabsTrigger value="all">Все</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="all" className="mt-4">
-            {renderTableContent('Задачи по уборке на выбранную дату не найдены.')}
-            </TabsContent>
-            <TabsContent value="assigned" className="mt-4">
-            {renderTableContent('Назначенные задачи по уборке не найдены.')}
-            </TabsContent>
-            <TabsContent value="unassigned" className="mt-4">
-            {renderTableContent('Неназначенные задачи по уборке не найдены.')}
-            </TabsContent>
-        </Tabs>
+                <TabsContent value="all" className="mt-4">
+                    {currentView === 'table' 
+                        ? (renderTableContent('Задачи по уборке на выбранную дату не найдены.')) 
+                        : (<CleaningTasksOverview cleaningTasks={cleaningTask}/>)}
+                </TabsContent>
+                <TabsContent value="assigned" className="mt-4">
+                    {currentView === 'table' 
+                        ? (renderTableContent('Назначенные задачи по уборке не найдены.')) 
+                        : (<CleaningTasksOverview cleaningTasks={cleaningTask}/>)}
+                </TabsContent>
+                <TabsContent value="unassigned" className="mt-4">
+                    {currentView === 'table' 
+                        ? (renderTableContent('Неназначенные задачи по уборке не найдены.')) 
+                        : (<CleaningTasksOverview cleaningTasks={cleaningTask}/>)}
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }

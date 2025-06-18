@@ -24,7 +24,8 @@ import {
     createColumnHelper,
     getCoreRowModel,
 } from '@tanstack/react-table';
-import { CleaningTask } from '@/lib/types';
+import { CleaningTask } from '@/lib/types/housekeeping';
+
 
 
 export default function HousekeepingPage() {
@@ -39,7 +40,7 @@ function HousekeepingContent() {
   const { user, isLoading: isAuthLoading } = useAuth();
 
 
-  const { selectedDate, searchQuery, activeTab, selectedTasks } = useHousekeepingState();
+  const { selectedDate, searchQuery, activeTab, selectedTasks  } = useHousekeepingState();
   const dispatch = useHousekeepingDispatch();
 
   // Данные и функции для работы с API
@@ -210,14 +211,17 @@ function HousekeepingContent() {
             isDisabled={isActionDisabled}
         />
 
+  
         <CleaningTasksPanel
             table={table}
+            cleaningTask={filteredCleaningTasks}
             columnsLength={columns.length}
             onGenerateClick={handleGenerateClick}
             onCreateClick={handleCreateEditTaskClick}
             isDisabled={isActionDisabled}
-            
         />
+            
+    
       </div>
 
       <ModalsContainer

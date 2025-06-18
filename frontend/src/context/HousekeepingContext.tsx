@@ -9,7 +9,7 @@ type State = {
     activeTab: 'unassigned' | 'assigned' | 'all';
     selectedTasks: Record<string, boolean>; 
     isGenerating: boolean;
-
+    currentView: 'table' | 'overview';
 };
 
 
@@ -19,7 +19,9 @@ type Action =
     | { type: 'SET_HOUSEKEEPER_SEARCH_QUERY'; payload: string }
     | { type: 'SET_ACTIVE_TAB'; payload: 'unassigned' | 'assigned' | 'all' }
     | { type: 'SET_SELECTED_TASKS'; payload: Record<string, boolean> }
-    | { type: 'SET_IS_GENERATING'; payload: boolean };
+    | { type: 'SET_IS_GENERATING'; payload: boolean }
+    | { type: 'SET_VIEW'; payload: 'table' | 'overview' }; 
+
 
 
 const initialState: State = {
@@ -29,6 +31,8 @@ const initialState: State = {
     activeTab: 'unassigned',
     selectedTasks: {},
     isGenerating: false,
+    currentView: 'table'
+
 };
 
 
@@ -46,6 +50,8 @@ const housekeepingReducer = (state: State, action: Action): State => {
             return { ...state, selectedTasks: action.payload };
         case 'SET_IS_GENERATING':
             return { ...state, isGenerating: action.payload };
+        case 'SET_VIEW':
+            return { ...state, currentView: action.payload }; 
         default:
         return state;
     }

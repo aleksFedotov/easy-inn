@@ -74,3 +74,9 @@ export const TAB_TYPES = {
   ARRIVALS: 'arrivals',
   STAYS: 'stays',
 } as const;
+
+ export const CLEANING_TYPE_ORDER  = [
+      'Уборка при выезде',
+      'Ежедневная уборка', 
+      'Текущая уборка общих зон',
+  ];

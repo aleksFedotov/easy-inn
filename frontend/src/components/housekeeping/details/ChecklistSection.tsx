@@ -63,7 +63,9 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({
         return status !== CLEANICNG_STATUSES.WAITING_CHECK;
     };
 
-    const shouldShowChecklistManagement = user && [USER_ROLES.MANAGER, USER_ROLES.FRONT_DESK].includes(user.role);
+    const shouldShowChecklistManagement = user 
+        && [USER_ROLES.MANAGER, USER_ROLES.FRONT_DESK].includes(user.role) 
+        && [CLEANICNG_STATUSES.ASSIGNED,CLEANICNG_STATUSES.IN_PROGRESS].includes(task.status);
 
     if (!user || !shouldRenderChecklist(user.role, task.status)) {
         return null;

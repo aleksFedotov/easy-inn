@@ -11,7 +11,8 @@ import {
     Edit,
     Flame,
 } from 'lucide-react';
-import { CleaningTask, User } from '@/lib/types';
+import { CleaningTask } from '@/lib/types/housekeeping';
+import {  User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 // import { useHousekeepingState } from '@/context/HousekeepingContext';

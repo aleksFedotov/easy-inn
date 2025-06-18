@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { CleaningTask } from '@/lib/types/housekeeping';
-import { CLEANING_TYPES } from '@/lib/constants';
+import {  CLEANING_TYPE_ORDER } from '@/lib/constants';
 
 type ChecklistSummary = Record<string, Record<string, { total: number }>>;
 
@@ -28,16 +28,11 @@ export const useChecklistSummary = (tasks: CleaningTask[]) => {
   }, [tasks]);
 
   const sortedChecklistSummaryKeys = useMemo(() => {
-    const customOrder = [
-      CLEANING_TYPES.DEPARTURE,
-      CLEANING_TYPES.STAYOVER,
-      CLEANING_TYPES.PUBLIC_AREA,
-    ];
     const keys = Object.keys(checklistSummary);
 
     return keys.sort((a, b) => {
-      const indexA = customOrder.indexOf(a);
-      const indexB = customOrder.indexOf(b);
+      const indexA = CLEANING_TYPE_ORDER.indexOf(a);
+      const indexB = CLEANING_TYPE_ORDER.indexOf(b);
 
       if (indexA !== -1 && indexB !== -1) return indexA - indexB;
       if (indexA !== -1) return -1;
