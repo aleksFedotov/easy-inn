@@ -215,8 +215,9 @@ class BookingViewSet(viewsets.ModelViewSet):
         try:
             with transaction.atomic():
                 booking = self.get_object()
-                if booking.status != Booking.BookingStatus.IN_PROGRESS:
-                    return Response({"detail": "Бронирование не находится в статусе 'В процессе проживания'."}, status=status.HTTP_400_BAD_REQUEST)
+                # Добаввить после введедния возможности изменения статуса на фронтэнде
+                # if booking.status != Booking.BookingStatus.IN_PROGRESS:
+                #     return Response({"detail": "Бронирование не находится в статусе 'В процессе проживания'."}, status=status.HTTP_400_BAD_REQUEST)
 
                 booking.status = Booking.BookingStatus.CHECKED_OUT
                 booking.checked_out = timezone.now()

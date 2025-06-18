@@ -14,26 +14,21 @@ import {
 import { CleaningTask, User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
+// import { useHousekeepingState } from '@/context/HousekeepingContext';
 
-
-
-/**
- * TaskActions component provides a dropdown menu with actions for a cleaning task.
- * Actions include viewing details, editing, deleting, and changing task status.
- *
- * @param {TaskActionsProps} { task, user, fetchCleaningTasks, selectedDate, onDelete, onEdit } - Props for the component.
- * @returns {JSX.Element} The TaskActions component.
- */
-const TaskActions = ({ task, user, fetchCleaningTasks, selectedDate, onDelete, onEdit }: {
+interface TaskActionsProps {
     task: CleaningTask;
     user: User | null;
-    fetchCleaningTasks: (date: string) => void;
-    selectedDate: string;
+    // fetchCleaningTasks: (date: string) => void;
+
     onDelete: (task: CleaningTask) => void;
     onEdit: (task: CleaningTask) => void;
-}) => {
+}
+
+const TaskActions:React.FC<TaskActionsProps> = ({ task, user, onDelete, onEdit }) => {
     const router = useRouter();
     const [isPerformingAction, setIsPerformingAction] = useState(false);
+    // const {selectedDate} = useHousekeepingState()
 
     const handleToggleRush = async () => {
         setIsPerformingAction(true);
@@ -47,7 +42,7 @@ const TaskActions = ({ task, user, fetchCleaningTasks, selectedDate, onDelete, o
 
             if (response.status === 200) {
                 toast.success(`Задача успешно ${newRushStatus ? 'помечена как срочная' : 'снята с срочных'}.`);
-                fetchCleaningTasks(selectedDate); // Обновляем список задач
+                // fetchCleaningTasks(selectedDate); 
             } else {
                 // Обработка неуспешного ответа
                 toast.error(`Не удалось изменить статус срочности. Статус: ${response.status}`);

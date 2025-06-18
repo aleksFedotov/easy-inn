@@ -835,6 +835,8 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
             task_ids = serializer.validated_data['task_ids']
             housekeeper_id = serializer.validated_data['housekeeper_id']
             scheduled_date = serializer.validated_data['scheduled_date']
+            logger.debug(f"scheduled_date {scheduled_date}")
+            logger.debug(f"task_ids {task_ids}")
 
             try:
                 
@@ -845,6 +847,10 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
 
            
             tasks_to_assign = CleaningTask.objects.filter(id__in=task_ids, scheduled_date=scheduled_date)
+            logger.debug(f"cleaning_task {CleaningTask.objects.filter(id__in=task_ids)}")
+            logger.debug(f"cleaning_task {CleaningTask.objects.filter(id__in=task_ids)}")
+            logger.debug(f"cleaning_task {CleaningTask.objects.filter(scheduled_date=scheduled_date)}")
+            logger.debug(f"tasks_to_assign {tasks_to_assign}")
 
            
             if len(tasks_to_assign) != len(task_ids):

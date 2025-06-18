@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { CleaningTask } from '@/lib/types';
+import { CleaningTask, User } from '@/lib/types';
 import { format } from 'date-fns';
 import api  from '@/lib/api';
 import axios from 'axios';
@@ -8,18 +8,20 @@ import { toast } from 'sonner';
 
 interface UseTaskModalsProps {
     fetchCleaningTasks: (date: string) => Promise<CleaningTask[]>;
+    setAssignedHousekeepers: React.Dispatch<React.SetStateAction<User[]>>
     selectedDate?: Date;
+    allAvailableHousekeepers: User[], 
+    assignedHousekeepers: User[],
 }
 
-const useTaskModals = ({ fetchCleaningTasks, selectedDate }: UseTaskModalsProps) => {
+const useTaskModals= ({ fetchCleaningTasks,setAssignedHousekeepers, selectedDate,allAvailableHousekeepers, assignedHousekeepers }:UseTaskModalsProps) => {
     const [isCreateEditTaskModalOpen, setIsCreateEditTaskModalOpen] = useState(false)
     const [taskToEdit, setTaskToEdit] = useState<CleaningTask | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [taskToDelete, setTaskToDelete] = useState<CleaningTask | null>(null);
     const [isHousekeeperSelectionModalOpen, setIsHousekeeperSelectionModalOpen] = useState(false);
     const [isAssignTasksModalOpened, setIsAssignTasksModalOpened] = useState<boolean >(false);
-   
-    // Handlers for Create
+    
     const handleCreateEditTaskClick = useCallback(() => {
         setIsCreateEditTaskModalOpen(true);
     }, []);
@@ -38,7 +40,7 @@ const useTaskModals = ({ fetchCleaningTasks, selectedDate }: UseTaskModalsProps)
     }, []);
 
 
-    // Handlers for Delete
+
     const handleDeleteTask = useCallback((task: CleaningTask) => {
         setTaskToDelete(task);
         setIsDeleteModalOpen(true);
@@ -78,9 +80,18 @@ const useTaskModals = ({ fetchCleaningTasks, selectedDate }: UseTaskModalsProps)
         setIsHousekeeperSelectionModalOpen(true);
     }, []);
 
-    const handleConfirmHousekeeperSelection = useCallback(() => {
+    const handleConfirmHousekeeperSelection = useCallback((selectedIds: number[]) => {
+        const newlySelectedHousekeepers = allAvailableHousekeepers.filter(h => selectedIds.includes(h.id));
+        
+        const existingHousekeeperIds = new Set(assignedHousekeepers.map(h => h.id));
+        const combinedHousekeepers = [
+                ...assignedHousekeepers,
+                ...newlySelectedHousekeepers.filter(h => !existingHousekeeperIds.has(h.id))
+            ];
+
+        setAssignedHousekeepers(combinedHousekeepers);
         setIsHousekeeperSelectionModalOpen(false);
-    }, []);
+    }, [allAvailableHousekeepers, assignedHousekeepers, setAssignedHousekeepers])
 
     const handleCloseHousekeeperSelectionModal = useCallback(() => {
         setIsHousekeeperSelectionModalOpen(false);
@@ -119,6 +130,8 @@ const useTaskModals = ({ fetchCleaningTasks, selectedDate }: UseTaskModalsProps)
         handleCloseHousekeeperSelectionModal,
         handleOpenAssignTasksModal,
         handleCloseAssignTasksModal,
+        assignedHousekeepers
+        
     };
 };
 

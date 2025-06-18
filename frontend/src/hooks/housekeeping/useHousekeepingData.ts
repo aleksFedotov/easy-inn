@@ -17,6 +17,8 @@ interface LoadingStates {
     rooms: boolean;
     zones: boolean;
     cleaningTypes: boolean;
+    generating: boolean;
+    assigning: boolean; 
 }
 
 interface CacheEntry<T> {
@@ -27,7 +29,7 @@ interface CacheEntry<T> {
 const useHousekeepingData = ({ 
     selectedDate, 
     enableCaching = true,
-    cacheTimeout = 5 * 60 * 1000 // 5 минут по умолчанию
+    cacheTimeout = 5 * 60 * 1000 
 }: UseHousekeepingDataProps) => {
     // Основные состояния
     const [cleaningTasks, setCleaningTasks] = useState<CleaningTask[]>([]);
@@ -35,7 +37,8 @@ const useHousekeepingData = ({
     const [rooms, setRooms] = useState<Room[]>([]);
     const [zones, setZones] = useState<Zone[]>([]);
     const [cleaningTypes, setCleaningTypes] = useState<CleaningType[]>([]);
-    
+    const [assignedHousekeepers,setAssignedHousekeepers] = useState<User[]>([])
+   
     // Состояния загрузки
     const [loadingStates, setLoadingStates] = useState<LoadingStates>({
         tasks: false,
@@ -43,6 +46,8 @@ const useHousekeepingData = ({
         rooms: false,
         zones: false,
         cleaningTypes: false,
+         generating: false, 
+        assigning: false,  
     });
     
     const [error, setError] = useState<string | null>(null);
@@ -250,6 +255,32 @@ const useHousekeepingData = ({
         }
     }, [enableCaching, isCacheValid, setZonesCacheEntry, updateLoadingState, createErrorHandler]);
 
+        useEffect(() => {
+        const fetchAssignedHousekeepers = async () => {
+            if (selectedDate) { 
+                try {
+                    const response = await api.get('/api/housekeepers/assigned/', {
+                        params: { scheduled_date: format(selectedDate, 'yyyy-MM-dd') }
+                    });
+                    setAssignedHousekeepers(response.data);
+                } catch (error) {
+                     if (axios.isAxiosError(error) && error.response) {
+                        toast.error(error.response.data.detail || error.response.data.message || JSON.stringify(error.response.data));
+                    } else {
+                        toast.error('Произошла ошибка при загрузки списка горничных.');
+                    }
+                }
+            }
+        };
+
+        // Добавляем небольшую задержку, чтобы избежать race condition
+        const timer = setTimeout(() => {
+            fetchAssignedHousekeepers();
+        }, 200);
+        
+        return () => clearTimeout(timer);
+    }, [selectedDate]);
+
     // Главная функция загрузки данных
     const fetchData = useCallback(async (forceRefresh = false) => {
         const dateString = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
@@ -257,14 +288,14 @@ const useHousekeepingData = ({
         // Проверяем, нужно ли перезагружать данные
         if (!forceRefresh && lastFetchedDateRef.current === dateString && 
             cleaningTasksRef.current.length > 0 && housekeepersRef.current.length > 0) {
-            return;
-        }
-
-        setError(null);
-        lastFetchedDateRef.current = dateString;
-
-        try {
-            await Promise.all([
+                return;
+            }
+            
+            setError(null);
+            lastFetchedDateRef.current = dateString;
+            
+            try {
+                await Promise.all([
                 fetchCleaningTasks(dateString),
                 fetchAllHousekeepers(),
                 fetchRooms(),
@@ -276,16 +307,80 @@ const useHousekeepingData = ({
             setError('Произошла ошибка при загрузке данных.');
         }
     }, [selectedDate, fetchCleaningTasks, fetchAllHousekeepers, fetchRooms, fetchZones]);
-
+    
     // Эффект для загрузки данных при изменении даты
     useEffect(() => {
         fetchData();
     }, [selectedDate,fetchData]);
-
+    
     // Функция для принудительного обновления данных
     const refetchData = useCallback(() => {
         fetchData(true);
     }, [fetchData]);
+    
+    const generateTasks = useCallback(async (dateToGenerate: Date) => {
+        updateLoadingState('generating', true);
+        const dateString = format(dateToGenerate, 'yyyy-MM-dd');
+
+        try {
+            const res = await api.post('/api/cleaningtasks/auto_generate/', { scheduled_date: dateString });
+            if (res.status === 201) {
+                if (res.data.created_count > 0) {
+                    toast.success(`Создано задач: ${res.data.created_count}`);
+                    
+                    tasksCacheRef.current.delete(dateString);
+                    await refetchData();
+                } else {
+                    toast.info('Задачи на сегодня уже существуют');
+                }
+                return true; 
+            }
+            return false;
+        } catch (error) {
+            createErrorHandler('генерации задач')(error);
+            return false; 
+        } finally {
+            updateLoadingState('generating', false);
+        }
+    }, [updateLoadingState, createErrorHandler, refetchData]);
+
+
+    const assignTasks = useCallback(async (taskIds: number[], housekeeperId: number, scheduledDate: Date) => {
+       
+        if (taskIds.length === 0) {
+            toast.error("Выберите хотя бы одну задачу.");
+            return false;
+        }
+        if (!housekeeperId) {
+            toast.error("Пожалуйста, выберите горничную.");
+            return false;
+        }
+
+        updateLoadingState('assigning', true);
+        const dateString = format(scheduledDate, 'yyyy-MM-dd');
+        
+        try {
+            await api.post('/api/cleaningtasks/assign_multiple/', {
+                task_ids: taskIds,
+                housekeeper_id: housekeeperId,
+                scheduled_date: dateString,
+            });
+            
+            toast.success(`Назначено ${taskIds.length} задач`);
+            
+            // Снова инвалидируем кэш и обновляем данные
+            tasksCacheRef.current.delete(dateString);
+            await refetchData();
+            
+            return true; // Успех
+        } catch (err) {
+            createErrorHandler('назначения задач')(err);
+            return false; // Неудача
+        } finally {
+            updateLoadingState('assigning', false);
+        }
+    }, [updateLoadingState, createErrorHandler, refetchData]);
+
 
     // Функция для очистки кэша
     const clearCache = useCallback(() => {
@@ -327,6 +422,8 @@ const useHousekeepingData = ({
         setZones,
         cleaningTypes,
         setCleaningTypes,
+        assignedHousekeepers,
+        setAssignedHousekeepers,
         
         // Состояния загрузки
         isLoadingData,
@@ -339,13 +436,15 @@ const useHousekeepingData = ({
         refetchData,
         clearCache,
         updateCleaningTask,
+        generateTasks, 
+        assignTasks,   
         
-        // Отдельные fetch функции (если нужны)
+       
         fetchCleaningTasks,
         fetchAllHousekeepers,
         fetchRooms,
         fetchZones,
-        // fetchCleaningTypes,
+       
     };
 };
 
