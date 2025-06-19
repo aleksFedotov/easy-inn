@@ -709,12 +709,10 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                 query_filters['room'] = room
             if zone:
                 query_filters['zone'] = zone
-            # Если задача связана с бронированием, добавляем его в фильтр
-            if booking and room: # Booking only makes sense with a room
+          
+            if booking and room: 
                 query_filters['booking'] = booking
-            # Внимание: для задач по зонам или другим, не привязанным к конкретному бронированию,
-            # убедитесь, что фильтр `booking` не мешает.
-            # Мы используем cleaning_type в фильтре, чтобы различать типы задач (например, DEPARTURE, STAYOVER) для одной и той же комнаты.
+           
 
             exists = CleaningTask.objects.filter(**query_filters).exists()
 
@@ -726,11 +724,11 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                     scheduled_date=scheduled_date,
                     cleaning_type=cleaning_type,
                     status=CleaningTask.Status.UNASSIGNED,
-                    assigned_by=assigned_by_user, # Устанавливаем пользователя, который инициировал создание
+                    assigned_by=assigned_by_user, 
                     notes=notes
                 )
                 
-                # Шаг 1: Определяем применимые чек-листы с использованием метода модели
+      
                 applicable_checklists = CleaningTask.determine_applicable_checklists_by_periodicity(
                     cleaning_type=task.cleaning_type,
                     scheduled_date=task.scheduled_date,
@@ -739,22 +737,20 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                     zone=task.zone,
                 )
 
-                # Шаг 2: Сохраняем задачу, чтобы она получила ID
-                # (Это необходимо перед установкой ManyToMany связей)
+               
                 task.save() 
                 
-                # Шаг 3: Устанавливаем ManyToMany связь с найденными шаблонами чек-листов
+               
                 task.associated_checklists.set(applicable_checklists)
 
-                # Шаг 4: Сериализуем данные чек-листов и сохраняем их в JSONField
-                # Это гарантирует, что поле checklist_data будет заполнено актуальными данными
+              
                 task.checklist_data = ChecklistTemplateSerializer(
-                    sorted(applicable_checklists, key=lambda x: x.name), # Сортируем для консистентного JSON
+                    sorted(applicable_checklists, key=lambda x: x.name), 
                     many=True,
-                    context={'request': request} # Передаем контекст, если сериализатор нуждается в нем
+                    context={'request': request} 
                 ).data
                 
-                # Шаг 5: Сохраняем задачу еще раз, чтобы зафиксировать изменения в ManyToMany и JSONField
+                
                 task.save()
 
                 created_tasks_count += 1
@@ -763,16 +759,27 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
                 elif zone:
                     created_tasks_details.append(f"Зона {zone.name} ({cleaning_type})")
                 return task
-            return None # Задача уже существовала
+            return None
 
         # --- Уборка после выезда ---
         checkout_bookings = Booking.objects.filter(check_out__date=scheduled_date).select_related("room")
         for booking in checkout_bookings:
             if booking.room:
+                notes = ""
+                standard_guests_for_preparation = booking.room.room_type.default_prepared_guests if booking.room.room_type else 2 
+                next_booking = Booking.objects.filter(
+                    check_in__date=scheduled_date,
+                    room=booking.room,
+                ).exclude(pk=booking.pk).first() 
+
+                if next_booking and next_booking.guest_count > standard_guests_for_preparation:
+                    notes = f"Подготовить номер для {next_booking.guest_count} гостей."
+
                 create_and_process_task(
                     room=booking.room,
                     cleaning_type=CleaningTypeChoices.DEPARTURE_CLEANING,
                     booking=booking,
+                    notes=notes,
                     assigned_by_user=request.user
                 )
 
@@ -793,21 +800,27 @@ class CleaningTaskViewSet(AllowAllPaginationMixin,LoggingModelViewSet,viewsets.M
 
         # --- Подготовка номера к заезду ---
         preparing_bookings = Booking.objects.filter(
-            check_in__date=scheduled_date,
-            guest_count__gt=2 # Пример условия
-        ).select_related("room")
+                    check_in__date=scheduled_date,
+                ).select_related("room", "room__room_type")
 
         for booking in preparing_bookings:
             if booking.room:
-                notes = f"Подготовить номер для {booking.guest_count} гостей."
-                create_and_process_task(
-                    room=booking.room,
-                    cleaning_type=CleaningTypeChoices.PRE_ARRIVAL,
-                    booking=booking,
-                    notes=notes,
-                    assigned_by_user=request.user
-                )
+                standard_guests_for_preparation = booking.room.room_type.default_prepared_guests if booking.room.room_type else 2
+                
+                has_checkout_today_for_room = Booking.objects.filter(
+                    check_out__date=scheduled_date,
+                    room=booking.room
+                ).exclude(pk=booking.pk).exists()
 
+                if booking.guest_count > standard_guests_for_preparation and not has_checkout_today_for_room:
+                    notes = f"Подготовить номер для {booking.guest_count} гостей."
+                    create_and_process_task(
+                        room=booking.room,
+                        cleaning_type=CleaningTypeChoices.PRE_ARRIVAL,
+                        booking=booking,
+                        notes=notes,
+                        assigned_by_user=request.user
+                    )
         # --- Зоны ---
         zones = Zone.objects.all()
         for zone in zones:

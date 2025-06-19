@@ -41,6 +41,8 @@ export const getColumns = ({
 
 
   let contextualColumn: ColumnDef<Booking> | null = null;
+  let notesColumn: ColumnDef<Booking> | null = null; // Добавляем переменную для столбца заметок
+
   switch (selectedTab) {
     case 'departures':
       contextualColumn = {
@@ -54,6 +56,12 @@ export const getColumns = ({
         accessorKey: 'check_in',
         header: 'Время заезда',
         cell: ({ row }) => format(new Date(row.original.check_in), 'HH:mm'),
+      };
+      // Определяем столбец "Заметки" только для вкладки "arrivals"
+      notesColumn = {
+        accessorKey: 'notes', // Предполагается, что у Booking есть поле 'notes'
+        header: 'Заметки',
+        cell: ({ row }) => row.original.notes || 'Нет заметок', // Отображаем заметки или "Нет заметок"
       };
       break;
     case 'stays':
@@ -107,11 +115,19 @@ export const getColumns = ({
     },
   };
 
-
-  return [
-    baseColumns[0], // Номер комнаты
-    ...(contextualColumn ? [contextualColumn] : []), // Контекстная колонка
-    baseColumns[1], // Статус
-    actionColumn,   // Действия
+  const columns: ColumnDef<Booking>[] = [
+    baseColumns[0], 
+    ...(contextualColumn ? [contextualColumn] : []), 
   ];
+
+  if (selectedTab === 'arrivals' && notesColumn) {
+    columns.push(notesColumn);
+  }
+
+  columns.push(
+    baseColumns[1], 
+    actionColumn    
+  );
+
+  return columns;
 };

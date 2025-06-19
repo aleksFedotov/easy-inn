@@ -17,8 +17,6 @@ import ConfirmationDialog from '@/components/ConfirmationDialog';
 
 import { uiReducer, initialUiState } from '@/reducers/FrontDeskReducer'; 
 
-
-// Импортируем хук для данных
 import { useFrontDeskData } from '@/hooks/front-desk/useFrontDeskData';
 import { useFrontdeskActions } from '@/hooks/front-desk/useFrontDeskActions';
 
@@ -39,7 +37,6 @@ export default function FrontDeskPage() {
         bookingToEdit,
     } = uiState;
 
-    // Используем хук для получения данных
     const {
         departures,
         arrivals,
@@ -70,7 +67,7 @@ export default function FrontDeskPage() {
         dispatchUiAction
     });
 
-    // Единый флаг для отключения UI элементов
+
     const isDisabledUI = isLoadingData || isLoadingSummary || isPerformingAction || isCreateSheetOpen || isConfirmDeleteModalOpen;
 
 
@@ -88,7 +85,7 @@ export default function FrontDeskPage() {
         dispatchUiAction({ type: 'OPEN_CREATE_SHEET' });
     }, [isDisabledUI]);
 
-    // --- Определение колонок для DataTable ---
+  
     const columns = useMemo(() => getColumns({
         selectedTab,
         isDisabledUI,

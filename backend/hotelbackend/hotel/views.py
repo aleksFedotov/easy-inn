@@ -89,18 +89,6 @@ class RoomViewSet(AllowAllPaginationMixin,viewsets.ModelViewSet):
         
         return Response(summary, status=status.HTTP_200_OK)
     
-    @action(detail=True, methods=['post'])
-    def change_status(self,request, pk=None):
-        room = self.get_object()
-        new_status = request.data.get('new_status')
-        if new_status not in Room.Status.values:
-            return Response({'error': "Недопустимый статус"},status=status.HTTP_400_BAD_REQUEST)
-        room.status = new_status
-        room.save()
-        logger.info(f"Room {room.pk} status changed to {new_status}")
-        return Response()
-    
-    
 
 
 # --- Zone ViewSet ---

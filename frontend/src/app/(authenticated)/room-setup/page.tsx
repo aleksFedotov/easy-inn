@@ -85,6 +85,21 @@ export const getRoomTypeColumns = (
     },
   },
   {
+    accessorKey: 'default_prepared_guests', //
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Стандартное кол-во гостей
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
+    cell: ({ row }) => row.getValue('default_prepared_guests'), 
+  },
+  {
     accessorKey: 'description',
     header: 'Описание',
     cell: ({ row }) => row.getValue('description') || <span className="text-muted-foreground">Нет описания</span>,

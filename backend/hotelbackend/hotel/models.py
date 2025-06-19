@@ -30,7 +30,10 @@ class RoomType(models.Model):
         default=1, # Default value if not specified / Значение по умолчанию, если не указано
         verbose_name="Вместимость"
         )
-
+    default_prepared_guests = models.PositiveIntegerField(
+        default=2, 
+        verbose_name="Стандартное кол-во гостей для подготовки"
+    )
     # Строковое представление объекта RoomType. Возвращает название типа номера.
     # String representation of the RoomType object. Returns the name of the room type.
     def __str__(self):

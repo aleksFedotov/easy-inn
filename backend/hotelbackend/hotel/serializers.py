@@ -18,7 +18,8 @@ class RoomTypeSerializer(serializers.ModelSerializer):
             'id',
             'name',
             'description',
-            'capacity'
+            'capacity',
+            'default_prepared_guests'
         ]
         # Поля, доступные только для чтения (не принимаются при создании/обновлении).
         # Fields that are read-only (not accepted on create/update).
@@ -54,6 +55,8 @@ class RoomSerializer(serializers.ModelSerializer):
     # Uses SerializerMethodField to call the model's get_status_display() method.
     status_display = serializers.SerializerMethodField()
 
+    default_prepared_guests = serializers.IntegerField(source='room_type.default_prepared_guests', read_only=True)
+
     # Метод для получения значения поля status_display.
     # Method to get the value for the status_display field.
     def get_status_display(self, obj):
@@ -88,6 +91,7 @@ class RoomSerializer(serializers.ModelSerializer):
             'status_display', # Человекочитаемый статус (только чтение) / Human-readable status (read-only)
             'notes', # Заметки (чтение/запись) / Notes (read/write)
             'is_active', # Активен ли номер (чтение/запись) / Is the room active (read/write)
+             'default_prepared_guests',
         ]
         # Поля, доступные только для чтения.
         # Fields that are read-only.
@@ -95,6 +99,7 @@ class RoomSerializer(serializers.ModelSerializer):
             'id', # ID обычно всегда только для чтения / ID is usually always read-only
             'status_display', # Вычисляемое поле / Calculated field
             'room_type_name', # Вычисляемое поле / Calculated field
+            'default_prepared_guests',
             
         ]
 

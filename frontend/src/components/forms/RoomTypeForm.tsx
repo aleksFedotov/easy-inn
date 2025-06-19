@@ -28,6 +28,7 @@ interface RoomTypeFormData {
     name: string;
     capacity: number;
     description?: string; 
+    default_prepared_guests: number;
 }
 
 
@@ -40,6 +41,9 @@ const formSchema = z.object({
     capacity: z.coerce.number() 
         .min(1, { message: "Поле 'Вместимость' обязательно и должно быть положительным числом." })
         .int({ message: "Вместимость должна быть целым числом." }),
+    default_prepared_guests: z.coerce.number() 
+        .min(1, { message: "Поле 'Стандартное кол-во гостей' обязательно и должно быть положительным числом." })
+        .int({ message: "Стандартное кол-во гостей должно быть целым числом." }),
     description: z.string().optional(), 
 });
 
@@ -61,10 +65,12 @@ export default function RoomTypeForm({ roomTypeToEdit, onSuccess, onCancel }: Ro
         defaultValues: roomTypeToEdit ? {
             name: roomTypeToEdit.name,
             capacity: roomTypeToEdit.capacity,
+            default_prepared_guests: roomTypeToEdit.default_prepared_guests || 1,
             description: roomTypeToEdit.description || '',
         } : {
             name: '',
-            capacity: 1, 
+            capacity: 1,
+            default_prepared_guests: 1,
             description: '',
         },
     });
@@ -79,6 +85,7 @@ export default function RoomTypeForm({ roomTypeToEdit, onSuccess, onCancel }: Ro
             const dataToSend = {
                 name: data.name,
                 capacity: data.capacity,
+                default_prepared_guests: data.default_prepared_guests,
                 description: data.description,
             };
 
@@ -161,6 +168,20 @@ export default function RoomTypeForm({ roomTypeToEdit, onSuccess, onCancel }: Ro
                     render={({ field }) => (
                         <FormItem className="mb-4">
                             <FormLabel>Вместимость:</FormLabel>
+                            <FormControl>
+                                <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                {/* Поле Стандартное количество гостей для подготовки */}
+                <FormField 
+                    control={form.control}
+                    name="default_prepared_guests"
+                    render={({ field }) => (
+                        <FormItem className="mb-4">
+                            <FormLabel>Стандартное кол-во гостей (подготовка):</FormLabel>
                             <FormControl>
                                 <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} />
                             </FormControl>

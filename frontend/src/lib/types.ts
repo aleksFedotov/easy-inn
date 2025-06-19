@@ -39,6 +39,7 @@ export interface Booking {
     updated_at: string; 
     created_by: User | null;
     status: string;
+  
 
     // Поля только для чтения из сериализатора 
     created_by_name?: string | null; 
@@ -52,6 +53,7 @@ export interface RoomType {
     name: string;
     description: string;
     capacity: number;
+    default_prepared_guests: number;
     
 }
 
@@ -68,6 +70,7 @@ export interface Room {
     notes: string;
     is_active: boolean;
     status_display: string;
+    default_prepared_guests: number;
     
 }
 
