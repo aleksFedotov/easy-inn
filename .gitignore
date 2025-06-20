@@ -33,6 +33,7 @@ pnpm-debug.log*
 .vscode/
 *.sublime-project
 *.sublime-workspace
+*.sublime-workspace
 
 # Operating System files
 .DS_Store
@@ -45,3 +46,5 @@ easyinn-2c8c9-f21bf8e4c33f.json
 /backend/hotelbackend/easyinn-2c8c9-firebase-adminsdk-fbsvc-55a42daeea.json
 /easyinn-mobile/easyinn-2c8c9-firebase-adminsdk-fbsvc-d8e7c136a9.json
 /easyinn-mobile/android
+
+
