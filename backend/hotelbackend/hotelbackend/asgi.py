@@ -5,7 +5,9 @@ import django
 from channels.routing import ProtocolTypeRouter, URLRouter
 
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hotelbackend.settings')
+
+settings_module = os.getenv('DJANGO_SETTINGS_MODULE_ENV', 'hotelbackend.settings.dev') 
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', settings_module)
 django.setup()
 import api.routing
 django_asgi_app = get_asgi_application()
