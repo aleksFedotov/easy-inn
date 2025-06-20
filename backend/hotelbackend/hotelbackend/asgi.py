@@ -6,7 +6,7 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 
 
 
-settings_module = os.getenv('DJANGO_SETTINGS_MODULE_ENV', 'hotelbackend.settings.dev') # ПО УМОЛЧАНИЮ DEV
+settings_module = os.getenv('DJANGO_SETTINGS_MODULE_ENV', 'hotelbackend.settings.dev') 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', settings_module)
 django.setup()
 import api.routing
