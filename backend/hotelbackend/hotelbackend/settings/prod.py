@@ -26,6 +26,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://easyinn.ru",
     # "https://your-mobile-domain.com",
     "http://localhost:3000", 
+    "https://www.easyinn.ru",
 ]
 
 # Настройка базы данных для продакшена (PostgreSQL)
