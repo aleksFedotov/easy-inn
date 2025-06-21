@@ -156,7 +156,7 @@ function HousekeepingContent() {
             ),
         }),
     ],
-    [user, handleDeleteTask, handleCreateEditTaskClick, setTaskToEdit]
+    [columnHelper, user, handleDeleteTask, setTaskToEdit, handleCreateEditTaskClick]
   );
   
   

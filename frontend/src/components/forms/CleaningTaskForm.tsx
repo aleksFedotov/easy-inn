@@ -38,7 +38,7 @@ const CleaningTypeEnum = z.enum(CLEANING_TYPE_VALUES);
 
 // Define the form data type
 interface CleaningTaskFormData {
-    cleaning_type: "stayover" | "departure_cleaning" | "deep_cleaning" | "on_demand" | "post_renovation_cleaning" | "public_area_cleaning";
+    cleaning_type: "stayover" | "departure_cleaning" | "deep_cleaning" | "on_demand" | "post_renovation_cleaning" | "public_area_cleaning" | "pre_arrival";
     scheduled_date: string;
     due_time?: string;
     assigned_to?: string;
@@ -105,7 +105,7 @@ export default function CleaningTaskForm({
             zone: cleaningTaskToEdit.zone?.toString() || '',
             cleaning_type: cleaningTaskToEdit.cleaning_type,
             assigned_to: cleaningTaskToEdit.assigned_to?.toString() || '',
-            scheduled_date: cleaningTaskToEdit.scheduled_date ?? new Date().toISOString().split('T')[0], // ✅ Убедись, что это строка
+            scheduled_date: cleaningTaskToEdit.scheduled_date ?? new Date().toISOString().split('T')[0], 
             due_time: cleaningTaskToEdit.due_time ? cleaningTaskToEdit.due_time.substring(11, 16) : '',
             notes: cleaningTaskToEdit.notes || '',
             is_rush: cleaningTaskToEdit.is_rush || false,
@@ -114,7 +114,7 @@ export default function CleaningTaskForm({
             zone: '',
             cleaning_type: undefined,
             assigned_to: '',
-            scheduled_date: new Date().toISOString().split('T')[0], // ✅ по умолчанию — сегодняшняя дата
+            scheduled_date: new Date().toISOString().split('T')[0], 
             due_time: '',
             notes: '',
             is_rush: false,

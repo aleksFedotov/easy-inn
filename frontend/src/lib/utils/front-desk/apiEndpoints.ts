@@ -1,12 +1,16 @@
-import { TabType } from '@/components/front-desk/TabSelector';
+import { TabTypes } from "@/lib/types";
+import { TAB_TYPES } from "@/lib/constants";
 
-export const getBookingsEndpoint = (tab: TabType): string => {
+
+export type TabType = keyof TabTypes;
+
+export const getBookingsEndpoint = (tab: TabTypes[keyof TabTypes]): string => {
     switch (tab) {
-        case 'departures':
+        case TAB_TYPES.DEPARTURES:
             return '/api/bookings/departures-on-date/';
-        case 'arrivals':
+        case TAB_TYPES.ARRIVALS:
             return '/api/bookings/arrivals-on-date/';
-        case 'stays':
+        case TAB_TYPES.STAYS:
             return '/api/bookings/stays-on-date/';
         default:
             throw new Error(`Unknown tab: ${tab}`);

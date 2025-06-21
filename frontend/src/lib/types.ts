@@ -172,3 +172,9 @@ export interface RoomStatusesApi {
     number: number;          
     status: 'free' | 'occupied' | 'waiting_checkout' | 'dirty' | 'assigned' | 'in_progress' |'waiting_inspection' |'clean' |'on_maintenance'  ;              
 }
+
+export interface TabTypes {
+    DEPARTURES: string;
+    ARRIVALS: string;
+    STAYS: string;
+}

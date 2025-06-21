@@ -82,7 +82,7 @@ export default function ManageUsersPage() {
 
 
     // Функция для загрузки списка пользователей с бэкенда
-    const fetchUsers = async (params: UserListParams = {}) => {
+    const fetchUsers = React.useCallback(async (params: UserListParams = {}) => {
         setIsLoading(true);
         setErrorDialogMessage(null);
         setIsErrorDialogOpen(false);
@@ -125,7 +125,7 @@ export default function ManageUsersPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [sorting]);
 
     // Эффект для запуска загрузки данных при монтировании компонента или изменении сортировки
     useEffect(() => {
@@ -139,7 +139,7 @@ export default function ManageUsersPage() {
                 setIsErrorDialogOpen(true);
             }
         }
-    }, [user, isAuthLoading, sorting]);
+    }, [user, isAuthLoading, sorting, fetchUsers]);
 
 
     // Функции для управления Sheet и формами

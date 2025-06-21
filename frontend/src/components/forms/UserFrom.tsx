@@ -46,7 +46,7 @@ const userFormSchema = baseUserSchema.extend({
     confirmPassword: z.string().optional().or(z.literal('')),
     newPassword: z.string().optional().or(z.literal('')),
     confirmNewPassword: z.string().optional().or(z.literal('')),
-     isEditMode: z.boolean().default(false),
+    isEditMode: z.boolean(),
 }).superRefine((data, ctx) => {
     // Валидация для режима создания
     if (!data.isEditMode) {
